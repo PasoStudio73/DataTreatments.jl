@@ -1,5 +1,7 @@
 module DataTreatments
 
-# Write your package code here.
+export movingwindow, wholewindow, splitwindow, adaptivewindow
+export @evalwindow
+include("slidingwindow.jl")
 
 end
