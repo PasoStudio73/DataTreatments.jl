@@ -2,7 +2,7 @@ function _aggregate(
     X          :: AbstractArray,
     intervals  :: Tuple{Vararg{Vector{UnitRange{Int64}}}};
     reducefunc :: Base.Callable=mean
-)
+)::AbstractArray
     aggregated = similar(X, length.(intervals)...)
 
     @inbounds map!(aggregated, CartesianIndices(aggregated)) do cart_idx
@@ -10,6 +10,19 @@ function _aggregate(
         reducefunc(@view X[ranges...])
     end
 end
+
+function aggregate(
+    X::AbstractArray,
+    intervals  :: Tuple{Vararg{Vector{UnitRange{Int64}}}};
+    reducefunc :: Base.Callable=mean   
+)::AbstractArray
+    Xresult = similar(X)
+    Threads.@threads for i in eachindex(X)
+        @inbounds Xresult[i] = _aggregate(X[i], intervals; reducefunc)
+    end
+    return Xresult
+end
+
 
 # ---------------------------------------------------------------------------- #
 #                                  utilities                                   #
@@ -36,29 +49,9 @@ function apply_vectorized!(
     @views @inbounds X[!, col_name] = collect(feature_func(col[interval]) for col in X_col)
 end
 
-# apply a reduction function across multiple intervals for modal algorithm preparation
-function apply_vectorized!(
-    X::DataFrame,
-    X_col::Vector{<:Vector{<:Real}},
-    reducefunc_func::Function,
-    col_name::Symbol,
-    intervals::Vector{UnitRange{Int64}}
-)::Vector{<:Vector{<:Real}}
-    X[!, col_name] = [
-        [reducefunc_func(@view(ts[interval])) for interval in intervals]
-        for ts in X_col
-    ]
-end
-
-# check dataframe
-is_multidim_dataframe(X::DataFrame)::Bool =
-    any(eltype(col) <: AbstractArray for col in eachcol(X))
-
 # ---------------------------------------------------------------------------- #
 #                                 constructors                                 #
 # ---------------------------------------------------------------------------- #
-using DataFrames
-
 function treatment(
     # X           :: AbstractDataFrame,
     X           :: AbstractArray,
@@ -119,54 +112,24 @@ intervals = @evalwindow X wfunc
 X = rand(200, 120)
 intervals = @evalwindow X splitwindow(nwindows=5) splitwindow(nwindows=3)
 
-Xm = fill(X, 10, 10)
+Xm = fill(X, 100, 1000)
 Xd = DataFrame(Xm, :auto)
 
 #####################################################################
-
-
-
-    # # propositional models
-    # isempty(features) && (treat = :none)
-
-function _aggregate(
-    X          :: AbstractArray,
-    intervals  :: Tuple{Vararg{Vector{UnitRange{Int64}}}};
-    reducefunc :: Base.Callable=mean
-)
-    aggregated = similar(X, length.(intervals)...)
-
-    @inbounds map!(aggregated, CartesianIndices(aggregated)) do cart_idx
-        ranges = ntuple(i -> intervals[i][cart_idx[i]], length(intervals))
-        reducefunc(@view X[ranges...])
+@btime begin
+    Xresult1 = similar(Xm)
+    for i in eachindex(Xm)
+        @inbounds Xresult1[i] = _aggregate(Xm[i], intervals)
     end
-end
-# 28.552 μs (172 allocations: 5.95 KiB)
+end;
+# 2.138 s (498981 allocations: 25.16 MiB)
 
+@btime begin
+    Xresult1 = similar(Xm)
+    Threads.@threads for i in eachindex(Xm)
+        @inbounds Xresult1[i] = _aggregate(Xm[i], intervals)
+    end
+end;
+# 325.657 ms (299581 allocations: 20.60 MiB)
 
-    #     for f in features, v in vnames
-    #         if length(intervals) == 1
-    #             # single window: apply to whole time series
-    #             col_name = Symbol("$(f)($(v))")
-    #             apply_vectorized!(_X, X[!, v], f, col_name)
-    #         else
-    #             # multiple windows: apply to each interval
-    #             for (i, interval) in enumerate(intervals)
-    #                 col_name = Symbol("$(f)($(v))w$(i)")
-    #                 apply_vectorized!(_X, X[!, v], f, col_name, interval)
-    #             end
-    #         end
-    #     end
-
-    # # modal models
-    # elseif treat == :reducesize
-    #     for v in vnames
-    #         apply_vectorized!(_X, X[!, v], reducefunc, v, intervals)
-    #     end
-        
-    # elseif treat == :none
-    #     _X = X
-
-    # else
-    #     error("Unknown treatment type: $treat")
-    # end
+@btime aggregate(Xm, intervals)

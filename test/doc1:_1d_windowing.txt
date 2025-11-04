@@ -1,56 +1,4 @@
-function slidingwindow(
-    npoints :: T;
-    winsize :: T=0,
-    winstep :: T=0
-)::Vector{UnitRange{Int64}} where {T<:Int64}
-    starts  = collect(range(1, npoints, step=winstep))
-    indices = Vector{UnitRange{Int64}}(undef, length(starts))
-
-    @inbounds @simd for i in eachindex(starts)
-        r = starts[i]
-        indices[i] = r:r + winsize - 1
-    end
-
-    # force_coverage
-    filter!((w) -> w.start in 1:npoints && w.stop in 1:npoints, indices)
-end
-
-function adaptedwindow(
-    npoints  :: T;
-    nwindows :: T,
-    overlap  :: Float64=0.0
-)::Vector{UnitRange{Int64}} where {T<:Int64}
-    r_overlap = round(Int64, npoints / nwindows * overlap)
-    starts = round.(Int64, collect(range(1, npoints+1, step=npoints/nwindows)))
-    indices = Vector{UnitRange{Int64}}(undef, nwindows)
-
-    @inbounds @simd for i in 1:nwindows
-        if i == 1
-            indices[i] = starts[i] : starts[i+1] -1 + r_overlap
-        elseif i == nwindows
-            indices[i] = starts[i] - r_overlap : starts[i+1] - 1
-        else
-            indices[i] = starts[i] - r_overlap : starts[i+1] - 1 + r_overlap
-        end
-    end
-
-    return indices
-end
-
-movingwindow(;winsize::Int64, winstep::Int64=0) = npoints -> slidingwindow(npoints; winsize, winstep)
-wholewindow() = npoints -> slidingwindow(npoints; winsize=npoints, winstep=npoints)
-splitwindow(;nwindows::Int64) = npoints -> adaptedwindow(npoints; nwindows)
-adaptivewindow(;nwindows::Int64, overlap::Float64=0.0) = npoints -> adaptedwindow(npoints; nwindows, overlap)
-
-macro evalwindow(x, winfunc)
-    quote
-        _x = $(esc(x))
-        _x isa Int64 ?
-            $(esc(winfunc))(_x) :
-            $(esc(winfunc))(length(_x))
-    end
-end
-
+using DataTreatments
 using SoleXplorer
 
 A = rand(1150, 1150);
@@ -132,3 +80,22 @@ end
     DT_adaptivewindow = @evalwindow B DT_w
 end
 # 167.503 ns (6 allocations: 544 bytes)
+
+#####################################################################
+@btime begin
+    Xresult1 = similar(Xm)
+    for i in eachindex(Xm)
+        @inbounds Xresult1[i] = _aggregate(Xm[i], intervals)
+    end
+end;
+# 2.138 s (498981 allocations: 25.16 MiB)
+
+@btime begin
+    Xresult1 = similar(Xm)
+    Threads.@threads for i in eachindex(Xm)
+        @inbounds Xresult1[i] = _aggregate(Xm[i], intervals)
+    end
+end;
+# 325.657 ms (299581 allocations: 20.60 MiB)
+
+@btime aggregate(Xm, intervals)
