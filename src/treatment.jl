@@ -1,109 +1,86 @@
-function _aggregate(
+core_eltype(x) = eltype(x) <: AbstractArray ? core_eltype(eltype(x)) : eltype(x)
+
+# ---------------------------------------------------------------------------- #
+#                            reducesize functions                              #
+# ---------------------------------------------------------------------------- #
+function applyfeat(
     X          :: AbstractArray,
     intervals  :: Tuple{Vararg{Vector{UnitRange{Int64}}}};
     reducefunc :: Base.Callable=mean
 )::AbstractArray
-    aggregated = similar(X, length.(intervals)...)
+    reduced = similar(X, length.(intervals)...)
 
-    @inbounds map!(aggregated, CartesianIndices(aggregated)) do cart_idx
+    @inbounds map!(reduced, CartesianIndices(reduced)) do cart_idx
         ranges = ntuple(i -> intervals[i][cart_idx[i]], length(intervals))
         reducefunc(@view X[ranges...])
     end
 end
 
+# function reducesize(
+#     X::AbstractArray,
+#     intervals  :: Tuple{Vararg{Vector{UnitRange{Int64}}}};
+#     reducefunc :: Base.Callable=mean   
+# )::AbstractArray
+#     Xresult = similar(X)
+
+#     Threads.@threads for i in eachindex(X)
+#         @inbounds Xresult[i] = applyfeat(X[i], intervals; reducefunc)
+#     end
+#     return Xresult
+# end
+
+# ---------------------------------------------------------------------------- #
+#                             aggregate functions                              #
+# ---------------------------------------------------------------------------- #
+# Internal function that computes aggregate on a single array element
+# function _aggregate(
+#     X        :: AbstractArray;
+#     features :: Tuple{Vararg{Base.Callable}}=(mean,)
+# )::AbstractArray
+#     @views @inbounds collect(f(X) for f in features)
+# end
+
 function aggregate(
-    X::AbstractArray,
+    X          :: AbstractArray,
     intervals  :: Tuple{Vararg{Vector{UnitRange{Int64}}}};
-    reducefunc :: Base.Callable=mean   
-)::AbstractArray
+    reducefunc :: Base.Callable=mean
+)
     Xresult = similar(X)
     Threads.@threads for i in eachindex(X)
-        @inbounds Xresult[i] = _aggregate(X[i], intervals; reducefunc)
+        @inbounds Xresult[i] = applyfeat(X[i], intervals; reducefunc)
     end
     return Xresult
 end
 
-
-# ---------------------------------------------------------------------------- #
-#                                  utilities                                   #
-# ---------------------------------------------------------------------------- #
-# apply a feature reduce function to all time-series in a column
-function apply_vectorized!(
-    X::DataFrame,
-    X_col::Vector{<:Vector{<:Real}},
-    feature_func::Function,
-    col_name::Symbol
-)::Vector{<:Real}
-    @views @inbounds X[!, col_name] = collect(feature_func(col) for col in X_col)
-end
-
-# apply a feature function to a specific time interval within each time-series
-# - interval: time range to extract features from (e.g., 1:50 for first 50 points)
-function apply_vectorized!(
-    X::DataFrame,
-    X_col::Vector{<:Vector{<:Real}},
-    feature_func::Function,
-    col_name::Symbol,
-    interval::UnitRange{Int64}
-)::Vector{<:Real}
-    @views @inbounds X[!, col_name] = collect(feature_func(col[interval]) for col in X_col)
+function reducesize(
+    X         :: AbstractArray,
+    intervals :: Tuple{Vararg{Vector{UnitRange{Int64}}}};
+    features  :: Tuple{Vararg{Base.Callable}}=(mean,),
+)
+    nwindows = prod(length.(intervals))
+    nfeats = nwindows * length(features)
+    Xresult = Array{core_eltype(Xm)}(undef, size(X, 1), size(X, 2) * nfeats)
+    
+    @inbounds Threads.@threads for colidx in axes(X, 2)
+        for rowidx in axes(X,1)
+            reduced = mapreduce(vcat, features) do feat
+                vec(applyfeat(X[rowidx,colidx], intervals; reducefunc=feat))
+            end
+            
+            base_idx = (colidx - 1) * nfeats
+            @inbounds copyto!(view(Xresult, rowidx, base_idx+1:base_idx+nfeats), vec(reduced))
+        end
+    end
+    return Xresult
 end
 
 # ---------------------------------------------------------------------------- #
 #                                 constructors                                 #
 # ---------------------------------------------------------------------------- #
-function treatment(
-    # X           :: AbstractDataFrame,
-    X           :: AbstractArray,
-    treat       :: Symbol,
-    intervals   :: Tuple{Vararg{Vector{UnitRange{Int64}}}};
-    features    :: Tuple{Vararg{Base.Callable}}=(mean,),
-    reducefunc  :: Base.Callable=mean
-)
-    # is_multidim_dataframe(X) || throw(ArgumentError("Input DataFrame " * 
-    #     "does not contain multidimensional data."))
-
-    # vnames = propertynames(X)
-    # _X = DataFrame()
-    # intervals = win(length(X[1,1]))
-
-    # # propositional models
-    # isempty(features) && (treat = :none)
-
-    # if treat == :aggregate
-    #     for f in features, v in vnames
-    #         if length(intervals) == 1
-    #             # single window: apply to whole time series
-    #             col_name = Symbol("$(f)($(v))")
-    #             apply_vectorized!(_X, X[!, v], f, col_name)
-    #         else
-    #             # multiple windows: apply to each interval
-    #             for (i, interval) in enumerate(intervals)
-    #                 col_name = Symbol("$(f)($(v))w$(i)")
-    #                 apply_vectorized!(_X, X[!, v], f, col_name, interval)
-    #             end
-    #         end
-    #     end
-
-    # # modal models
-    # elseif treat == :reducesize
-    #     for v in vnames
-    #         apply_vectorized!(_X, X[!, v], reducefunc, v, intervals)
-    #     end
-        
-    # elseif treat == :none
-    #     _X = X
-
-    # else
-    #     error("Unknown treatment type: $treat")
-    # end
-
-    # return _X, TreatmentInfo(features, win, treat, reducefunc)
-end
-
-using DataFrames
+# using DataFrames
 using DataTreatments
 reducefunc = mean
+features = (maximum, minimum, mean)
 
 X = rand(1000)
 wfunc = splitwindow(nwindows=10)
@@ -113,23 +90,165 @@ X = rand(200, 120)
 intervals = @evalwindow X splitwindow(nwindows=5) splitwindow(nwindows=3)
 
 Xm = fill(X, 100, 1000)
-Xd = DataFrame(Xm, :auto)
+# Xd = DataFrame(Xm, :auto)
 
 #####################################################################
-@btime begin
-    Xresult1 = similar(Xm)
-    for i in eachindex(Xm)
-        @inbounds Xresult1[i] = _aggregate(Xm[i], intervals)
-    end
-end;
-# 2.138 s (498981 allocations: 25.16 MiB)
+@btime reducesize(Xm, intervals)
 
 @btime begin
-    Xresult1 = similar(Xm)
+    nwindows = prod(length.(intervals))
+    nfeats = nwindows * length(features)
+    Xresult = Array{core_eltype(Xm)}(undef, size(Xm, 1), size(Xm, 2) * nfeats)
     Threads.@threads for i in eachindex(Xm)
-        @inbounds Xresult1[i] = _aggregate(Xm[i], intervals)
+        idx = CartesianIndices(Xm)[i]
+        row, col = idx[1], idx[2]
+        @views @inbounds for j in eachindex(features)
+            reduced = applyfeat(Xm[i], intervals; reducefunc=features[j])
+            col_start = (col - 1) * nfeats + (j - 1) * nwindows + 1
+            col_end = col_start + nwindows - 1
+            @inbounds copyto!(view(Xresult, row, col_start:col_end), vec(reduced))
+        end
     end
-end;
-# 325.657 ms (299581 allocations: 20.60 MiB)
+end
+# 2.293 s (1698556 allocations: 79.33 MiB)
+i,j = 1,1
+@btime [applyfeat(elem, intervals; reducefunc=features[j]) for elem in Xm[:, i]]
+# 3.954 ms (208 allocations: 20.62 KiB)
+@btime [vec(applyfeat(elem, intervals; reducefunc=features[j])) for elem in Xm[:, i]]
+# 3.939 ms (308 allocations: 23.75 KiB)
 
-@btime aggregate(Xm, intervals)
+@btime a=[applyfeat(elem, intervals; reducefunc=features[j]) for elem in Xm[:, i]]
+# 3.915 ms (208 allocations: 20.62 KiB)
+@btime begin
+    result = Matrix{core_eltype(Xm)}(undef, size(Xm, 1), prod(length.(intervals)))
+    for (idx, elem) in enumerate(Xm[:, i])
+        result[idx, :] = vec(applyfeat(elem, intervals; reducefunc=features[j]))
+    end
+    result
+end
+# 3.962 ms (709 allocations: 47.21 KiB)
+@btime begin
+    result = Matrix{core_eltype(Xm)}(undef, size(Xm, 1), prod(length.(intervals)))
+    Threads.@threads for idx in axes(Xm, 1)
+        result[idx, :] = vec(applyfeat(Xm[idx, i], intervals; reducefunc=features[j]))
+    end
+    result
+end
+# 895.589 μs (494 allocations: 40.45 KiB)
+@btime begin
+    result = Matrix{core_eltype(Xm)}(undef, size(Xm, 1), prod(length.(intervals)))
+    Threads.@threads for idx in axes(Xm, 1)
+        @inbounds @views result[idx, :] = vec(applyfeat(Xm[idx, i], intervals; reducefunc=features[j]))
+    end
+    result
+end
+# 882.436 μs (494 allocations: 40.45 KiB)
+@btime begin
+    nrows = size(Xm, 1)
+    nthreads = Threads.nthreads()
+    chunk_size = cld(nrows, nthreads)
+    result = Matrix{core_eltype(Xm)}(undef, nrows, prod(length.(intervals)))
+    
+    Threads.@threads :static for chunk_start in 1:chunk_size:nrows
+        chunk_end = min(chunk_start + chunk_size - 1, nrows)
+        for idx in chunk_start:chunk_end
+            @inbounds result[idx, :] = vec(applyfeat(Xm[idx, i], intervals; reducefunc=features[j]))
+        end
+    end
+    result
+end
+# 884.633 μs (494 allocations: 41.65 KiB)
+
+@btime reduce(hcat, vec.(a))'
+# 1.516 μs (107 allocations: 15.90 KiB)
+@btime reshape(reduce(vcat, vec.(a)), length(a), :)
+# 1.645 μs (109 allocations: 16.82 KiB)
+@btime mapreduce(vec, hcat, a)'
+# 40.845 μs (383 allocations: 606.11 KiB)
+@btime begin
+    result = Matrix{Float64}(undef, 100, 15)
+    for i in eachindex(a)
+        result[i, :] = vec(a[i])
+    end
+end
+# 13.505 μs (703 allocations: 32.13 KiB)
+
+@btime begin
+    nwindows = prod(length.(intervals))
+    result = stack(
+        vec(applyfeat(Xm[row, col], intervals; reducefunc=feat))
+        for row in axes(Xm, 1)
+        for col in axes(Xm, 2)
+        for feat in features
+    )
+    reshape(result, size(Xm, 1), :)
+end
+
+@btime begin
+    nwindows = prod(length.(intervals))
+    vecs = [vec(applyfeat(Xm[row, col], intervals; reducefunc=feat))
+            for row in axes(Xm, 1), col in axes(Xm, 2), feat in features]
+    # Flatten the last two dimensions and stack
+    reduce(hcat, vec(vecs))'
+end
+# 11.366 s (1901978 allocations: 122.10 MiB)
+
+@btime begin
+    nwindows = prod(length.(intervals))
+    nfeats = nwindows * length(features)
+    Xresult = Array{core_eltype(Xm)}(undef, size(Xm, 1), size(Xm, 2) * nfeats)
+    Threads.@threads for i in eachindex(Xm)
+        idx = CartesianIndices(Xm)[i]
+        row, col = idx[1], idx[2]
+        @views @inbounds for j in eachindex(features)
+            reduced = applyfeat(Xm[i], intervals; reducefunc=features[j])
+            col_start = (col - 1) * nfeats + (j - 1) * nwindows + 1
+            col_end = col_start + nwindows - 1
+            @inbounds copyto!(view(Xresult, row, col_start:col_end), vec(reduced))
+        end
+    end
+end
+# 1.693 s (4775959 allocations: 203.35 MiB)
+
+@btime begin
+    nwindows = prod(length.(intervals))
+    nfeats = nwindows * length(features)
+    Xresult = Array{core_eltype(Xm)}(undef, size(Xm, 1), size(Xm, 2) * nfeats)
+    
+    # Threads.@threads for i in eachindex(Xm)
+    @inbounds Threads.@threads for colidx in axes(Xm, 2)
+        for rowidx in axes(Xm,1)
+        # idx = CartesianIndices(Xm)[i]
+        # row, col = idx[1], idx[2]
+
+        all_reduced = mapreduce(vcat, features) do feat
+            vec(applyfeat(Xm[rowidx,colidx], intervals; reducefunc=feat))
+        end
+        
+        col_start = (colidx - 1) * nfeats + 1
+        col_end = col_start + nfeats - 1
+        @inbounds copyto!(view(Xresult, rowidx, col_start:col_end), all_reduced)
+        end
+    end
+    # Xresult
+end
+# 1.704 s (2595703 allocations: 211.26 MiB)
+
+@btime begin
+    nwindows = prod(length.(intervals))
+    nfeats = nwindows * length(features)
+    Xresult = Array{core_eltype(Xm)}(undef, size(Xm, 1), size(Xm, 2) * nfeats)
+    
+    @inbounds Threads.@threads for colidx in axes(Xm, 2)
+        for rowidx in axes(Xm,1)
+            reduced = mapreduce(vcat, features) do feat
+                vec(applyfeat(Xm[rowidx,colidx], intervals; reducefunc=feat))
+            end
+            
+            base_idx = (colidx - 1) * nfeats
+            @inbounds copyto!(view(Xresult, rowidx, base_idx+1:base_idx+nfeats), vec(reduced))
+        end
+    end
+    Xresult
+end
+# 1.665 s (2995703 allocations: 218.89 MiB)

@@ -85,7 +85,7 @@ end
 @btime begin
     Xresult1 = similar(Xm)
     for i in eachindex(Xm)
-        @inbounds Xresult1[i] = _aggregate(Xm[i], intervals)
+        @inbounds Xresult1[i] = _reducesize(Xm[i], intervals)
     end
 end;
 # 2.138 s (498981 allocations: 25.16 MiB)
@@ -93,7 +93,7 @@ end;
 @btime begin
     Xresult1 = similar(Xm)
     Threads.@threads for i in eachindex(Xm)
-        @inbounds Xresult1[i] = _aggregate(Xm[i], intervals)
+        @inbounds Xresult1[i] = _reducesize(Xm[i], intervals)
     end
 end;
 # 325.657 ms (299581 allocations: 20.60 MiB)
