@@ -13,6 +13,7 @@ println("Julia version: ", VERSION)
 
 test_suites = [
     ("Windowing", ["slidingwindow.jl",]),
+    ("Treatment", ["treatment.jl",]),
 ]
 
 @testset "DataTreatments.jl" begin
