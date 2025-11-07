@@ -13,14 +13,17 @@ export mode_5, mode_10, embedding_dist, acf_timescale, acf_first_min, ami2,
        transition_variance, periodicity, base_set, catch9, catch22_set, complete_set
 include("featureset.jl")
 
-include("normalize.jl")
+# export normalize_dataset
+# include("normalize.jl")
 
 export movingwindow, wholewindow, splitwindow, adaptivewindow
 export @evalwindow
 include("slidingwindow.jl")
 
 export applyfeat, aggregate, reducesize
-export DataTreatment
 include("treatment.jl")
+
+export DataTreatment
+include("constructor.jl")
 
 end
