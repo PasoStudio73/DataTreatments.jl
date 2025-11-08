@@ -78,7 +78,6 @@ get_nwin(fid)     # 3
 
 # See Also
 - [`DataTreatment`](@ref): Main container using FeatureId for metadata
-- [`get_vname`](@ref), [`get_feature`](@ref), [`get_nwin`](@ref): Accessor functions
 """
 struct FeatureId{T<:ValidVnames} <: AbstractFeatureId
     vname :: Symbol
