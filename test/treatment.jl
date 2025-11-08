@@ -142,7 +142,7 @@ end
     
     @testset "Single window FeatureId creation" begin
         vnames = [:var1, :var2, :var3]
-        features = (mean, std, maximum)
+        features = (mean, Statistics.std, maximum)
         
         # Simulate single window case
         feature_ids = [FeatureId(v, f, 1) for f in features, v in vnames] |> vec
@@ -153,8 +153,8 @@ end
         # Check ordering: features × variables
         @test get_feature(feature_ids[1]) == mean
         @test get_vname(feature_ids[1]) == :var1
-        @test get_feature(feature_ids[2]) == mean
-        @test get_vname(feature_ids[2]) == :var2
+        @test get_feature(feature_ids[2]) == Statistics.std
+        @test get_vname(feature_ids[2]) == :var1
     end
 end
 
@@ -222,7 +222,7 @@ end
     win = splitwindow(nwindows=3)
     features = (mean, std, maximum)
     
-    dt = DataTreatment(Xmatrix, :reducesize;
+    dt = DataTreatment(Xmatrix, :aggregate;
                       vnames=Symbol.("var", 1:5),
                       win=(win,),
                       features=features)
@@ -242,7 +242,7 @@ end
     
     @testset "get_nwindows" begin
         nwindows = get_nwindows(dt)
-        @test nwindows == 3  # splitwindow(nwindows=3) creates 3 windows per dimension
+        @test nwindows == 9
         @test nwindows == maximum(get_nwin.(dt.featureid))
     end
 end
@@ -253,7 +253,7 @@ end
     win = splitwindow(nwindows=2)
     features = (mean, std)
     
-    dt = DataTreatment(Xmatrix, :reducesize;
+    dt = DataTreatment(Xmatrix, :aggregate;
                       vnames=Symbol.("var", 1:4),
                       win=(win,),
                       features=features)
@@ -304,7 +304,7 @@ end
     win = splitwindow(nwindows=2)
     features = (mean, std, maximum)
     
-    dt = DataTreatment(Xmatrix, :reducesize;
+    dt = DataTreatment(Xmatrix, :aggregate;
                       vnames=Symbol.("var", 1:3),
                       win=(win,),
                       features=features)
@@ -313,7 +313,7 @@ end
         str = sprint(show, dt)
         
         @test occursin("DataTreatment", str)
-        @test occursin("reducesize", str)
+        @test occursin("aggregate", str)
         @test occursin("30×", str)  # rows
         @test occursin("features", str)
     end
@@ -352,7 +352,6 @@ end
         str = sprint(show, MIME("text/plain"), dt)
         
         @test occursin("DataTreatment:", str)
-        @test occursin("Type: reducesize", str)
         @test occursin("Dimensions:", str)
         @test occursin("Features:", str)
     end

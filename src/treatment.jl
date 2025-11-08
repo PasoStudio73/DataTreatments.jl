@@ -136,18 +136,24 @@ function aggregate(
     features  :: Tuple{Vararg{Base.Callable}}=(mean,),
 )::AbstractArray
     nwindows = prod(length.(intervals))
-    nfeats = nwindows * length(features)
-    Xresult = Array{core_eltype(X)}(undef, size(X, 1), size(X, 2) * nfeats)
+    nfeats   = nwindows * length(features)
+    Xresult  = Array{core_eltype(X)}(undef, size(X, 1), size(X, 2) * nfeats)
     
     @inbounds Threads.@threads for colidx in axes(X, 2)
-        for rowidx in axes(X,1)
-            reduced = mapreduce(vcat, features) do feat
-                vec(applyfeat(X[rowidx,colidx], intervals; reducefunc=feat))
+        for rowidx in axes(X, 1)
+            out_idx = (colidx - 1) * nfeats + 1
+            
+            for feat in features
+                for cart_idx in CartesianIndices(length.(intervals))
+                    ranges = ntuple(i -> intervals[i][cart_idx[i]], length(intervals))
+                    window_view = @views X[rowidx, colidx][ranges...]
+                    Xresult[rowidx, out_idx] = feat(reshape(window_view, :))
+                    out_idx += 1
+                end
             end
-            @show typeof(reduced)
-            base_idx = (colidx - 1) * nfeats
-            @inbounds copyto!(view(Xresult, rowidx, base_idx+1:base_idx+nfeats), vec(reduced))
         end
     end
+    
     return Xresult
 end
+
