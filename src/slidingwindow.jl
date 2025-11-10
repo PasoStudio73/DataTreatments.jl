@@ -196,13 +196,6 @@ X = rand(100, 120, 80)
 windows = @evalwindow X splitwindow(nwindows=5)
 ```
 
-## Use with processing functions
-```julia
-X = rand(200, 120)
-intervals = @evalwindow X splitwindow(nwindows=4) splitwindow(nwindows=3)
-result = applyfeat(X, intervals; reducefunc=mean)
-```
-
 # See Also
 - [`movingwindow`](@ref): Fixed-size sliding windows
 - [`splitwindow`](@ref): Equal non-overlapping windows

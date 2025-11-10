@@ -17,7 +17,7 @@ export movingwindow, wholewindow, splitwindow, adaptivewindow
 export @evalwindow
 include("slidingwindow.jl")
 
-export applyfeat, aggregate, reducesize
+export reducesize, aggregate
 include("treatment.jl")
 
 # ---------------------------------------------------------------------------- #
@@ -268,7 +268,6 @@ length(dt)    # Number of features
 
 # See Also
 - [`FeatureId`](@ref): Individual feature metadata
-- [`applyfeat`](@ref): Single array feature extraction
 - [`aggregate`](@ref): Multi-element aggregation
 - [`reducesize`](@ref): Flatten to tabular format
 - [`@evalwindow`](@ref): Window evaluation macro

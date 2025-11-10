@@ -4,38 +4,6 @@ using DataTreatments
 using DataFrames
 using Statistics
 
-@testset "applyfeat - Single Array" begin
-    @testset "1D array" begin
-        X = rand(100)
-        wfunc = splitwindow(nwindows=10)
-        intervals = @evalwindow X wfunc
-        result = applyfeat(X, intervals)
-        
-        @test size(result) == (10,)
-        @test eltype(result) == Float64
-    end
-    
-    @testset "2D array with default mean" begin
-        X = rand(100, 120)
-        wfunc = splitwindow(nwindows=3)
-        intervals = @evalwindow X wfunc
-        result = applyfeat(X, intervals)
-        
-        @test size(result) == (3, 3)
-        @test eltype(result) == Float64
-    end
-    
-    @testset "2D array with custom reducefunc" begin
-        X = rand(100, 120)
-        wfunc = splitwindow(nwindows=3)
-        intervals = @evalwindow X wfunc
-        result = applyfeat(X, intervals; reducefunc=maximum)
-        
-        @test size(result) == (3, 3)
-        @test all(result .>= 0) && all(result .<= 1)
-    end
-end
-
 @testset "aggregate - Flatten to Tabular" begin
     X = rand(100, 120)
     Xmatrix = fill(X, 100, 10)

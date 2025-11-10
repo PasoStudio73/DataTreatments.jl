@@ -4,54 +4,9 @@
 # recursively extract the core element type from nested array types.
 core_eltype(x) = eltype(x) <: AbstractArray ? core_eltype(eltype(x)) : eltype(x)
 
-# ---------------------------------------------------------------------------- #
-#                             applyfeat functions                              #
-# ---------------------------------------------------------------------------- #
-"""
-    applyfeat(X::AbstractArray, intervals::Tuple{Vararg{Vector{UnitRange{Int64}}}}[; reducefunc::Base.Callable=mean]) -> AbstractArray
-
-Apply a reduction function to windows defined by intervals over an array.
-
-This function performs dimensionality reduction on an n-dimensional array by dividing it into 
-windows and applying an aggregation function to each window.
-
-A reduction function (also called aggregation function) is a function that takes 
-multiple values and returns a single summary value, such as `mean`, `maximum`, `minimum`, 
-`std`, `median`, or `mode`.
-
-# Arguments
-- `X::AbstractArray`: Input array to process
-- `intervals::Tuple{Vararg{Vector{UnitRange{Int64}}}}`: Tuple of vectors, each containing ranges 
-  defining windows along each dimension of `X`
-- `reducefunc::Base.Callable=mean`: Function to apply to each window (default: `mean`)
-
-# Returns
-- `AbstractArray`: Reduced array with dimensions matching the number of windows in each dimension
-
-# Example
-```julia
-X = rand(100, 120)
-wfunc = splitwindow(nwindows=10)
-intervals = @evalwindow X wfunc
-result = applyfeat(X, intervals; reducefunc=maximum)
-# Returns a 2×3 matrix containing maximum values for each window
-```
-"""
-function applyfeat(
-    X          :: AbstractArray,
-    intervals  :: Tuple{Vararg{Vector{UnitRange{Int64}}}};
-    reducefunc :: Base.Callable=mean
-)::AbstractArray
-    output_dims = length.(intervals)
-    reduced = similar(X, output_dims...)
-
-    @inbounds for cart_idx in CartesianIndices(output_dims)
-        ranges = ntuple(i -> intervals[i][cart_idx[i]], length(intervals))
-        window_view = @views X[ranges...]
-        reduced[cart_idx] = reducefunc(reshape(window_view, :))
-    end
-    
-    return reduced
+# extract window ranges from intervals and cartesian index
+@inline function get_window_ranges(intervals::Tuple, cart_idx::CartesianIndex)
+    ntuple(i -> intervals[i][cart_idx[i]], length(intervals))
 end
 
 # ---------------------------------------------------------------------------- #
@@ -63,7 +18,6 @@ end
 Apply window-based size-reduction to each element of an array.
 
 This function is designed for arrays where each element is itself an array (e.g., `Matrix{Matrix{Float64}}`).
-It applies `applyfeat` to each element.
 
 # Arguments
 - `X::AbstractArray`: Input array where each element is an array to be size-reduced
@@ -87,10 +41,22 @@ function reducesize(
     intervals  :: Tuple{Vararg{Vector{UnitRange{Int64}}}};
     reducefunc :: Base.Callable=mean
 )::AbstractArray
+    output_dims = length.(intervals)
     Xresult = similar(X)
-    Threads.@threads for i in eachindex(X)
-        @inbounds Xresult[i] = applyfeat(X[i], intervals; reducefunc)
+    cart_indices = CartesianIndices(output_dims)
+    
+    @inbounds Threads.@threads for i in 1:length(X)
+        element = X[i]
+        reduced = similar(element, output_dims...)
+        
+        for cart_idx in cart_indices
+            ranges = get_window_ranges(intervals, cart_idx)
+            reduced[cart_idx] = reducefunc(reshape(@views(element[ranges...]), :))
+        end
+        
+        Xresult[i] = reduced
     end
+
     return Xresult
 end
 
@@ -149,7 +115,7 @@ function aggregate(
             
             for feat in features
                 for cart_idx in CartesianIndices(length.(intervals))
-                    ranges = ntuple(i -> intervals[i][cart_idx[i]], length(intervals))
+                    ranges = get_window_ranges(intervals, cart_idx)
                     window_view = @views X[rowidx, colidx][ranges...]
                     Xresult[rowidx, out_idx] = feat(reshape(window_view, :))
                     out_idx += 1

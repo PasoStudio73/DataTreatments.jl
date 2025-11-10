@@ -11,7 +11,6 @@ DataTreatment
 # [Treatments](@id treatments)
 
 ```@docs
-applyfeat
 reducesize
 aggregate
 ```

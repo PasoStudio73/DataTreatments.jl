@@ -92,16 +92,6 @@ intervals = @evalwindow X splitwindow(nwindows=4) movingwindow(winsize=40, winst
 
 ### Feature Extraction Functions
 
-#### `applyfeat` - Apply Reduction to a Single Array
-```julia
-X = rand(200, 120)
-intervals = @evalwindow X splitwindow(nwindows=4)
-
-# Apply mean to each window
-result = applyfeat(X, intervals; reducefunc=mean)
-# Returns a 4×4 matrix (4 windows per dimension)
-```
-
 #### `reducesize` - Apply to Dataset Elements
 ```julia
 Xmatrix = fill(rand(200, 120), 100, 10)  # Dataset of matrices
@@ -195,7 +185,6 @@ println("Windows: $n_windows per dimension")
 - `wholewindow()` - Single window covering entire dimension
 
 ### Processing Functions
-- `applyfeat(X, intervals; reducefunc=mean)` - Apply reduction to single array
 - `aggregate(X, intervals; features=(mean,))` - Apply features to dataset elements
 - `reducesize(X, intervals; features=(mean,))` - Flatten to tabular format
 
