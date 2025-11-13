@@ -38,17 +38,50 @@ minmaxclip()::Function      = x -> _minmaxclip(minimum(x), maximum(x))
 # ---------------------------------------------------------------------------- #
 #                              normalize functions                             #
 # ---------------------------------------------------------------------------- #
-function element_norm(X::AbstractArray, n::Base.Callable)::AbstractArray
+"""
+    element_norm(X::AbstractArray, n::Base.Callable) -> AbstractArray
+
+Normalize a single array element using global statistics computed across all elements.
+
+# Arguments
+- `X::AbstractArray`: Input array of any dimension (vector, matrix, tensor, etc.)
+- `n::Base.Callable`: Normalization function constructor that computes parameters from data
+
+# Supported Normalization Methods
+- `zscore()`: Z-score normalization using mean and standard deviation
+- `sigmoid()`: Sigmoid transformation using mean and standard deviation  
+- `rescale()`: Min-max scaling to [0, 1] range
+- `center()`: Mean centering (subtract mean)
+- `unitenergy()`: Scale by root sum of squares
+- `unitpower()`: Scale by root mean square
+- `halfzscore()`: Z-score using minimum and half-standard deviation
+- `outliersuppress()`: Suppress outliers beyond threshold
+- `minmaxclip()`: Min-max scaling with clipping to [0, 1]
+
+# Returns
+- `AbstractArray`: Normalized array with same shape as input
+
+# Examples
+```julia
+X = rand(100, 50)
+X_norm = element_norm(X, zscore())      # Z-score normalization
+X_norm = element_norm(X, rescale())     # Min-max scaling
+X_norm = element_norm(X, center())      # Mean centering
+```
+"""
+function element_norm(X::AbstractArray{T}, n::Base.Callable)::AbstractArray where {T<:AbstractFloat}
     _X = Iterators.flatten(X)
     nfunc = n(collect(_X))
     [nfunc(X[idx]) for idx in CartesianIndices(X)]
 end
+element_norm(X::AbstractArray{T}, args...) where {T<:Real} = element_norm(Float64.(X), args...)
 
-function tabular_norm(X::AbstractArray, n::Base.Callable)::AbstractArray
+function tabular_norm(X::AbstractArray{T}, n::Base.Callable)::AbstractArray where {T<:AbstractFloat}
     cols = Iterators.flatten.(eachcol(X))
     nfuncs = @inbounds [n(collect(cols[i])) for i in eachindex(cols)]
     [nfuncs[idx[2]](X[idx]) for idx in CartesianIndices(X)]
 end
+tabular_norm(X::AbstractArray{T}, args...) where {T<:Real} = tabular_norm(Float64.(X), args...)
 
 @inline function _ds_norm!(Xn::AbstractArray, X::AbstractArray, nfunc)
     @inbounds @simd for i in eachindex(X, Xn)
@@ -57,7 +90,7 @@ end
     return Xn
 end
 
-function ds_norm(X::AbstractArray, n::Base.Callable)::AbstractArray
+function ds_norm(X::AbstractArray{T}, n::Base.Callable)::AbstractArray where {T<:AbstractFloat}
     # compute normalization functions for each column
     cols = Iterators.flatten.(eachcol(X))
     nfuncs = Vector{Function}(undef, length(cols))
@@ -76,3 +109,4 @@ function ds_norm(X::AbstractArray, n::Base.Callable)::AbstractArray
     
     return Xn
 end
+ds_norm(X::AbstractArray{T}, args...) where {T<:Real} = ds_norm(Float64.(X), args...)
