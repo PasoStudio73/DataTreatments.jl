@@ -1,7 +1,29 @@
 using Test
 using DataTreatments
+const DT = DataTreatments
 
 using Normalization
+
+# Standard z-score normalization
+X = rand(100, 50)
+X_norm = element_norm(X, zscore())
+# Result: mean ≈ 0, std ≈ 1
+
+# Robust z-score (resistant to outliers)
+X_robust = element_norm(X, zscore(method=:robust))
+# Result: median ≈ 0, MAD ≈ 1
+
+# Half-normal z-score
+X_half = element_norm(X, zscore(method=:half))
+# Result: minimum ≈ 0, scaled by half-standard deviation
+
+# Tabular normalization (column-wise)
+X_tab = tabular_norm(X, zscore())
+# Each column: mean ≈ 0, std ≈ 1
+
+# Row-wise normalization
+X_row = tabular_norm(X, zscore(); dim=:row)
+# Each row: mean ≈ 0, std ≈ 1
 
 # ---------------------------------------------------------------------------- #
 #                             tabular normalization                            #
@@ -28,13 +50,13 @@ zscore_half = tabular_norm(a, zscore(method=:half))
 @test_nowarn tabular_norm(a, sigmoid())
 
 # ---------------------------------------------------------------------------- #
-norm_norm = tabular_norm(a, norm())
+norm_norm = tabular_norm(a, pnorm())
 @test isapprox(norm_norm, [0.847998 0.0966736 0.635999; 0.317999 0.483368 0.741999; 0.423999 0.870063 0.212], atol=1e-6)
 
-norm_norm = tabular_norm(a, norm(p=4))
+norm_norm = tabular_norm(a, pnorm(p=4))
 @test isapprox(norm_norm, [0.980428 0.108608 0.768635; 0.36766 0.543042 0.896741; 0.490214 0.977475 0.256212], atol=1e-5)
 
-norm_norm = tabular_norm(a, norm(p=Inf))
+norm_norm = tabular_norm(a, pnorm(p=Inf))
 @test isapprox(norm_norm, [1.0 0.111111 0.857143; 0.375 0.555556 1.0; 0.5 1.0 0.285714], atol=1e-6)
 
 # ---------------------------------------------------------------------------- #
@@ -48,6 +70,15 @@ scale_norm = tabular_norm(a, scale(factor=:first))
 @test isapprox(scale_norm, [1.0 1.0 1.0; 0.375 5.0 1.16667; 0.5 9.0 0.333333], atol=1e-5)
 
 scale_norm = tabular_norm(a, scale(factor=:iqr))
+
+# ---------------------------------------------------------------------------- #
+minmax_norm = tabular_norm(a, DT.minmax())
+@test minmax_norm == [1.0 0.0 0.8; 0.0 0.5 1.0; 0.2 1.0 0.0]
+
+minmax_norm = tabular_norm(a, DT.minmax(lower=-2, upper=4))
+@test minmax_norm == [4.0 -2.0 2.8; -2.0 1.0 4.0; -0.8 4.0 -2.0]
+
+# ---------------------------------------------------------------------------- #
 
 ### test
 b = reshape(1:18, 3, 3, 2)
