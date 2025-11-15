@@ -1,10 +1,4 @@
 # ---------------------------------------------------------------------------- #
-#                              custom functions                                #
-# ---------------------------------------------------------------------------- #
-rootpower(x) = mean(abs2, x) |> sqrt
-halfstd(x) = std(x) ./ convert(eltype(x), sqrt(1 - (2 / π)))
-
-# ---------------------------------------------------------------------------- #
 #                               core functions                                 #
 # ---------------------------------------------------------------------------- #
 function _zscore(x::AbstractArray; method::Symbol)
@@ -14,7 +8,8 @@ function _zscore(x::AbstractArray; method::Symbol)
         _y = Statistics.median(x)
         (_y, Statistics.median(abs.(x .- _y)))
     elseif method == :half
-        (minimum(x), halfstd(x))
+        _h = std(x) ./ convert(eltype(x), sqrt(1 - (2 / π)))
+        (minimum(x), _h)
     else
         throw(ArgumentError("method must be :std, :robust or :half, got :$method"))
     end
@@ -48,21 +43,26 @@ function _scale(x::AbstractArray; factor::Symbol)
     Base.Fix2(/, s)
 end
 
-function _minmax(x::AbstractArray; lower::Real=0.0, upper::Real=1.0)
+function _minmax(x::AbstractArray; lower::Real, upper::Real)
     xmin, xmax = extrema(x)    
     scale = (upper - lower) / (xmax - xmin)
     (x) -> clamp(lower + (x - xmin) * scale, lower, upper)
 end
 
-_center(y)     = (x) -> x - y
+function _center(x::AbstractArray; method::Symbol)
+    method in (:mean, :median) || throw(ArgumentError("method must be :mean or :median, got :$method"))
+    y = getproperty(Statistics, method)(x)
+    (x) -> x - y
+end
 
-_unitpower(p)  = Base.Fix2(/, p)
-_outliersuppress(y, o; thr=5.0) = (x) -> abs(o) > thr * o ? y + sign(x - y) * thr * o : x
-function _minmaxclip(l,u)
-    (x) -> begin
-        l == u && (return x == u ? 0.5 : (x > u) * one(u)) # Return 1.0 if x > u, else 0.0
-        return clamp((x - l) / (u - l), 0.0, 1.0)
-    end
+function _unitpower(x::AbstractArray)
+    p = mean(abs2, x) |> sqrt
+    Base.Fix2(/, p)
+end
+
+function _outliersuppress(x::AbstractArray; thr::Real)
+    y, o = Statistics.mean(x), Statistics.std(x)
+    (x) -> abs(o) > thr * o ? y + sign(x - y) * thr * o : x
 end
 
 # ---------------------------------------------------------------------------- #
@@ -257,7 +257,7 @@ Lp spaces: https://en.wikipedia.org/wiki/Lp_space
 Unit vector: https://en.wikipedia.org/wiki/Unit_vector
 Feature scaling: https://en.wikipedia.org/wiki/Feature_scaling
 """
-pnorm(; p::Real=2)::Function = x -> _norm(x; p)
+pnorm(; p::Real=2)::Function = x -> _pnorm(x; p)
 
 """
     scale(; factor::Symbol=:std) -> Function
@@ -394,13 +394,198 @@ Min-max normalization: https://en.wikipedia.org/wiki/Normalization_(statistics)
 """
 minmax(; lower::Real=0.0, upper::Real=1.0)::Function = x -> _minmax(x; lower, upper)
 
-center()::Function          = x -> _center(Statistics.mean(x))
+"""
+    center(; method::Symbol=:mean) -> Function
 
-unitpower()::Function       = x -> _unitpower(rootpower(x))
-outliersuppress()::Function = x -> _outliersuppress(Statistics.mean(x), Statistics.std(x))
-minmaxclip()::Function      = x -> _minmaxclip(minimum(x), maximum(x))
+Create a centering normalization function that shifts data to have zero central tendency.
 
+Centering (also known as mean/median centering or demeaning) translates data by 
+subtracting a measure of central tendency, shifting the distribution without changing 
+its spread or shape. This is useful for removing baseline offsets and focusing on 
+relative deviations.
 
+# Arguments
+- `method::Symbol=:mean`: Centering method (default: `:mean`)
+  - `:mean`: Center around arithmetic mean (subtracts mean)
+  - `:median`: Center around median (subtracts median, more robust to outliers)
+
+# Formula
+
+## Mean Centering (`:mean`, default)
+```math
+x_{\\text{centered}} = x - \\bar{x}
+```
+
+## Median Centering (:median)
+```math
+x_{\\text{centered}} = x - \\text{median}(x)
+```
+
+## Examples
+```julia# Mean centering (default)
+X = rand(100, 50)
+X_centered = element_norm(X, center())
+# Result: mean(X_centered) ≈ 0, std unchanged
+
+# Median centering (robust to outliers)
+X_outliers = [1, 2, 3, 4, 100]  # Has outlier
+X_med = element_norm(X_outliers, center(method=:median))
+# Result: median(X_med) = 0, outlier less influential
+
+# Tabular normalization (column-wise)
+X_tab = tabular_norm(X, center())
+# Each column: mean = 0
+
+# Row-wise median centering
+X_row = tabular_norm(X, center(method=:median); dim=:row)
+# Each row: median = 0
+
+# Time series baseline removal
+timeseries = [100.5, 101.2, 99.8, 100.3, 100.9]
+ts_centered = element_norm(timeseries, center())
+# Removes the ~100 baseline level
+
+# Compare mean vs median centering
+data_skewed = [1, 2, 3, 4, 5, 6, 7, 8, 9, 100]
+mean_cent = element_norm(data_skewed, center())
+median_cent = element_norm(data_skewed, center(method=:median))
+# Median centering less affected by the outlier (100)
+```
+
+## References
+- Mean centering: https://en.wikipedia.org/wiki/Centering_matrix
+"""
+center(; method::Symbol=:mean)::Function = x -> _center(x; method)
+
+"""
+    unitpower() -> Function
+
+Create a normalization function that scales data to have unit root mean square (RMS) power.
+
+Unit power normalization divides each element by the root mean square (RMS) of the 
+entire dataset, ensuring that the normalized data has RMS = 1. This is commonly used 
+in signal processing to normalize signal power.
+
+# Formula
+```math
+x_{\\text{normalized}} = \\frac{x}{\\text{RMS}(x)}
+```
+where the Root Mean Square (RMS) is:
+```math
+\\text{RMS}(x) = \\sqrt{\\frac{1}{n}\\sum_{i=1}^{n} x_i^2} = \\sqrt{\\text{mean}(x^2)}
+```
+
+## Examples
+```julia
+# Basic unit power normalization
+X = rand(100, 50)
+X_norm = element_norm(X, unitpower())
+# Result: RMS(X_norm) = 1
+
+# Audio signal normalization
+audio_signal = randn(44100)  # 1 second at 44.1kHz
+audio_norm = element_norm(audio_signal, unitpower())
+# Normalized to unit RMS power
+
+# Compare with L2 norm
+X_unitpower = element_norm(X, unitpower())
+X_pnorm = element_norm(X, pnorm(p=2))
+# They differ by √n where n = length(X)
+
+# Tabular normalization (column-wise)
+X_tab = tabular_norm(X, unitpower())
+# Each column: RMS = 1
+
+# Row-wise power normalization
+X_row = tabular_norm(X, unitpower(); dim=:row)
+# Each row: RMS = 1
+
+# Verify RMS = 1 after normalization
+X_norm = element_norm(rand(1000), unitpower())
+@assert isapprox(sqrt(mean(X_norm.^2)), 1.0, atol=1e-10)
+```
+
+## References
+- Root mean square: https://en.wikipedia.org/wiki/Root_mean_square
+"""
+unitpower()::Function = x -> _unitpower(x)
+
+"""
+    outliersuppress(; thr::Real=5.0) -> Function
+
+Create a normalization function that suppresses outliers by capping values beyond a threshold.
+
+Outlier suppression identifies values that deviate more than a specified number of 
+standard deviations from the mean and replaces them with the threshold boundary value.
+This technique reduces the influence of extreme values while preserving the sign and 
+general structure of the data.
+
+# Arguments
+- `thr::Real=5.0`: Threshold in standard deviations (default: 5.0)
+  - Values beyond `mean ± thr*std` are capped to `mean ± thr*std`
+  - Higher values (e.g., 5.0) are more permissive
+  - Lower values (e.g., 2.0 or 3.0) are more aggressive in suppression
+
+# Threshold choice
+Lower thresholds more aggressively modify data
+- Use thr=3 for typical outlier removal (3-sigma rule)
+- Use thr=5 (default) for conservative outlier handling
+
+# Formula
+```math
+x_{\\text{suppressed}} = \\begin{cases}
+\\mu + \\text{thr} \\cdot \\sigma & \\text{if } x > \\mu + \\text{thr} \\cdot \\sigma \\\\
+\\mu - \\text{thr} \\cdot \\sigma & \\text{if } x < \\mu - \\text{thr} \\cdot \\sigma \\\\
+x & \\text{otherwise}
+\\end{cases}
+```
+where:
+- μ is the mean of the data
+- σ is the standard deviation
+- Values within [μ - thr·σ, μ + thr·σ] remain unchanged
+
+## Examples
+```julia
+# Default threshold (5 standard deviations)
+X = [1, 2, 3, 4, 5, 100]  # 100 is an outlier
+X_suppressed = element_norm(X, outliersuppress())
+# Result: [1, 2, 3, 4, 5, ~mean+5*std] - outlier capped
+
+# More aggressive suppression (3 std)
+X_aggressive = element_norm(X, outliersuppress(thr=3.0))
+# Caps values beyond mean ± 3*std (more values affected)
+
+# Less aggressive suppression (7 std)
+X_permissive = element_norm(X, outliersuppress(thr=7.0))
+# Caps only extreme outliers beyond mean ± 7*std
+
+# Time series spike removal
+sensor_data = randn(1000)
+sensor_data[500] = 50.0  # Artificial spike
+cleaned = element_norm(sensor_data, outliersuppress(thr=4.0))
+# Spike is capped to reasonable value
+
+# Tabular normalization (column-wise)
+X = rand(100, 50)
+X[10, 5] = 1000.0  # Inject outlier
+X_tab = tabular_norm(X, outliersuppress())
+# Each column: outliers suppressed independently
+
+# Row-wise outlier suppression
+X_row = tabular_norm(X, outliersuppress(thr=3.0); dim=:row)
+# Each row: outliers capped to ±3 std from row mean
+
+# Compare thresholds
+data_with_outliers = [randn(100); 20.0; -20.0]
+X_thr3 = element_norm(data_with_outliers, outliersuppress(thr=3.0))
+X_thr5 = element_norm(data_with_outliers, outliersuppress(thr=5.0))
+# thr=3 more aggressive, thr=5 more permissive
+```
+
+## References
+-Three-sigma rule: https://en.wikipedia.org/wiki/68%E2%80%9395%E2%80%9399.7_rule
+"""
+outliersuppress(; thr::Real=5.0)::Function = x -> _outliersuppress(x; thr)
 
 # ---------------------------------------------------------------------------- #
 #                              normalize functions                             #
@@ -413,17 +598,6 @@ Normalize a single array element using global statistics computed across all ele
 # Arguments
 - `X::AbstractArray`: Input array of any dimension (vector, matrix, tensor, etc.)
 - `n::Base.Callable`: Normalization function constructor that computes parameters from data
-
-# Supported Normalization Methods
-- `zscore()`: Z-score normalization using mean and standard deviation
-- `sigmoid()`: Sigmoid transformation using mean and standard deviation  
-- `minmax()`: Min-max scaling to [0, 1] range
-- `center()`: Mean centering (subtract mean)
-- `unitenergy()`: Scale by root sum of squares
-- `unitpower()`: Scale by root mean square
-- `halfzscore()`: Z-score using minimum and half-standard deviation
-- `outliersuppress()`: Suppress outliers beyond threshold
-- `minmaxclip()`: Min-max scaling with clipping to [0, 1]
 
 # Returns
 - `AbstractArray`: Normalized array with same shape as input

@@ -4,27 +4,6 @@ const DT = DataTreatments
 
 using Normalization
 
-# Standard z-score normalization
-X = rand(100, 50)
-X_norm = element_norm(X, zscore())
-# Result: mean ≈ 0, std ≈ 1
-
-# Robust z-score (resistant to outliers)
-X_robust = element_norm(X, zscore(method=:robust))
-# Result: median ≈ 0, MAD ≈ 1
-
-# Half-normal z-score
-X_half = element_norm(X, zscore(method=:half))
-# Result: minimum ≈ 0, scaled by half-standard deviation
-
-# Tabular normalization (column-wise)
-X_tab = tabular_norm(X, zscore())
-# Each column: mean ≈ 0, std ≈ 1
-
-# Row-wise normalization
-X_row = tabular_norm(X, zscore(); dim=:row)
-# Each row: mean ≈ 0, std ≈ 1
-
 # ---------------------------------------------------------------------------- #
 #                             tabular normalization                            #
 # ---------------------------------------------------------------------------- #
@@ -78,6 +57,22 @@ minmax_norm = tabular_norm(a, DT.minmax())
 minmax_norm = tabular_norm(a, DT.minmax(lower=-2, upper=4))
 @test minmax_norm == [4.0 -2.0 2.8; -2.0 1.0 4.0; -0.8 4.0 -2.0]
 
+# ---------------------------------------------------------------------------- #
+center_norm = tabular_norm(a, center())
+@test center_norm == [3.0 -4.0 1.0; -2.0 0.0 2.0; -1.0 4.0 -3.0]
+
+center_norm = tabular_norm(a, center(method=:median))
+@test center_norm == [4.0 -4.0 0.0; -1.0 0.0 1.0; 0.0 4.0 -4.0]
+
+# ---------------------------------------------------------------------------- #
+@test_nowarn tabular_norm(a, unitpower())
+
+# ---------------------------------------------------------------------------- #
+@test_nowarn tabular_norm(a, outliersuppress())
+@test_nowarn tabular_norm(a, outliersuppress(thr=3))
+
+# ---------------------------------------------------------------------------- #
+#                        single element normalization                          #
 # ---------------------------------------------------------------------------- #
 
 ### test

@@ -36,7 +36,7 @@ include("windowing.jl")
 export reducesize, aggregate
 include("treatment.jl")
 
-export zscore, sigmoid, norm, scale, minmax, center, unitpower, outliersuppress, minmaxclip
+export zscore, sigmoid, pnorm, scale, minmax, center, unitpower, outliersuppress
 export element_norm, tabular_norm, ds_norm
 include("normalize.jl")
 
