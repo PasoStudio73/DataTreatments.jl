@@ -16,8 +16,9 @@ makedocs(;
         assets=String[],
     ),
     pages=[
-        "Home" => "index.md",
-        "Api"  => "api.md",
+        "Home"          => "index.md",
+        "Api"           => "api.md",
+        "Normalization" => "normalization.md",
     ],
     warnonly=:true,
 )

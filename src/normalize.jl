@@ -66,22 +66,19 @@ function _outliersuppress(x::AbstractArray; thr::Real)
 end
 
 # ---------------------------------------------------------------------------- #
-#                              caller functions                                #
+#                                   methods                                    #
 # ---------------------------------------------------------------------------- #
 """
-    zscore(; method::Symbol=:std) -> Function
+    zscore(; [method::Symbol]) -> Function
 
 Create a z-score normalization function that standardizes data by centering and scaling.
 
 # Arguments
-- `method::Symbol=:std`: Method for computing the z-score
-  - `:std` (default): Standard z-score using mean and standard deviation
-  - `:robust`: Robust z-score using median and median absolute deviation (MAD)
-  - `:half`: Half-normal z-score using minimum and half-standard deviation
+- `method::Symbol`: Method for computing the z-score
 
 # Methods
 
-## Standard Z-Score (`:std`)
+## Standard Z-Score (`:std`, default)
 Centers data to mean 0 and scales to standard deviation 1.
 ```math
 z = \\frac{x - \\mu}{\\sigma}
@@ -117,20 +114,7 @@ X_robust = element_norm(X, zscore(method=:robust))
 # Half-normal z-score
 X_half = element_norm(X, zscore(method=:half))
 # Result: minimum ≈ 0, scaled by half-standard deviation
-
-# Tabular normalization (column-wise)
-X_tab = tabular_norm(X, zscore())
-# Each column: mean ≈ 0, std ≈ 1
-
-# Row-wise normalization
-X_row = tabular_norm(X, zscore(); dim=:row)
-# Each row: mean ≈ 0, std ≈ 1
 ```
-
-## References
-Standard z-score: https://en.wikipedia.org/wiki/Standard_score
-Robust statistics: https://en.wikipedia.org/wiki/Robust_statistics
-Half-normal distribution: https://en.wikipedia.org/wiki/Half-normal_distribution
 """
 zscore(; method::Symbol=:std)::Function = x -> _zscore(x; method)
 
@@ -154,40 +138,16 @@ where:
 
 ## Examples
 ```julia
-# Basic sigmoid normalization
+# Sigmoid normalization
 X = rand(100, 50)
 X_sigmoid = element_norm(X, sigmoid())
 # Result: all values in (0, 1), mean(X) → 0.5
-
-# Compare with linear scaling
-X_minmax = element_norm(X, minmax())
-# minmax: exact [0, 1] bounds with linear mapping
-# sigmoid: asymptotic (0, 1) bounds with S-curve
-
-# Handling outliers gracefully
-X_outliers = [1, 2, 3, 4, 100]  # One extreme outlier
-X_sig = element_norm(X_outliers, sigmoid())
-# The outlier (100) is compressed toward 1, not linearly stretched
-
-# Tabular normalization (column-wise)
-X_tab = tabular_norm(X, sigmoid())
-# Each column: sigmoid transformation with its own mean/std
-
-# Row-wise normalization
-X_row = tabular_norm(X, sigmoid(); dim=:row)
-# Each row: independent sigmoid transformation
 ```
-
-## References
-Sigmoid function: https://en.wikipedia.org/wiki/Sigmoid_function
-Logistic function: https://en.wikipedia.org/wiki/Logistic_function
-Feature scaling: https://en.wikipedia.org/wiki/Feature_scaling
-
 """
 sigmoid()::Function = x -> _sigmoid(x)
 
 """
-    norm(; p::Real=2) -> Function
+    norm(; [p::Real]) -> Function
 
 Create a normalization function that scales data by the p-norm.
 
@@ -196,9 +156,9 @@ ensuring that the normalized data has unit p-norm. This is particularly useful f
 standardizing data magnitudes across different scales.
 
 # Arguments
-- `p::Real=2`: The norm order (default: 2)
+- `p::Real`: The norm order (default: 2)
   - `p = 1`: Manhattan norm (sum of absolute values)
-  - `p = 2`: Euclidean norm (default, root sum of squares)
+  - `p = 2`(default): Euclidean norm (default, root sum of squares)
   - `p = Inf`: Infinity norm (maximum absolute value)
   - `p > 0`: General p-norm
 
@@ -208,11 +168,6 @@ standardizing data magnitudes across different scales.
 ```math
 \\|x\\|_p = \\left(\\sum_{i=1}^{n} |x_i|^p\\right)^{1/p}
 ```
-Special cases:
-- L1 norm (p=1): `‖x‖₁ = Σ|xᵢ|` (Manhattan/taxicab norm)
-- L2 norm (p=2): `‖x‖₂ = √(Σxᵢ²)` (Euclidean norm, default)
-- L∞ norm (p=Inf): `‖x‖∞ = max(|xᵢ|)` (Maximum norm)
-The normalized value is: `x_normalized = x / ‖x‖ₚ`
 
 ## Examples
 ```julia
@@ -232,35 +187,12 @@ X_Linf = element_norm(X, norm(p=Inf))
 # Custom p-norm
 X_L4 = element_norm(X, norm(p=4))
 # Result: (sum(X.^4))^(1/4) = 1
-
-# Tabular normalization (column-wise)
-X_tab = tabular_norm(X, norm())
-# Each column: ‖column‖₂ = 1
-
-# Row-wise L∞ normalization
-X_row = tabular_norm(X, norm(p=Inf); dim=:row)
-# Each row: max(abs, row) = 1
-
-# Unit vector creation
-v = [3.0, 4.0]
-v_unit = element_norm(v, norm())  # [0.6, 0.8] with ‖v‖₂ = 1
-
-# Signal power normalization
-signal = randn(1000)
-signal_norm = element_norm(signal, norm(p=2))
-# Normalized to unit energy
 ```
-
-## References
-Vector norms: https://en.wikipedia.org/wiki/Norm_(mathematics)
-Lp spaces: https://en.wikipedia.org/wiki/Lp_space
-Unit vector: https://en.wikipedia.org/wiki/Unit_vector
-Feature scaling: https://en.wikipedia.org/wiki/Feature_scaling
 """
 pnorm(; p::Real=2)::Function = x -> _pnorm(x; p)
 
 """
-    scale(; factor::Symbol=:std) -> Function
+    scale(; [factor::Symbol]) -> Function
 
 Create a normalization function that scales data by a specified scale factor.
 
@@ -269,11 +201,7 @@ the spread or magnitude without necessarily centering the data. This is useful w
 you want to normalize variability but preserve the mean or baseline.
 
 # Arguments
-- `factor::Symbol=:std`: Scale factor to use (default: `:std`)
-  - `:std`: Scale by standard deviation
-  - `:mad`: Scale by median absolute deviation
-  - `:first`: Scale by the first element value
-  - `:iqr`: Scale by interquartile range
+- `factor::Symbol`: Scale factor to use
 
 # Scale Factor Options
 
@@ -316,7 +244,7 @@ X_outliers = [1, 2, 3, 4, 100]  # Has outlier
 X_mad = element_norm(X_outliers, scale(factor=:mad))
 # More robust than std scaling
 
-# IQR scaling (robust to extreme values)
+# IQR scaling
 X_iqr = element_norm(X, scale(factor=:iqr))
 # Result: IQR(X_iqr) ≈ 1
 
@@ -324,39 +252,18 @@ X_iqr = element_norm(X, scale(factor=:iqr))
 prices = [100.0, 105.0, 98.0, 110.0]
 prices_norm = element_norm(prices, scale(factor=:first))
 # Result: [1.0, 1.05, 0.98, 1.10] - percentage of initial price
-
-# Tabular normalization (column-wise)
-X_tab = tabular_norm(X, scale())
-# Each column: std = 1
-
-# Row-wise scaling with IQR
-X_row = tabular_norm(X, scale(factor=:iqr); dim=:row)
-# Each row: IQR = 1
-
-# Time series baseline normalization
-timeseries = rand(1000)
-ts_norm = element_norm(timeseries, scale(factor=:first))
-# Normalized to first observation = 1.0
 ```
-
-## References
-- Standard deviation: https://en.wikipedia.org/wiki/Standard_deviation
-- Median absolute deviation: https://en.wikipedia.org/wiki/Median_absolute_deviation
-- Interquartile range: https://en.wikipedia.org/wiki/Interquartile_range
 """
 scale(; factor::Symbol=:std) = x -> _scale(x; factor)
 
 """
-    minmax(; lower::Real=0.0, upper::Real=1.0) -> Function
+    minmax(; [lower::Real, upper::Real]) -> Function
 
 Create a min-max normalization function that rescales data to a specified range.
 
-Min-max normalization (also known as feature scaling) linearly transforms data from 
-its original range [min(x), max(x)] to a target range [lower, upper].
-
 # Arguments
-- `lower::Real=0.0`: Lower bound of the output range (default: 0.0)
-- `upper::Real=1.0`: Upper bound of the output range (default: 1.0)
+- `lower::Real`: Lower bound of the output range (default: 0.0)
+- `upper::Real`: Upper bound of the output range (default: 1.0)
 
 # Formula
 ```math
@@ -374,28 +281,12 @@ X_norm = element_norm(X, minmax())
 # Custom range scaling to [-1, 1]
 X_scaled = element_norm(X, minmax(lower=-1.0, upper=1.0))
 # Result: min ≈ -1, max ≈ 1
-
-# Scale to [0, 100] (percentage-like)
-X_percent = element_norm(X, minmax(lower=0.0, upper=100.0))
-# Result: min ≈ 0, max ≈ 100
-
-# Tabular normalization (column-wise)
-X_tab = tabular_norm(X, minmax())
-# Each column scaled independently to [0, 1]
-
-# Row-wise normalization to custom range
-X_row = tabular_norm(X, minmax(lower=-5.0, upper=5.0); dim=:row)
-# Each row scaled independently to [-5, 5]
 ```
-
-## References
-Feature scaling: https://en.wikipedia.org/wiki/Feature_scaling
-Min-max normalization: https://en.wikipedia.org/wiki/Normalization_(statistics)
 """
 minmax(; lower::Real=0.0, upper::Real=1.0)::Function = x -> _minmax(x; lower, upper)
 
 """
-    center(; method::Symbol=:mean) -> Function
+    center(; [method::Symbol]) -> Function
 
 Create a centering normalization function that shifts data to have zero central tendency.
 
@@ -405,8 +296,8 @@ its spread or shape. This is useful for removing baseline offsets and focusing o
 relative deviations.
 
 # Arguments
-- `method::Symbol=:mean`: Centering method (default: `:mean`)
-  - `:mean`: Center around arithmetic mean (subtracts mean)
+- `method::Symbol`: Centering method (default: `:mean`)
+  - `:mean`(default): Center around arithmetic mean (subtracts mean)
   - `:median`: Center around median (subtracts median, more robust to outliers)
 
 # Formula
@@ -427,33 +318,11 @@ X = rand(100, 50)
 X_centered = element_norm(X, center())
 # Result: mean(X_centered) ≈ 0, std unchanged
 
-# Median centering (robust to outliers)
+# Median centering
 X_outliers = [1, 2, 3, 4, 100]  # Has outlier
 X_med = element_norm(X_outliers, center(method=:median))
 # Result: median(X_med) = 0, outlier less influential
-
-# Tabular normalization (column-wise)
-X_tab = tabular_norm(X, center())
-# Each column: mean = 0
-
-# Row-wise median centering
-X_row = tabular_norm(X, center(method=:median); dim=:row)
-# Each row: median = 0
-
-# Time series baseline removal
-timeseries = [100.5, 101.2, 99.8, 100.3, 100.9]
-ts_centered = element_norm(timeseries, center())
-# Removes the ~100 baseline level
-
-# Compare mean vs median centering
-data_skewed = [1, 2, 3, 4, 5, 6, 7, 8, 9, 100]
-mean_cent = element_norm(data_skewed, center())
-median_cent = element_norm(data_skewed, center(method=:median))
-# Median centering less affected by the outlier (100)
 ```
-
-## References
-- Mean centering: https://en.wikipedia.org/wiki/Centering_matrix
 """
 center(; method::Symbol=:mean)::Function = x -> _center(x; method)
 
@@ -477,41 +346,16 @@ where the Root Mean Square (RMS) is:
 
 ## Examples
 ```julia
-# Basic unit power normalization
+# Unit power normalization
 X = rand(100, 50)
 X_norm = element_norm(X, unitpower())
 # Result: RMS(X_norm) = 1
-
-# Audio signal normalization
-audio_signal = randn(44100)  # 1 second at 44.1kHz
-audio_norm = element_norm(audio_signal, unitpower())
-# Normalized to unit RMS power
-
-# Compare with L2 norm
-X_unitpower = element_norm(X, unitpower())
-X_pnorm = element_norm(X, pnorm(p=2))
-# They differ by √n where n = length(X)
-
-# Tabular normalization (column-wise)
-X_tab = tabular_norm(X, unitpower())
-# Each column: RMS = 1
-
-# Row-wise power normalization
-X_row = tabular_norm(X, unitpower(); dim=:row)
-# Each row: RMS = 1
-
-# Verify RMS = 1 after normalization
-X_norm = element_norm(rand(1000), unitpower())
-@assert isapprox(sqrt(mean(X_norm.^2)), 1.0, atol=1e-10)
 ```
-
-## References
-- Root mean square: https://en.wikipedia.org/wiki/Root_mean_square
 """
 unitpower()::Function = x -> _unitpower(x)
 
 """
-    outliersuppress(; thr::Real=5.0) -> Function
+    outliersuppress(; [thr::Real]) -> Function
 
 Create a normalization function that suppresses outliers by capping values beyond a threshold.
 
@@ -522,9 +366,6 @@ general structure of the data.
 
 # Arguments
 - `thr::Real=5.0`: Threshold in standard deviations (default: 5.0)
-  - Values beyond `mean ± thr*std` are capped to `mean ± thr*std`
-  - Higher values (e.g., 5.0) are more permissive
-  - Lower values (e.g., 2.0 or 3.0) are more aggressive in suppression
 
 # Threshold choice
 Lower thresholds more aggressively modify data
@@ -554,36 +395,7 @@ X_suppressed = element_norm(X, outliersuppress())
 # More aggressive suppression (3 std)
 X_aggressive = element_norm(X, outliersuppress(thr=3.0))
 # Caps values beyond mean ± 3*std (more values affected)
-
-# Less aggressive suppression (7 std)
-X_permissive = element_norm(X, outliersuppress(thr=7.0))
-# Caps only extreme outliers beyond mean ± 7*std
-
-# Time series spike removal
-sensor_data = randn(1000)
-sensor_data[500] = 50.0  # Artificial spike
-cleaned = element_norm(sensor_data, outliersuppress(thr=4.0))
-# Spike is capped to reasonable value
-
-# Tabular normalization (column-wise)
-X = rand(100, 50)
-X[10, 5] = 1000.0  # Inject outlier
-X_tab = tabular_norm(X, outliersuppress())
-# Each column: outliers suppressed independently
-
-# Row-wise outlier suppression
-X_row = tabular_norm(X, outliersuppress(thr=3.0); dim=:row)
-# Each row: outliers capped to ±3 std from row mean
-
-# Compare thresholds
-data_with_outliers = [randn(100); 20.0; -20.0]
-X_thr3 = element_norm(data_with_outliers, outliersuppress(thr=3.0))
-X_thr5 = element_norm(data_with_outliers, outliersuppress(thr=5.0))
-# thr=3 more aggressive, thr=5 more permissive
 ```
-
-## References
--Three-sigma rule: https://en.wikipedia.org/wiki/68%E2%80%9395%E2%80%9399.7_rule
 """
 outliersuppress(; thr::Real=5.0)::Function = x -> _outliersuppress(x; thr)
 
@@ -609,6 +421,10 @@ X_norm = element_norm(X, zscore())      # Z-score normalization
 X_norm = element_norm(X, minmax())     # Min-max scaling
 X_norm = element_norm(X, center())      # Mean centering
 ```
+
+# See Also
+- [`element_norm`](@ref): Normalize using global statistics across all elements
+- [`tabular_norm`](@ref): Normalize columns/rows independently for standard tabular data
 """
 function element_norm(X::AbstractArray{T}, n::Base.Callable)::AbstractArray where {T<:AbstractFloat}
     _X = Iterators.flatten(X)
@@ -617,6 +433,42 @@ function element_norm(X::AbstractArray{T}, n::Base.Callable)::AbstractArray wher
 end
 element_norm(X::AbstractArray{T}, args...) where {T<:Real} = element_norm(Float64.(X), args...)
 
+"""
+    tabular_norm(X::AbstractArray, n::Base.Callable; [dim::Symbol=:col]) -> AbstractArray
+
+Normalize a tabular array by computing separate normalization parameters for each column or row.
+
+# Arguments
+- `X::AbstractArray`: Input array (typically a matrix where columns represent features)
+- `n::Base.Callable`: Normalization function constructor (e.g., `zscore()`, `minmax()`)
+- `dim::Symbol=:col`: Dimension along which to normalize
+  - `:col` (default): Normalize each column independently (column-wise)
+  - `:row`: Normalize each row independently (row-wise)
+
+# Returns
+- `AbstractArray`: Normalized array with same shape as input, where each column/row
+  has been normalized using its own statistics
+
+# Examples
+```julia
+# Column-wise normalization (default) - each feature normalized independently
+X = rand(100, 50)  # 100 samples, 50 features
+X_norm = tabular_norm(X, zscore())
+# Each column: mean ≈ 0, std ≈ 1
+
+# Row-wise normalization - each sample normalized independently
+X_scaled = tabular_norm(X, minmax(); dim=:row)
+# Each row scaled to [0, 1] independently
+```
+
+# Notes
+- Each column/row uses only its own statistics, not global statistics
+- Automatically converts integer arrays to Float64
+
+# See Also
+- [`element_norm`](@ref): Normalize using global statistics across all elements
+- [`ds_norm`](@ref): Normalize datasets with nested array structure
+"""
 function tabular_norm(
     X::AbstractArray{T},
     n::Base.Callable;
@@ -640,6 +492,39 @@ tabular_norm(X::AbstractArray{T}, args...; kwargs...) where {T<:Real} =
     return Xn
 end
 
+"""
+    ds_norm(X::AbstractArray{<:AbstractArray}, n::Base.Callable) -> AbstractArray
+
+Normalize a dataset composed of n-dimensional elements (e.g., sequences, time series,
+or images) by computing normalization parameters for each column of the outer array.
+
+# Arguments
+- `X::AbstractArray{<:AbstractArray}`: Nested array structure where each element is an array
+  - Outer array typically represents (samples × features/channels)
+  - Inner arrays can be vectors, matrices, or tensors
+- `n::Base.Callable`: Normalization function constructor (e.g., `zscore()`, `minmax()`)
+
+# Returns
+- `AbstractArray`: Normalized nested array with same structure as input, where each
+  column's normalization function is computed from all nested arrays in that column
+
+# Examples
+```julia
+# Time series dataset: each element is a time series
+X = [rand(100) for _ in 1:50, _ in 1:3]  # 50 samples × 3 channels
+X_norm = ds_norm(X, zscore())
+# Each channel normalized across all 50 time series
+
+# Image dataset: each element is an image (matrix)
+images = [rand(28, 28) for _ in 1:100, _ in 1:1]  # 100 grayscale images
+images_norm = ds_norm(images, minmax())
+# All images normalized using global min/max
+```
+
+# See Also
+- [`element_norm`](@ref): Normalize using global statistics across all elements
+- [`tabular_norm`](@ref): Normalize columns/rows independently for standard tabular data
+"""
 function ds_norm(X::AbstractArray{T}, n::Base.Callable)::AbstractArray where {T<:AbstractArray{<:AbstractFloat}}
     # compute normalization functions for each column
     cols = Iterators.flatten.(eachcol(X))
