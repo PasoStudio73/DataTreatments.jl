@@ -6,6 +6,8 @@ CurrentModule = DataTreatments
 ```@docs
 element_norm
 tabular_norm
+grouped_norm
+grouped_norm!
 ds_norm
 ```
 

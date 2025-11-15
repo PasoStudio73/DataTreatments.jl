@@ -103,7 +103,7 @@ result = aggregate(Xmatrix, intervals; features)
 function aggregate(
     X         :: AbstractArray,
     intervals :: Tuple{Vararg{Vector{UnitRange{Int64}}}};
-    features  :: Tuple{Vararg{Base.Callable}}=(mean,),
+    features  :: Tuple{Vararg{Base.Callable}}=(mean,)
 )::AbstractArray
     nwindows = prod(length.(intervals))
     nfeats   = nwindows * length(features)

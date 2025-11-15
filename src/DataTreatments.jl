@@ -37,7 +37,7 @@ export reducesize, aggregate
 include("treatment.jl")
 
 export zscore, sigmoid, pnorm, scale, minmax, center, unitpower, outliersuppress
-export element_norm, tabular_norm, ds_norm
+export element_norm, tabular_norm, grouped_norm, grouped_norm!, ds_norm
 include("normalize.jl")
 
 # ---------------------------------------------------------------------------- #
@@ -102,6 +102,10 @@ Base.propertynames(::FeatureId)           = (:vname, :feat, :nwin)
 get_vname(f::FeatureId)   = f.vname
 get_feature(f::FeatureId) = f.feat
 get_nwin(f::FeatureId)    = f.nwin
+
+get_vecvnames(f::Vector{FeatureId})   = [get_vname(n) for n in f]
+get_vecfeatures(f::Vector{FeatureId}) = [get_feature(_f) for _f in f]
+get_vecnwins(f::Vector{FeatureId})    = [get_nwin(w) for w in f]
 
 function Base.show(io::IO, f::FeatureId)
     feat_name = nameof(f.feat)
@@ -283,6 +287,7 @@ struct DataTreatment{T, S} <: AbstractDataTreatment
     featureid  :: Vector{FeatureId}
     reducefunc :: Base.Callable
     aggrtype   :: Symbol
+    norm       :: Union{Base.Callable, Nothing}
 
     function DataTreatment(
         X          :: AbstractMatrix,
@@ -290,7 +295,8 @@ struct DataTreatment{T, S} <: AbstractDataTreatment
         vnames     :: Vector{<:ValidVnames},
         win        :: Union{Base.Callable, Tuple{Vararg{Base.Callable}}},
         features   :: Tuple{Vararg{Base.Callable}}=(maximum, minimum, mean),
-        reducefunc :: Base.Callable=mean
+        reducefunc :: Base.Callable=mean,
+        norm       :: Union{Base.Callable, Nothing}=nothing
     )
         is_multidim_dataframe(X) || throw(ArgumentError("Input DataFrame " * 
             "does not contain multidimensional data."))
@@ -327,7 +333,12 @@ struct DataTreatment{T, S} <: AbstractDataTreatment
             error("Unknown treatment type: $treat")
         end
 
-        new{eltype(Xresult), core_eltype(Xresult)}(Xresult, Xinfo, reducefunc, aggrtype)
+        if !isnothing(norm)
+            aggrtype == :aggregate  && grouped_norm!(Xresult, norm; featvec=get_vecfeatures(Xinfo))
+            aggrtype == :reducesize && (Xresult = ds_norm(Xresult, norm))
+        end
+
+        new{eltype(Xresult), core_eltype(Xresult)}(Xresult, Xinfo, reducefunc, aggrtype, norm)
     end
 
     function DataTreatment(
@@ -343,17 +354,18 @@ end
 
 # value access methods
 Base.getproperty(dt::DataTreatment, s::Symbol) = getfield(dt, s)
-Base.propertynames(::DataTreatment) = (:dataset, :featureid, :reducefunc, :aggrtype)
+Base.propertynames(::DataTreatment) = (:dataset, :featureid, :reducefunc, :aggrtype, :norm)
 
 get_dataset(dt::DataTreatment)    = dt.dataset
 get_featureid(dt::DataTreatment)  = dt.featureid
 get_reducefunc(dt::DataTreatment) = dt.reducefunc
 get_aggrtype(dt::DataTreatment)   = dt.aggrtype
+get_norm(dt::DataTreatment)       = dt.norm
 
 # Convenience methods for common operations
-get_vnames(dt::DataTreatment)   = unique([get_vname(f)   for f in dt.featureid])
-get_features(dt::DataTreatment) = unique([get_feature(f) for f in dt.featureid])
-get_nwindows(dt::DataTreatment) = maximum([get_nwin(f)   for f in dt.featureid])
+get_vnames(dt::DataTreatment)   = unique(get_vecvnames(dt.featureid))
+get_features(dt::DataTreatment) = unique(get_vecfeatures(dt.featureid))
+get_nwindows(dt::DataTreatment) = maximum(get_vecnwins(dt.featureid))
 
 # Size and iteration methods
 Base.size(dt::DataTreatment)   = size(dt.dataset)
@@ -382,6 +394,9 @@ function Base.show(io::IO, ::MIME"text/plain", dt::DataTreatment)
     println(io, "  Dimensions: $(nrows)×$(ncols)")
     println(io, "  Features: $(nfeatures)")
     println(io, "  Reduction function: $(nameof(dt.reducefunc))")
+    isnothing(dt.norm) ?
+        println(io, "  Normalization: none") :
+        println(io, "  Normalization: $(nameof(dt.norm))")
     
     if nfeatures <= 10
         println(io, "  Feature IDs:")
@@ -402,6 +417,7 @@ end
 
 export FeatureId, DataTreatment
 export get_vname, get_feature, get_nwin
+export get_vecvnames, get_vecfeatures, get_vecnwins
 export get_vnames, get_features, get_nwindows
 export get_dataset, get_featureid, get_reducefunc, get_aggrtype
 

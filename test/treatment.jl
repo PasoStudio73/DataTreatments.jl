@@ -1,5 +1,6 @@
 using Test
 using DataTreatments
+const DT = DataTreatments
 
 using DataFrames
 using Statistics
@@ -124,6 +125,27 @@ end
         @test get_feature(feature_ids[2]) == Statistics.std
         @test get_vname(feature_ids[2]) == :var1
     end
+
+    @testset "get FeatureId vectors" begin
+        X = fill(rand(10), 8, 3)
+        win = splitwindow(nwindows=2)
+        features = (mean, std)
+
+        dt = DataTreatment(X, :aggregate;
+                            vnames=Symbol.("var", 1:4),
+                            win=(win,),
+                            features=features)
+    
+        vnames_vec = get_vecvnames(dt.featureid)
+        @test length(vnames_vec) == 16
+        @test unique(vnames_vec) == [:var1, :var2, :var3, :var4]
+
+        feat_vec = get_vecfeatures(dt.featureid)
+        @test unique(feat_vec) == [mean, std]
+
+        win_vec = get_vecnwins(dt.featureid)
+        @test unique(win_vec) == [1, 2]
+    end
 end
 
 @testset "DataTreatment - DataFrame Constructor" begin
@@ -181,7 +203,7 @@ end
     @test :featureid in props
     @test :reducefunc in props
     @test :aggrtype in props
-    @test length(props) == 4
+    @test length(props) == 5
 end
 
 @testset "DataTreatment - Accessor Functions" begin
@@ -381,5 +403,98 @@ end
         
         @test get_nwindows(dt) == 1
         @test all(get_nwin(fid) == 1 for fid in dt.featureid)
+    end
+end
+
+@testset "DataTreatment - aggregate" begin
+    X = rand(200, 120)
+    Xmatrix = fill(X, 50, 5)
+    win = splitwindow(nwindows=3)
+    features = (mean, std, maximum)
+    
+    @testset "element_norm - Z-score" begin
+        dt = DataTreatment(Xmatrix, :aggregate;
+                          vnames=Symbol.("var", 1:5),
+                          win=(win,),
+                          features=features,
+                          norm=zscore())
+        
+        @test abs(mean(dt.dataset)) < 1e-10  # mean ≈ 0
+        @test abs(std(dt.dataset) - 1.0) < 1e-3  # std ≈ 1
+    end
+    
+    @testset "element_norm - MinMax" begin
+        dt = DataTreatment(Xmatrix, :aggregate;
+                          vnames=Symbol.("var", 1:5),
+                          win=(win,),
+                          features=features,
+                          norm=DT.minmax())
+        
+        @test minimum(dt.dataset) ≈ 0.0 atol=1e-10
+        @test maximum(dt.dataset) ≈ 1.0 atol=1e-10
+    end
+    
+    @testset "element_norm - Sigmoid" begin
+        dt = DataTreatment(Xmatrix, :aggregate;
+                          vnames=Symbol.("var", 1:5),
+                          win=(win,),
+                          features=features,
+                          norm=sigmoid())
+        
+        @test all(0 .< dt.dataset .< 1)
+    end
+    
+    @testset "element_norm - Center" begin
+        dt = DataTreatment(Xmatrix, :aggregate;
+                          vnames=Symbol.("var", 1:5),
+                          win=(win,),
+                          features=features,
+                          norm=center())
+        
+        @test abs(mean(dt.dataset)) < 1e-10
+    end
+    
+    @testset "element_norm - Unit Power" begin
+        dt = DataTreatment(Xmatrix, :aggregate;
+                          vnames=Symbol.("var", 1:5),
+                          win=(win,),
+                          features=features,
+                          norm=unitpower())
+        
+        rms = sqrt(mean(abs2, dt.dataset))
+        @test rms ≈ 1.0 atol=1e-10
+    end
+    
+    @testset "element_norm - Outlier Suppress" begin
+        # Create data with outliers
+        X_outlier = rand(200, 120)
+        X_outlier[1, 1] = 1000.0  # Add outlier
+        Xmatrix_outlier = fill(X_outlier, 50, 5)
+        
+        dt = DataTreatment(Xmatrix_outlier, :aggregate;
+                          vnames=Symbol.("var", 1:5),
+                          win=(win,),
+                          features=features,
+                          norm=outliersuppress(;thr=0.3))
+        
+        @test maximum(dt.dataset) < maximum(X_outlier)
+    end
+end
+
+@testset "DataTreatment - reducesize" begin
+    # Create nested array structure
+    X_nested = [rand(100) * 100 for _ in 1:30, _ in 1:3]
+    win = splitwindow(nwindows=2)
+    features = (mean, std)
+    
+    @testset "Basic ds_norm" begin
+        dt = DataTreatment(X_nested, :reducesize;
+                          vnames=Symbol.("ch", 1:3),
+                          win=(win,),
+                          features=features,
+                          norm=DT.minmax())
+        
+        @test minimum(minimum.(dt.dataset)) ≈ 0.0 atol=1e-10
+        @test maximum(maximum.(dt.dataset)) ≈ 1.0 atol=1e-10
     end
 end
