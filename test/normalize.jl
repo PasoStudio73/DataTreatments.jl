@@ -3,6 +3,7 @@ using DataTreatments
 const DT = DataTreatments
 
 using Normalization
+using Statistics
 
 # ---------------------------------------------------------------------------- #
 #                             tabular normalization                            #
@@ -120,6 +121,9 @@ X = rand(100,75, 2)
 @test_nowarn element_norm(X, unitpower())
 @test_nowarn element_norm(X, outliersuppress())
 
+# non-float convertion
+@test_nowarn element_norm(a, zscore())
+
 # test against julia package Normalization
 X = rand(200,100)
 
@@ -199,3 +203,180 @@ test_ds_norm(X, center(), Center)
 test_ds_norm(X, unitpower(), UnitPower)
 test_ds_norm(X, outliersuppress(;thr=5), OutlierSuppress)
 
+# non-float convertion
+b = [rand(0:10, 20) for _ in 1:25, _ in 1:5]
+@test_nowarn ds_norm(b, zscore())
+
+# ---------------------------------------------------------------------------- #
+#                            grouped normalization                             #
+# ---------------------------------------------------------------------------- #
+@testset "Basic grouped normalization" begin
+    X = rand(100, 4)
+    featvec = [mean, mean, std, std]
+    
+    # Test non-mutating version
+    X_grouped = grouped_norm(X, zscore(); featvec)
+    @test size(X_grouped) == size(X)
+    @test X_grouped isa Matrix{Float64}
+    @test X != X_grouped  # Should be different array
+    
+    # Test mutating version
+    X_mut = copy(X)
+    result = grouped_norm!(X_mut, zscore(); featvec)
+    @test result === nothing
+    @test X_mut ≈ X_grouped  # Should produce same result
+end
+
+@testset "Type conversion" begin
+    # Test Integer to Float64 conversion
+    X_int = rand(0:10, 50, 4)
+    featvec = [mean, mean, maximum, minimum]
+    
+    X_norm = grouped_norm(X_int, zscore(); featvec)
+    @test eltype(X_norm) == Float64
+    @test size(X_norm) == size(X_int)
+    
+    # Test with different normalization methods
+    X_minmax = grouped_norm(X_int, DT.minmax(); featvec)
+    @test eltype(X_minmax) == Float64
+    
+    X_center = grouped_norm(X_int, center(); featvec)
+    @test eltype(X_center) == Float64
+end
+
+@testset "Grouping behavior" begin
+    X = rand(100, 6)
+    # Two groups: cols 1-3 (mean), cols 4-6 (std)
+    featvec = [mean, mean, mean, std, std, std]
+    
+    X_grouped = grouped_norm(X, zscore(); featvec)
+    
+    # Verify columns in same group share normalization
+    # Collect all values from columns 1-3
+    group1_orig = vcat(X[:, 1], X[:, 2], X[:, 3])
+    group1_mean = Statistics.mean(group1_orig)
+    group1_std = Statistics.std(group1_orig)
+    
+    # Check first group is normalized together
+    group1_norm = vcat(X_grouped[:, 1], X_grouped[:, 2], X_grouped[:, 3])
+    @test Statistics.mean(group1_norm) ≈ 0.0 atol=1e-10
+    @test Statistics.std(group1_norm) ≈ 1.0 atol=1e-10
+    
+    # Collect all values from columns 4-6
+    group2_norm = vcat(X_grouped[:, 4], X_grouped[:, 5], X_grouped[:, 6])
+    @test Statistics.mean(group2_norm) ≈ 0.0 atol=1e-10
+    @test Statistics.std(group2_norm) ≈ 1.0 atol=1e-10
+end
+
+@testset "Single feature per column" begin
+    X = rand(50, 3)
+    # Each column is its own group
+    featvec = [mean, std, maximum]
+    
+    X_grouped = grouped_norm(X, zscore(); featvec)
+    X_tabular = tabular_norm(X, zscore())
+    
+    # Should behave like tabular_norm when no grouping
+    @test X_grouped ≈ X_tabular
+end
+
+@testset "All columns same feature" begin
+    X = rand(100, 5)
+    # All columns in same group
+    featvec = fill(mean, 5)
+    
+    X_grouped = grouped_norm(X, zscore(); featvec)
+    X_element = element_norm(X, zscore())
+    
+    # Should behave like element_norm when all grouped
+    @test X_grouped ≈ X_element
+end
+
+@testset "Different normalization methods" begin
+    X = rand(100, 4)
+    featvec = [mean, mean, std, std]
+    
+    # zscore
+    X_z = grouped_norm(X, zscore(); featvec)
+    @test eltype(X_z) == Float64
+    
+    # minmax
+    X_mm = grouped_norm(X, DT.minmax(); featvec)
+    @test eltype(X_mm) == Float64
+    group1 = vcat(X_mm[:, 1], X_mm[:, 2])
+    @test minimum(group1) ≈ 0.0 atol=1e-10
+    @test maximum(group1) ≈ 1.0 atol=1e-10
+    
+    # center
+    X_c = grouped_norm(X, center(); featvec)
+    group1_centered = vcat(X_c[:, 1], X_c[:, 2])
+    @test Statistics.mean(group1_centered) ≈ 0.0 atol=1e-10
+    
+    # scale
+    X_s = grouped_norm(X, scale(); featvec)
+    @test eltype(X_s) == Float64
+    
+    # sigmoid
+    X_sig = grouped_norm(X, sigmoid(); featvec)
+    @test all(0 .< X_sig .< 1)
+    
+    # pnorm
+    X_pn = grouped_norm(X, pnorm(); featvec)
+    @test eltype(X_pn) == Float64
+    
+    # unitpower
+    X_up = grouped_norm(X, unitpower(); featvec)
+    @test eltype(X_up) == Float64
+    
+    # outliersuppress
+    X_os = grouped_norm(X, outliersuppress(); featvec)
+    @test eltype(X_os) == Float64
+end
+
+@testset "Edge cases" begin
+    # Small dataset
+    X = rand(5, 2)
+    featvec = [mean, std]
+    @test_nowarn grouped_norm(X, zscore(); featvec)
+    
+    # Many groups
+    X = rand(100, 10)
+    featvec = [mean, std, minimum, maximum, median, 
+                mean, std, minimum, maximum, median]
+    X_grouped = grouped_norm(X, zscore(); featvec)
+    @test size(X_grouped) == size(X)
+    
+    # Large dataset (test threading)
+    X = rand(1000, 20)
+    featvec = repeat([mean, std, maximum, minimum], 5)
+    X_grouped = grouped_norm(X, zscore(); featvec)
+    @test size(X_grouped) == (1000, 20)
+end
+
+@testset "In-place modification verification" begin
+    X = rand(100, 4)
+    featvec = [mean, mean, std, std]
+    
+    X_copy = copy(X)
+    grouped_norm!(X_copy, zscore(); featvec)
+    
+    # Verify it actually modified the array
+    @test X != X_copy
+    @test size(X) == size(X_copy)
+    
+    # Verify groups are normalized
+    group1 = vcat(X_copy[:, 1], X_copy[:, 2])
+    @test Statistics.mean(group1) ≈ 0.0 atol=1e-10
+end
+
+@testset "Consistent results between methods" begin
+    X = rand(100, 6)
+    featvec = [mean, mean, std, std, maximum, maximum]
+    
+    X1 = grouped_norm(X, zscore(); featvec)
+    
+    X2 = copy(X)
+    grouped_norm!(X2, zscore(); featvec)
+    
+    @test X1 ≈ X2
+end

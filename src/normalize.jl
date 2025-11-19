@@ -606,4 +606,5 @@ function ds_norm(
     
     return Xn
 end
-ds_norm(X::AbstractArray{T}, args...) where {T<:AbstractArray{<:Real}} = ds_norm(Float64.(X), args...)
+ds_norm(X::AbstractArray{T}, args...) where {T<:AbstractArray{<:Real}} = 
+    ds_norm([Float64.(x) for x in X], args...)
