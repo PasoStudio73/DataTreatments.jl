@@ -69,42 +69,42 @@ X = rand(200,100)
 
 test = tabular_norm(X, zscore())
 n = fit(ZScore, X, dims=1)
-norm = normalize(X, n)
+norm = DataTreatments.normalize(X, n)
 @test isapprox(test, norm)
 
 test = tabular_norm(X, zscore(method=:half))
 n = fit(HalfZScore, X, dims=1)
-norm = normalize(X, n)
+norm = DataTreatments.normalize(X, n)
 @test isapprox(test, norm)
 
 test = tabular_norm(X, sigmoid())
 n = fit(Sigmoid, X, dims=1)
-norm = normalize(X, n)
+norm = DataTreatments.normalize(X, n)
 @test isapprox(test, norm)
 
 test = tabular_norm(X, pnorm())
 n = fit(UnitEnergy, X, dims=1)
-norm = normalize(X, n)
+norm = DataTreatments.normalize(X, n)
 @test isapprox(test, norm)
 
 test = tabular_norm(X, DT.minmax())
 n = fit(MinMax, X, dims=1)
-norm = normalize(X, n)
+norm = DataTreatments.normalize(X, n)
 @test isapprox(test, norm)
 
 test = tabular_norm(X, center())
 n = fit(Center, X, dims=1)
-norm = normalize(X, n)
+norm = DataTreatments.normalize(X, n)
 @test isapprox(test, norm)
 
 test = tabular_norm(X, unitpower())
 n = fit(UnitPower, X, dims=1)
-norm = normalize(X, n)
+norm = DataTreatments.normalize(X, n)
 @test isapprox(test, norm)
 
 test = tabular_norm(X, outliersuppress(;thr=5))
 n = fit(OutlierSuppress, X, dims=1)
-norm = normalize(X, n)
+norm = DataTreatments.normalize(X, n)
 @test isapprox(test, norm)
 
 # ---------------------------------------------------------------------------- #
@@ -129,42 +129,42 @@ X = rand(200,100)
 
 test = element_norm(X, zscore())
 n = fit(ZScore, X)
-norm = normalize(X, n)
+norm = DataTreatments.normalize(X, n)
 @test isapprox(test, norm)
 
 test = element_norm(X, zscore(method=:half))
 n = fit(HalfZScore, X)
-norm = normalize(X, n)
+norm = DataTreatments.normalize(X, n)
 @test isapprox(test, norm)
 
 test = element_norm(X, sigmoid())
 n = fit(Sigmoid, X)
-norm = normalize(X, n)
+norm = DataTreatments.normalize(X, n)
 @test isapprox(test, norm)
 
 test = element_norm(X, pnorm())
 n = fit(UnitEnergy, X)
-norm = normalize(X, n)
+norm = DataTreatments.normalize(X, n)
 @test isapprox(test, norm)
 
 test = element_norm(X, DT.minmax())
 n = fit(MinMax, X)
-norm = normalize(X, n)
+norm = DataTreatments.normalize(X, n)
 @test isapprox(test, norm)
 
 test = element_norm(X, center())
 n = fit(Center, X)
-norm = normalize(X, n)
+norm = DataTreatments.normalize(X, n)
 @test isapprox(test, norm)
 
 test = element_norm(X, unitpower())
 n = fit(UnitPower, X)
-norm = normalize(X, n)
+norm = DataTreatments.normalize(X, n)
 @test isapprox(test, norm)
 
 test = element_norm(X, outliersuppress(;thr=5))
 n = fit(OutlierSuppress, X)
-norm = normalize(X, n)
+norm = DataTreatments.normalize(X, n)
 @test isapprox(test, norm)
 
 # ---------------------------------------------------------------------------- #
@@ -186,7 +186,7 @@ function test_ds_norm(X, norm_func, NormType)
     # compute normalization the way ds_norm does (per column)
     col1_data = collect(Iterators.flatten(X[:, 1]))
     n = fit(NormType, reshape(col1_data, :, 1); dims=nothing)
-    norm = normalize(X[1,1], n)
+    norm = DataTreatments.normalize(X[1,1], n)
     
     @test isapprox(test[1,1], norm)
 end
@@ -512,4 +512,64 @@ end
         @test eltype(X_grouped) <: AbstractFloat
         @test mean([X_grouped[:, 1]; X_grouped[:, 2]]) ≈ 0.0 atol=1e-10
     end
+end
+
+@testset "different function calling method" begin
+    X = rand(100, 50)
+
+    X1 = element_norm(X, zscore())
+    X2 = element_norm(X, zscore)
+    @test X1 == X2
+
+    X1 = element_norm(X, zscore(method=:std)) # default
+    X2 = element_norm(X, zscore)
+    @test X1 == X2
+    
+    X1 = element_norm(X, sigmoid())
+    X2 = element_norm(X, sigmoid)
+    @test X1 == X2
+
+    X1 = element_norm(X, pnorm())
+    X2 = element_norm(X, pnorm)
+    @test X1 == X2
+
+    X1 = element_norm(X, pnorm(p=2)) # default
+    X2 = element_norm(X, pnorm)
+    @test X1 == X2
+
+    X1 = element_norm(X, scale())
+    X2 = element_norm(X, scale)
+    @test X1 == X2
+
+    X1 = element_norm(X, scale(factor=:std)) # default
+    X2 = element_norm(X, scale)
+    @test X1 == X2
+
+    X1 = element_norm(X, DataTreatments.minmax())
+    X2 = element_norm(X, DataTreatments.minmax)
+    @test X1 == X2
+
+    X1 = element_norm(X, DataTreatments.minmax(lower=0.0, upper=1.0)) # default
+    X2 = element_norm(X, DataTreatments.minmax)
+    @test X1 == X2
+
+    X1 = element_norm(X, center())
+    X2 = element_norm(X, center)
+    @test X1 == X2
+
+    X1 = element_norm(X, center(method=:mean)) # default
+    X2 = element_norm(X, center)
+    @test X1 == X2
+
+    X1 = element_norm(X, unitpower())
+    X2 = element_norm(X, unitpower)
+    @test X1 == X2
+
+    X1 = element_norm(X, outliersuppress())
+    X2 = element_norm(X, outliersuppress)
+    @test X1 == X2
+
+    X1 = element_norm(X, outliersuppress(thr=0.5)) # default
+    X2 = element_norm(X, outliersuppress)
+    @test X1 == X2
 end

@@ -1,7 +1,7 @@
 # ---------------------------------------------------------------------------- #
 #                               core functions                                 #
 # ---------------------------------------------------------------------------- #
-function _zscore(x::AbstractArray; method::Symbol)
+function _zscore(x::AbstractArray; method::Symbol=:std)
     (y,o) = if method == :std
         (Statistics.mean(x), Statistics.std(x))
     elseif method == :robust
@@ -21,13 +21,13 @@ function _sigmoid(x::AbstractArray)
     (x) -> inv(1 + exp(-(x - y) / o))
 end
 
-function _pnorm(x::AbstractArray; p::Real)
+function _pnorm(x::AbstractArray; p::Real=2)
     x_filtered = filter(!isnan, vec(x))
     s = isempty(x_filtered) ? one(eltype(x)) : LinearAlgebra.norm(x_filtered, p)
     Base.Fix2(/, s)
 end
 
-function _scale(x::AbstractArray; factor::Symbol)
+function _scale(x::AbstractArray; factor::Symbol=:std)
     s = if factor == :std
         Statistics.std(x)
     elseif factor == :mad
@@ -43,13 +43,13 @@ function _scale(x::AbstractArray; factor::Symbol)
     Base.Fix2(/, s)
 end
 
-function _minmax(x::AbstractArray; lower::Real, upper::Real)
+function _minmax(x::AbstractArray; lower::Real=0.0, upper::Real=1.0)
     xmin, xmax = extrema(x)    
     scale = (upper - lower) / (xmax - xmin)
     (x) -> clamp(lower + (x - xmin) * scale, lower, upper)
 end
 
-function _center(x::AbstractArray; method::Symbol)
+function _center(x::AbstractArray; method::Symbol=:mean)
     method in (:mean, :median) || throw(ArgumentError("method must be :mean or :median, got :$method"))
     y = getproperty(Statistics, method)(x)
     (x) -> x - y
@@ -60,7 +60,7 @@ function _unitpower(x::AbstractArray)
     Base.Fix2(/, p)
 end
 
-function _outliersuppress(x::AbstractArray; thr::Real)
+function _outliersuppress(x::AbstractArray; thr::Real=0.5)
     y, o = Statistics.mean(x), Statistics.std(x)
     (x) -> abs(o) > thr * o ? y + sign(x - y) * thr * o : x
 end
@@ -70,6 +70,7 @@ end
 # ---------------------------------------------------------------------------- #
 """
     zscore(; [method::Symbol]) -> Function
+    zscore(x::AbstractArray; kwargs...) 
 
 Create a z-score normalization function that standardizes data by centering and scaling.
 
@@ -116,10 +117,12 @@ X_half = element_norm(X, zscore(method=:half))
 # Result: minimum ≈ 0, scaled by half-standard deviation
 ```
 """
-zscore(; method::Symbol=:std)::Function = x -> _zscore(x; method)
+zscore(; kwargs...) = x -> _zscore(x; kwargs...)
+zscore(x::AbstractArray; kwargs...) = _zscore(x; kwargs...)
 
 """
     sigmoid() -> Function
+    sigmoid(x::AbstractArray) 
 
 Create a sigmoid normalization function that maps data to the interval (0, 1).
 
@@ -144,10 +147,12 @@ X_sigmoid = element_norm(X, sigmoid())
 # Result: all values in (0, 1), mean(X) → 0.5
 ```
 """
-sigmoid()::Function = x -> _sigmoid(x)
+sigmoid() = x -> _sigmoid(x)
+sigmoid(x::AbstractArray) = _sigmoid(x)
 
 """
-    norm(; [p::Real]) -> Function
+    pnorm(; [p::Real]) -> Function
+    pnorm(x::AbstractArray; kwargs...) 
 
 Create a normalization function that scales data by the p-norm.
 
@@ -189,10 +194,13 @@ X_L4 = element_norm(X, norm(p=4))
 # Result: (sum(X.^4))^(1/4) = 1
 ```
 """
-pnorm(; p::Real=2)::Function = x -> _pnorm(x; p)
+pnorm(; kwargs...) = x -> _pnorm(x; kwargs...)
+pnorm(x::AbstractArray; kwargs...) = _pnorm(x; kwargs...)
+
 
 """
     scale(; [factor::Symbol]) -> Function
+    scale(x::AbstractArray; kwargs...) 
 
 Create a normalization function that scales data by a specified scale factor.
 
@@ -254,10 +262,12 @@ prices_norm = element_norm(prices, scale(factor=:first))
 # Result: [1.0, 1.05, 0.98, 1.10] - percentage of initial price
 ```
 """
-scale(; factor::Symbol=:std) = x -> _scale(x; factor)
+scale(; kwargs...) = x -> _scale(x; kwargs...)
+scale(x::AbstractArray; kwargs...) = _scale(x; kwargs...)
 
 """
     minmax(; [lower::Real, upper::Real]) -> Function
+    minmax(x::AbstractArray; kwargs...) 
 
 Create a min-max normalization function that rescales data to a specified range.
 
@@ -283,10 +293,12 @@ X_scaled = element_norm(X, minmax(lower=-1.0, upper=1.0))
 # Result: min ≈ -1, max ≈ 1
 ```
 """
-minmax(; lower::Real=0.0, upper::Real=1.0)::Function = x -> _minmax(x; lower, upper)
+minmax(; kwargs...) = x -> _minmax(x; kwargs...)
+minmax(x::AbstractArray; kwargs...) = _minmax(x; kwargs...)
 
 """
     center(; [method::Symbol]) -> Function
+    center(x::AbstractArray; kwargs...) 
 
 Create a centering normalization function that shifts data to have zero central tendency.
 
@@ -324,10 +336,12 @@ X_med = element_norm(X_outliers, center(method=:median))
 # Result: median(X_med) = 0, outlier less influential
 ```
 """
-center(; method::Symbol=:mean)::Function = x -> _center(x; method)
+center(; kwargs...) = x -> _center(x; kwargs...)
+center(x::AbstractArray; kwargs...) = _center(x; kwargs...)
 
 """
     unitpower() -> Function
+    unitpower(x::AbstractArray) 
 
 Create a normalization function that scales data to have unit root mean square (RMS) power.
 
@@ -352,10 +366,12 @@ X_norm = element_norm(X, unitpower())
 # Result: RMS(X_norm) = 1
 ```
 """
-unitpower()::Function = x -> _unitpower(x)
+unitpower() = x -> _unitpower(x)
+unitpower(x::AbstractArray) = _unitpower(x)
 
 """
     outliersuppress(; [thr::Real]) -> Function
+    outliersuppress(x::AbstractArray; kwargs...) 
 
 Create a normalization function that suppresses outliers by capping values beyond a threshold.
 
@@ -397,7 +413,8 @@ X_aggressive = element_norm(X, outliersuppress(thr=0.3))
 # Caps values beyond mean ± 3*std (more values affected)
 ```
 """
-outliersuppress(; thr::Real=0.5)::Function = x -> _outliersuppress(x; thr)
+outliersuppress(; kwargs...) = x -> _outliersuppress(x; kwargs...)
+outliersuppress(x::AbstractArray; kwargs...) = _outliersuppress(x; kwargs...)
 
 # ---------------------------------------------------------------------------- #
 #                              normalize functions                             #
