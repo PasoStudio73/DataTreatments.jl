@@ -125,12 +125,12 @@ result = reducesize(Xmatrix, intervals; reducefunc=std)
 ```
 """
 function reducesize(
-    X          :: AbstractArray,
+    X          :: AbstractArray{T},
     intervals  :: Tuple{Vararg{Vector{UnitRange{Int64}}}};
     reducefunc :: Base.Callable=mean,
     win        :: Union{Base.Callable, Tuple{Vararg{Base.Callable}}},
     uniform    :: Bool
-)::AbstractArray
+) where {T<:AbstractVector{<:Real}}
     output_dims  = length.(intervals)
     Xresult      = similar(X)
     cart_indices = CartesianIndices(output_dims)

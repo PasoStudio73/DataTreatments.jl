@@ -286,14 +286,14 @@ struct DataTreatment{T, S} <: AbstractDataTreatment
     norm       :: Union{Base.Callable, Nothing}
 
     function DataTreatment(
-        X          :: AbstractMatrix,
+        X          :: AbstractArray{T},
         aggrtype   :: Symbol;
         vnames     :: Vector{<:ValidVnames},
         win        :: Union{Base.Callable, Tuple{Vararg{Base.Callable}}},
         features   :: Tuple{Vararg{Base.Callable}}=(maximum, minimum, mean),
         reducefunc :: Base.Callable=mean,
         norm       :: Union{Base.Callable, Nothing}=nothing
-    )
+    ) where {T<:AbstractVector{<:Real}}
         is_multidim_dataset(X) || throw(ArgumentError("Input DataFrame " * 
             "does not contain multidimensional data."))
 
@@ -308,8 +308,6 @@ struct DataTreatment{T, S} <: AbstractDataTreatment
 
         vnames isa Vector{String} && (vnames = Symbol.(vnames))
         win isa Base.Callable && (win = (win,))
-
-        vnames isa Vector{String} && (vnames = Symbol.(vnames))
         intervals = @evalwindow first(X) win...
         nwindows = prod(length.(intervals))
 
@@ -317,20 +315,17 @@ struct DataTreatment{T, S} <: AbstractDataTreatment
             (aggregate(X, intervals; features, win, uniform),
             if nwindows == 1
                 # single window: apply to whole time series
-                [FeatureId(v, f, 1)
-                    for f in features, v in vnames] |> vec
+                [FeatureId(v, f, 1) for f in features, v in vnames] |> vec
             else
                 # multiple windows: apply to each interval
-                [FeatureId(v, f, i)
-                    for i in 1:nwindows, f in features, v in vnames] |> vec
+                [FeatureId(v, f, i) for i in 1:nwindows, f in features, v in vnames] |> vec
             end
             )
         end
 
         elseif aggrtype == :reducesize begin
             (reducesize(X, intervals; reducefunc, win, uniform),
-            [FeatureId(v, reducefunc, 1)
-                for v in vnames] |> vec
+            [FeatureId(v, reducefunc, 1) for v in vnames]
             )
         end
 
@@ -353,7 +348,7 @@ struct DataTreatment{T, S} <: AbstractDataTreatment
         kwargs...
     )
         isnothing(vnames) && (vnames = propertynames(X))
-        DataTreatment(Matrix(X), args...; vnames, kwargs...)
+        DataTreatment(Matrix{typeof(X[1,1])}(X), args...; vnames, kwargs...)
     end
 end
 
