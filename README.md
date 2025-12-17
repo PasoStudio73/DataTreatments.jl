@@ -41,10 +41,7 @@ intervals = @evalwindow X win
 
 # Apply multiple statistical features to each window
 features = (mean, std, maximum, minimum)
-result = aggregate(Xmatrix, intervals; features)
-
-# Normalize the result
-result_norm = aggregate(Xmatrix, intervals; features, norm=zscore())  # Z-score normalization
+result = aggregate(Xmatrix, intervals; features, win, uniform=true)
 ```
 
 ## Core Concepts
@@ -109,7 +106,7 @@ Xmatrix = fill(rand(200, 120), 100, 10)  # 100 samples, 10 variables
 intervals = @evalwindow first(Xmatrix) splitwindow(nwindows=4)
 features = (mean, std, maximum, minimum)
 
-result = aggregate(Xmatrix, intervals; features)
+result = aggregate(Xmatrix, intervals; features, win=splitwindow(nwindows=4), uniform=true)
 # Returns 100×640 matrix (10 vars × 4 features × 16 windows)
 ```
 

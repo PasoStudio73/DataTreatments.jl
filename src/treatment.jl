@@ -57,6 +57,46 @@ nvals(intervals) # 16
 @inline nvals(intervals::Tuple{Vararg{<:AbstractVector}})::Int64 = prod(length.(intervals))
 @inline nvals(intervals::AbstractVector)::Int64 = length(intervals)
 
+"""
+    has_uniform_element_size(X::AbstractDataFrame) -> Bool
+    has_uniform_element_size(X::AbstractArray) -> Bool
+
+Return `true` if every element in the Array or DataFrame has the same size (shape), `false` otherwise.
+This is useful for deciding whether window definitions can be reused across all entries.
+
+- Empty Array or DataFrames return `true`.
+- Short-circuits on the first mismatch.
+- Inspects all columns and all elements.
+
+# Examples
+```julia
+df = DataFrame(a=[rand(3,4) for _ in 1:2], b=[rand(3,4) for _ in 1:2])
+has_uniform_element_size(df)  # true
+
+df = DataFrame(a=[rand(3,4), rand(2,4)], b=[rand(3,4), rand(3,4)])
+has_uniform_element_size(df)  # false
+```
+"""
+@inline function has_uniform_element_size(X::AbstractDataFrame)
+    isempty(X) && return true
+    refsize = size(X[1,1]) # size of first element in first column
+    @inbounds for col in eachcol(X)
+        for elem in col
+            size(elem) == refsize || return false
+        end
+    end
+    return true
+end
+
+@inline function has_uniform_element_size(X::AbstractArray)
+    isempty(X) && return true
+    refsize = size(first(X))
+    @inbounds for x in X
+        size(x) == refsize || return false
+    end
+    return true
+end
+
 # ---------------------------------------------------------------------------- #
 #                             reducesize functions                              #
 # ---------------------------------------------------------------------------- #
@@ -87,14 +127,20 @@ result = reducesize(Xmatrix, intervals; reducefunc=std)
 function reducesize(
     X          :: AbstractArray,
     intervals  :: Tuple{Vararg{Vector{UnitRange{Int64}}}};
-    reducefunc :: Base.Callable=mean
+    reducefunc :: Base.Callable=mean,
+    win        :: Union{Base.Callable, Tuple{Vararg{Base.Callable}}},
+    uniform    :: Bool
 )::AbstractArray
-    output_dims = length.(intervals)
-    Xresult = similar(X)
+    output_dims  = length.(intervals)
+    Xresult      = similar(X)
     cart_indices = CartesianIndices(output_dims)
     
     @inbounds Threads.@threads for i in 1:length(X)
         element = X[i]
+        uniform || begin
+            intervals = @evalwindow X[i] win...
+            output_dims  = length.(intervals)
+        end
         reduced = similar(element, output_dims...)
         
         for cart_idx in cart_indices
@@ -151,7 +197,9 @@ result = aggregate(Xmatrix, intervals; features)
 function aggregate(
     X         :: AbstractArray,
     intervals :: Tuple{Vararg{Vector{UnitRange{Int64}}}};
-    features  :: Tuple{Vararg{Base.Callable}}=(mean,)
+    features  :: Tuple{Vararg{Base.Callable}}=(mean,),
+    win       :: Union{Base.Callable, Tuple{Vararg{Base.Callable}}},
+    uniform   :: Bool
 )::AbstractArray
     nwindows = prod(length.(intervals))
     nfeats   = nwindows * length(features)
@@ -160,6 +208,7 @@ function aggregate(
     @inbounds Threads.@threads for colidx in axes(X, 2)
         for rowidx in axes(X, 1)
             out_idx = (colidx - 1) * nfeats + 1
+            uniform || (intervals = @evalwindow X[rowidx, colidx] win...)
             
             for feat in features
                 for cart_idx in CartesianIndices(length.(intervals))

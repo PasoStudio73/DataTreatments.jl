@@ -35,6 +35,7 @@ include("windowing.jl")
 
 export reducesize, aggregate
 export is_multidim_dataset, nvals
+export has_uniform_element_size
 include("treatment.jl")
 
 export zscore, sigmoid, pnorm, scale, minmax, center, unitpower, outliersuppress
@@ -296,6 +297,15 @@ struct DataTreatment{T, S} <: AbstractDataTreatment
         is_multidim_dataset(X) || throw(ArgumentError("Input DataFrame " * 
             "does not contain multidimensional data."))
 
+        # checks the special case of a dataset whose elements have different sizes
+        # verifies that the chosen window is either adaptivewindow (recommended) or wholewindow,
+        # and otherwise throws an error
+        # sets the variable `uniform`, which will be passed to aggregate or reducesize
+        # to indicate whether the window must be computed for each individual element
+        # because if all elements share the same size,
+        # computing the window each time is a significant overhead
+        uniform = has_uniform_element_size(X)
+
         vnames isa Vector{String} && (vnames = Symbol.(vnames))
         win isa Base.Callable && (win = (win,))
 
@@ -304,7 +314,7 @@ struct DataTreatment{T, S} <: AbstractDataTreatment
         nwindows = prod(length.(intervals))
 
         Xresult, Xinfo = if aggrtype == :aggregate begin
-            (aggregate(X, intervals; features),
+            (aggregate(X, intervals; features, win, uniform),
             if nwindows == 1
                 # single window: apply to whole time series
                 [FeatureId(v, f, 1)
@@ -318,7 +328,7 @@ struct DataTreatment{T, S} <: AbstractDataTreatment
         end
 
         elseif aggrtype == :reducesize begin
-            (reducesize(X, intervals; reducefunc),
+            (reducesize(X, intervals; reducefunc, win, uniform),
             [FeatureId(v, reducefunc, 1)
                 for v in vnames] |> vec
             )

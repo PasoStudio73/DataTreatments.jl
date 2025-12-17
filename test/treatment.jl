@@ -12,7 +12,7 @@ using Statistics
     intervals = @evalwindow X wfunc
     features = (mean, maximum)
     
-    result = aggregate(Xmatrix, intervals; features)
+    result = aggregate(Xmatrix, intervals; features, win=wfunc, uniform=true)
     
     @test size(result, 1) == size(Xmatrix, 1)  # Same number of rows
     @test size(result, 2) == size(Xmatrix, 2) * prod(length.(intervals)) * length(features)
@@ -25,7 +25,7 @@ end
     wfunc = splitwindow(nwindows=3)
     intervals = @evalwindow X wfunc
     
-    result = reducesize(Xmatrix, intervals; reducefunc=Statistics.std)
+    result = reducesize(Xmatrix, intervals; reducefunc=Statistics.std, win=wfunc, uniform=true)
     
     @test size(result) == size(Xmatrix)
     @test eltype(result) == typeof(first(result))
@@ -497,4 +497,89 @@ end
         @test minimum(minimum.(dt.dataset)) ≈ 0.0 atol=1e-10
         @test maximum(maximum.(dt.dataset)) ≈ 1.0 atol=1e-10
     end
+end
+
+@testset "has_uniform_element_size - DataFrame" begin
+    # empty DataFrame
+    @test has_uniform_element_size(DataFrame()) === true
+
+    # uniform element sizes (all 2x3 matrices)
+    df_uniform = DataFrame(
+        a = [rand(2,3) for _ in 1:3],
+        b = [rand(2,3) for _ in 1:3]
+    )
+    @test has_uniform_element_size(df_uniform) === true
+
+    # mismatch in one element
+    df_mismatch = DataFrame(
+        a = [rand(2,3), rand(3,3), rand(2,3)],
+        b = [rand(2,3) for _ in 1:3]
+    )
+    @test has_uniform_element_size(df_mismatch) === false
+end
+
+@testset "has_uniform_element_size - AbstractArray" begin
+    # empty array of arrays
+    empty_arr = Matrix{Vector{Float64}}(undef, 0, 0)
+    @test has_uniform_element_size(empty_arr) === true
+
+    # uniform sizes (all 2x3 matrices)
+    A = [rand(2,3) for _ in 1:4, _ in 1:2]
+    @test has_uniform_element_size(A) === true
+
+    # introduce a mismatch
+    A_bad = copy(A)
+    A_bad[3, 2] = rand(3,3)
+    @test has_uniform_element_size(A_bad) === false
+end
+
+# helper to build independent copies
+function make_uniform_matrix(vec, rows, cols)
+    [copy(vec) for _ in 1:rows, _ in 1:cols]
+end
+
+@testset "aggregate/reducesize - uniform element sizes" begin
+    v10 = collect(1.0:10.0)
+    Xu  = make_uniform_matrix(v10, 2, 3)
+
+    wsplit = splitwindow(nwindows=2)
+    intervals_u = @evalwindow v10 wsplit
+    feats = (mean, maximum)
+
+    # aggregate with uniform=true
+    Au = aggregate(Xu, intervals_u; features=feats, win=wsplit, uniform=true)
+    @test size(Au) == (2, 3 * length(feats) * length(intervals_u[1]))
+
+    # reducesize with uniform=true
+    Ru = reducesize(Xu, intervals_u; reducefunc=mean, win=wsplit, uniform=true)
+    @test size(Ru) == size(Xu)
+    @test length(Ru[1,1]) == length(intervals_u[1])
+    @test Ru[1,1] ≈ [mean(v10[r]) for r in intervals_u[1]]
+end
+
+@testset "aggregate/reducesize - non-uniform element sizes (adaptivewindow)" begin
+    v8  = collect(1.0:8.0)
+    v10 = collect(1.0:10.0)
+    v12 = collect(1.0:12.0)
+
+    # non-uniform matrix of vectors (avoid hvcat)
+    Xn = Matrix{Vector{Float64}}(undef, 2, 3)
+    Xn[1,1] = copy(v10); Xn[1,2] = copy(v12); Xn[1,3] = copy(v8)
+    Xn[2,1] = copy(v12); Xn[2,2] = copy(v8);  Xn[2,3] = copy(v10)
+
+    wadapt = adaptivewindow(nwindows=2, overlap=0.0)
+    # intervals just to provide initial value; with uniform=false they are recomputed per element
+    intervals_n = @evalwindow v10 wadapt
+    feats = (mean, maximum)
+
+    # aggregate with uniform=false and adaptivewindow
+    wadapt isa Base.Callable && (wadapt = (wadapt,))
+    An = aggregate(Xn, intervals_n; features=feats, win=wadapt, uniform=false)
+    @test size(An) == (2, 3 * length(feats) * length(intervals_n[1]))
+
+    # reducesize with uniform=false and adaptivewindow
+    Rn = reducesize(Xn, intervals_n; reducefunc=mean, win=wadapt, uniform=false)
+    @test size(Rn) == size(Xn)
+    intervals_e = first(@evalwindow Xn[1,1] wadapt...)
+    @test Rn[1,1] ≈ [mean(Xn[1,1][r]) for r in intervals_e]
 end
