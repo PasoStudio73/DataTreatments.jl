@@ -12,6 +12,7 @@ A Julia package for processing datasets containing multidimensional elements thr
 - **Windowing functions** for partitioning multidimensional data
 - **Dimensionality reduction** using feature extraction together with windowing
 - **Tabular transformation** through feature extraction to convert complex multidimensional datasets into flat feature matrices suitable for standard machine learning models
+- **Data normalization** with multiple methods (z-score, min-max, sigmoid, etc.) for preprocessing
 - **Complete reproducibility** by storing all processing parameters and feature metadata
 
 This package is particularly useful when you need to apply traditional ML algorithms that require tabular input to datasets containing structured multidimensional elements like images, spectrograms, or time series segments.
@@ -23,27 +24,57 @@ using Pkg
 Pkg.add("DataTreatments")
 ```
 
-## Quick Start
+# Quick Start
 
+## Basic Usage with Matrix
 ```julia
 using DataTreatments
 
 # Create a dataset with multidimensional elements
-X = rand(200, 120)  # Example: 200×120 matrix (e.g., spectrogram)
+X = rand(200, 120)  # Example: 200×120 matrix
 Xmatrix = fill(X, 100, 10)  # 100×10 dataset where each element is a 200×120 matrix
+vnames = Symbol.("auto", 1:10)
 
-# Define windowing strategy
-win = splitwindow(nwindows=4)  # Split into 4 equal windows per dimension
-
-# Compute intervals for the first element
-intervals = @evalwindow X win
-
-# Apply multiple statistical features to each window
+# Define processing parameters
+win = splitwindow(nwindows=4)
 features = (mean, std, maximum, minimum)
-result = aggregate(Xmatrix, intervals; features)
+norm = zscore()
+reducefunc = median
 
-# Normalize the result
-result_norm = aggregate(Xmatrix, intervals; features, norm=zscore())  # Z-score normalization
+# Process for propositional analysis
+result = DataTreatment(Xmatrix, :aggregate; vnames, win, features, norm)
+
+# Process for modal analysis
+result = DataTreatment(Xmatrix, :reducesize; vnames, win, features, reducefunc, norm)
+```
+
+## Basic Usage with DataFrame
+```julia
+using DataTreatments
+using DataFrames
+
+# Create dataset with multidimensional elements
+df = DataFrame(
+    channel1 = [rand(200, 120) for _ in 1:1000],
+    channel2 = [rand(200, 120) for _ in 1:1000],
+    channel3 = [rand(200, 120) for _ in 1:1000]
+)
+
+# Define processing parameters
+win = adaptivewindow(nwindows=6, overlap=0.15)
+features = (mean, std, maximum, minimum, median)
+norm = pnorm(p=1)
+reducefunc = median
+
+# Process for propositional analysis
+result = DataTreatment(df, :aggregate; win, features, norm)
+
+# Process for modal analysis
+result = DataTreatment(df, :reducesize; win, features, reducefunc, norm)
+
+# Access processed data
+X_flat = get_dataset(result)        # Flat feature matrix
+feature_ids = get_featureid(result) # Feature metadata
 ```
 
 ## Core Concepts
@@ -88,28 +119,6 @@ intervals = @evalwindow X splitwindow(nwindows=4)
 
 # Apply different windowing per dimension
 intervals = @evalwindow X splitwindow(nwindows=4) movingwindow(winsize=40, winstep=20)
-```
-
-### Feature Extraction Functions
-
-#### `reducesize` - Apply to Dataset Elements
-```julia
-Xmatrix = fill(rand(200, 120), 100, 10)  # Dataset of matrices
-intervals = @evalwindow first(Xmatrix) splitwindow(nwindows=3)
-
-# Aggregate each element using reduce feature
-result = reducesize(Xmatrix, intervals; reducefunc=mean)
-# Each element reduced from 200×120 to a 3×3 matrix per feature
-```
-
-#### `aggregate` - Flatten to Tabular Format
-```julia
-Xmatrix = fill(rand(200, 120), 100, 10)  # 100 samples, 10 variables
-intervals = @evalwindow first(Xmatrix) splitwindow(nwindows=4)
-features = (mean, std, maximum, minimum)
-
-result = aggregate(Xmatrix, intervals; features)
-# Returns 100×640 matrix (10 vars × 4 features × 16 windows)
 ```
 
 ### Normalization Functions
@@ -201,18 +210,6 @@ dt = DataTreatment(df, :aggregate;
 # All mean-based features share normalization, std-based share another
 X_grouped = grouped_norm(dt.dataset, zscore(); 
                         featvec=get_vecfeatures(dt.featureid))
-```
-
-#### Integration with DataTreatment
-
-Apply normalization during data treatment:
-
-```julia
-# During DataTreatment creation
-dt = DataTreatment(df, :aggregate;
-                   win=(win,),
-                   features=(mean, std),
-                   norm=zscore())
 ```
 
 ## Data Structures

@@ -33,7 +33,6 @@ export movingwindow, wholewindow, splitwindow, adaptivewindow
 export @evalwindow
 include("windowing.jl")
 
-export reducesize, aggregate
 export is_multidim_dataset, nvals
 export has_uniform_element_size
 include("treatment.jl")
@@ -207,9 +206,7 @@ win = adaptivewindow(nwindows=6, overlap=0.15)
 features = (mean, std, maximum, minimum, median)
 
 # Process to tabular format
-dt = DataTreatment(df, :reducesize; 
-                   win=(win,), 
-                   features=features)
+dt = DataTreatment(df, :reducesize; win, features)
 
 # Access processed data
 X_flat = get_dataset(dt)        # Flat feature matrix
@@ -293,7 +290,7 @@ struct DataTreatment{T, S} <: AbstractDataTreatment
         features   :: Tuple{Vararg{Base.Callable}}=(maximum, minimum, mean),
         reducefunc :: Base.Callable=mean,
         norm       :: Union{Base.Callable, Nothing}=nothing
-    ) where {T<:AbstractVector{<:Real}}
+    ) where {T<:AbstractArray{<:Real}}
         is_multidim_dataset(X) || throw(ArgumentError("Input DataFrame " * 
             "does not contain multidimensional data."))
 

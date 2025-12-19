@@ -130,7 +130,7 @@ function reducesize(
     reducefunc :: Base.Callable=mean,
     win        :: Union{Base.Callable, Tuple{Vararg{Base.Callable}}},
     uniform    :: Bool
-) where {T<:AbstractVector{<:Real}}
+) where {T<:AbstractArray{<:Real}}
     output_dims  = length.(intervals)
     Xresult      = similar(X)
     cart_indices = CartesianIndices(output_dims)
@@ -195,12 +195,12 @@ result = aggregate(Xmatrix, intervals; features)
 ```
 """
 function aggregate(
-    X         :: AbstractArray,
+    X         :: AbstractArray{T},
     intervals :: Tuple{Vararg{Vector{UnitRange{Int64}}}};
     features  :: Tuple{Vararg{Base.Callable}}=(mean,),
     win       :: Union{Base.Callable, Tuple{Vararg{Base.Callable}}},
     uniform   :: Bool
-)::AbstractArray
+) where {T<:AbstractArray{<:Real}}
     nwindows = prod(length.(intervals))
     nfeats   = nwindows * length(features)
     Xresult  = Array{core_eltype(X)}(undef, size(X, 1), size(X, 2) * nfeats)
