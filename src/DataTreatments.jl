@@ -105,9 +105,9 @@ get_vecnwins(f::Vector{FeatureId})    = [get_nwin(w) for w in f]
 function Base.show(io::IO, f::FeatureId)
     feat_name = nameof(f.feat)
     if f.nwin == 1
-        print(io, "$(feat_name)($(f.vname))")
+        print(io, "$(feat_name)_$(f.vname)")
     else
-        print(io, "$(feat_name)($(f.vname))_w$(f.nwin)")
+        print(io, "$(feat_name)_$(f.vname)_w$(f.nwin)")
     end
 end
 
