@@ -8,28 +8,34 @@ using Statistics
 @testset "aggregate - Flatten to Tabular" begin
     X = rand(100, 120)
     Xmatrix = fill(X, 100, 10)
-    wfunc = splitwindow(nwindows=3)
-    intervals = @evalwindow X wfunc
+    vnames = Symbol.("var", 1:size(Xmatrix, 2))
+    nwindows = 3
+    win = splitwindow(; nwindows)
     features = (mean, maximum)
     
-    result = aggregate(Xmatrix, intervals; features, win=wfunc, uniform=true)
+    result = DataTreatment(Xmatrix, :aggregate; vnames, win, features)
     
-    @test size(result, 1) == size(Xmatrix, 1)  # Same number of rows
-    @test size(result, 2) == size(Xmatrix, 2) * prod(length.(intervals)) * length(features)
+    @test get_aggrtype(result) == :aggregate
+    @test size(get_dataset(result), 1) == size(Xmatrix, 1)  # Same number of rows
+    # features are matrices, multidim windowing is: nwindows * nwindows
+    @test size(get_dataset(result), 2) == size(Xmatrix, 2) * nwindows^2 * length(features)
+    @test length(get_featureid(result)) == 180
+    @test isnothing(get_norm(result))
     @test eltype(result) == Float64
 end
 
 @testset "reducesize - Reduce elements size" begin
     X = rand(100, 120)
     Xmatrix = fill(X, 100, 10)
-    wfunc = splitwindow(nwindows=3)
-    intervals = @evalwindow X wfunc
+    vnames = Symbol.("var", 1:size(Xmatrix, 2))
+    win = splitwindow(nwindows=3)
     
-    result = reducesize(Xmatrix, intervals; reducefunc=Statistics.std, win=wfunc, uniform=true)
+    result = DataTreatment(Xmatrix, :reducesize; vnames, win, reducefunc=Statistics.std)
     
-    @test size(result) == size(Xmatrix)
-    @test eltype(result) == typeof(first(result))
-    @test size(first(result)) == (3, 3)
+    @test size(get_dataset(result)) == size(Xmatrix)
+    @test eltype(result) == typeof(first(get_dataset(result)))
+    @test size(first(get_dataset(result))) == (3, 3)
+    @test get_reducefunc(result) == std
 end
 
 @testset "FeatureId" begin
@@ -541,20 +547,22 @@ end
 @testset "aggregate/reducesize - uniform element sizes" begin
     v10 = collect(1.0:10.0)
     Xu  = make_uniform_matrix(v10, 2, 3)
+    vnames = Symbol.("var", 1:size(Xu, 2))
 
-    wsplit = splitwindow(nwindows=2)
-    intervals_u = @evalwindow v10 wsplit
-    feats = (mean, maximum)
+    nwindows = 2
+    win = splitwindow(; nwindows)
+    features = (mean, maximum)
 
     # aggregate with uniform=true
-    Au = aggregate(Xu, intervals_u; features=feats, win=wsplit, uniform=true)
-    @test size(Au) == (2, 3 * length(feats) * length(intervals_u[1]))
+    Au = DataTreatment(Xu, :aggregate; vnames, features, win)
+    @test size(get_dataset(Au)) == (2, 3 * length(features) * nwindows)
 
     # reducesize with uniform=true
-    Ru = reducesize(Xu, intervals_u; reducefunc=mean, win=wsplit, uniform=true)
-    @test size(Ru) == size(Xu)
-    @test length(Ru[1,1]) == length(intervals_u[1])
-    @test Ru[1,1] ≈ [mean(v10[r]) for r in intervals_u[1]]
+    Ru = DataTreatment(Xu, :reducesize; vnames, reducefunc=mean, win)
+    @test size(get_dataset(Ru)) == size(Xu)
+    @test length(get_dataset(Ru)[1,1]) == nwindows
+    intervals_u = first(@evalwindow v10 win)
+    @test get_dataset(Ru)[1,1] ≈ [mean(v10[r]) for r in intervals_u]
 end
 
 @testset "aggregate/reducesize - non-uniform element sizes (adaptivewindow)" begin
@@ -566,20 +574,18 @@ end
     Xn = Matrix{Vector{Float64}}(undef, 2, 3)
     Xn[1,1] = copy(v10); Xn[1,2] = copy(v12); Xn[1,3] = copy(v8)
     Xn[2,1] = copy(v12); Xn[2,2] = copy(v8);  Xn[2,3] = copy(v10)
+    vnames = Symbol.("var", 1:size(Xn, 2))
 
-    wadapt = adaptivewindow(nwindows=2, overlap=0.0)
-    # intervals just to provide initial value; with uniform=false they are recomputed per element
-    intervals_n = @evalwindow v10 wadapt
-    feats = (mean, maximum)
+    nwindows = 2
+    win = adaptivewindow(; nwindows, overlap=0.0)
+    features = (mean, maximum)
 
-    # aggregate with uniform=false and adaptivewindow
-    wadapt isa Base.Callable && (wadapt = (wadapt,))
-    An = aggregate(Xn, intervals_n; features=feats, win=wadapt, uniform=false)
-    @test size(An) == (2, 3 * length(feats) * length(intervals_n[1]))
+    An = DataTreatment(Xn, :aggregate; vnames, win, features)
+    @test size(get_dataset(An)) == (2, 3 * length(features) * nwindows)
 
     # reducesize with uniform=false and adaptivewindow
-    Rn = reducesize(Xn, intervals_n; reducefunc=mean, win=wadapt, uniform=false)
-    @test size(Rn) == size(Xn)
-    intervals_e = first(@evalwindow Xn[1,1] wadapt...)
-    @test Rn[1,1] ≈ [mean(Xn[1,1][r]) for r in intervals_e]
+    Rn = DataTreatment(Xn, :reducesize; vnames, win, reducefunc=mean)
+    @test size(get_dataset(Rn)) == size(Xn)
+    intervals_e = first(@evalwindow Xn[1,1] win)
+    @test get_dataset(Rn)[1,1] ≈ [mean(Xn[1,1][r]) for r in intervals_e]
 end

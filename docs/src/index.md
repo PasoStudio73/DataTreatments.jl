@@ -285,10 +285,6 @@ println("Windows: $n_windows per dimension")
 - `adaptivewindow(; nwindows::Int, overlap::Float64)` - Windows with overlap
 - `wholewindow()` - Single window covering entire dimension
 
-### Processing Functions
-- `aggregate(X, intervals; features=(mean,))` - Apply features to dataset elements
-- `reducesize(X, intervals; features=(mean,))` - Flatten to tabular format
-
 ### Data Structures
 - `DataTreatment` - Container for processed data with complete metadata
 - `FeatureId` - Metadata for individual features (variable, function, window)

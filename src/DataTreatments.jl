@@ -271,8 +271,6 @@ length(dt)    # Number of features
 
 # See Also
 - [`FeatureId`](@ref): Individual feature metadata
-- [`aggregate`](@ref): Multi-element aggregation
-- [`reducesize`](@ref): Flatten to tabular format
 - [`@evalwindow`](@ref): Window evaluation macro
 """
 struct DataTreatment{T, S} <: AbstractDataTreatment
@@ -416,6 +414,6 @@ export FeatureId, DataTreatment
 export get_vname, get_feature, get_nwin
 export get_vecvnames, get_vecfeatures, get_vecnwins
 export get_vnames, get_features, get_nwindows
-export get_dataset, get_featureid, get_reducefunc, get_aggrtype
+export get_dataset, get_featureid, get_reducefunc, get_aggrtype, get_norm
 
 end

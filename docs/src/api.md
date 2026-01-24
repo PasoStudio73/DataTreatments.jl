@@ -8,13 +8,6 @@ FeatureId
 DataTreatment
 ```
 
-# [Treatments](@id treatments)
-
-```@docs
-reducesize
-aggregate
-```
-
 # [Windowing](@id windowing)
 
 ```@docs
