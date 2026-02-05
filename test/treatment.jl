@@ -598,6 +598,7 @@ end
     intervals = (UnitRange{Int}[1:50, 51:100, 101:150, 151:200],
             UnitRange{Int}[1:30, 31:60, 61:90, 91:120])
     @test nvals(intervals) == 16
+    @test nvals(intervals[1]) == 4
 end
 
 @testset "wholewindow" begin

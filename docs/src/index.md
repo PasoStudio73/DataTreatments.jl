@@ -13,6 +13,7 @@ A Julia package for processing datasets containing multidimensional elements thr
 - **Dimensionality reduction** using feature extraction together with windowing
 - **Tabular transformation** through feature extraction to convert complex multidimensional datasets into flat feature matrices suitable for standard machine learning models
 - **Data normalization** with multiple methods (z-score, min-max, sigmoid, etc.) for preprocessing
+- **Group-wise operations** via `groupby` for consistent processing across related features
 - **Complete reproducibility** by storing all processing parameters and feature metadata
 
 This package is particularly useful when you need to apply traditional ML algorithms that require tabular input to datasets containing structured multidimensional elements like images, spectrograms, or time series segments.
