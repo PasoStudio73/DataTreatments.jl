@@ -62,9 +62,15 @@ function groupby(df::DataTreatment, fields::Symbol...)
 
     # initial setup Vector{Vector} of all indexes and featureids
     featureids = get_featureid(df)
+
+    groupby(get_dataset(df), featureids, collect(fields))
+end
+
+function groupby(::Matrix{T}, featureids::Vector{FeatureId}, fields::Vector{Symbol}) where {T<:Real}
+    # initial setup Vector{Vector} of all indexes
     idxs = [[1:length(featureids)...]]
 
-    _groupby(idxs, [featureids], collect(fields))
+    _groupby(idxs, [featureids], fields)
 end
 
 # ---------------------------------------------------------------------------- #

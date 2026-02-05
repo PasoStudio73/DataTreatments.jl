@@ -278,6 +278,7 @@ struct DataTreatment{T, S} <: AbstractDataTreatment
     featureid  :: Vector{FeatureId}
     reducefunc :: Base.Callable
     aggrtype   :: Symbol
+    groups     :: Union{Tuple{Vararg{Symbol}}, Nothing}
     norm       :: Union{Base.Callable, Nothing}
 
     function DataTreatment(
@@ -287,6 +288,7 @@ struct DataTreatment{T, S} <: AbstractDataTreatment
         win        :: Union{Base.Callable, Tuple{Vararg{Base.Callable}}},
         features   :: Tuple{Vararg{Base.Callable}}=(maximum, minimum, mean),
         reducefunc :: Base.Callable=mean,
+        groups     :: Union{Tuple{Vararg{Symbol}}, Nothing}=nothing,
         norm       :: Union{Base.Callable, Nothing}=nothing
     ) where {T<:AbstractArray{<:Real}}
         is_multidim_dataset(X) || throw(ArgumentError("Input DataFrame " * 
@@ -328,12 +330,18 @@ struct DataTreatment{T, S} <: AbstractDataTreatment
             error("Unknown treatment type: $treat")
         end
 
+        if !isnothing(groups)
+            @show typeof(Xresult)
+            @show typeof(Xinfo)
+
+        end
+
         if !isnothing(norm)
             aggrtype == :aggregate  && grouped_norm!(Xresult, norm; featvec=get_vecfeatures(Xinfo))
             aggrtype == :reducesize && (Xresult = ds_norm(Xresult, norm))
         end
 
-        new{eltype(Xresult), core_eltype(Xresult)}(Xresult, Xinfo, reducefunc, aggrtype, norm)
+        new{eltype(Xresult), core_eltype(Xresult)}(Xresult, Xinfo, reducefunc, aggrtype, groups, norm)
     end
 
     function DataTreatment(

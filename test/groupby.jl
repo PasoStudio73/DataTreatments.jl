@@ -16,12 +16,14 @@ Xts, yts = Artifacts.load(natopsloader)
 win = adaptivewindow(nwindows=3, overlap=0.2)
 features = (mean, maximum)
 
-rs = DataTreatment(Xts, :reducesize; win)
-ag = DataTreatment(Xts, :aggregate; win, features)
+rs_no_grp = DataTreatment(Xts, :reducesize; win)
+ag_no_grp = DataTreatment(Xts, :aggregate; win, features)
 
 # ---------------------------------------------------------------------------- #
 #                                  groupby                                     #
 # ---------------------------------------------------------------------------- #
+rs_grp = DataTreatment(Xts, :reducesize; win, groups=(:vname,))
+ag_grp = DataTreatment(Xts, :aggregate; win, features, groups=(:vname, :feat))
 
 # macro groupby(x, idlabels...)
 #     esc_idlabels = map(esc, idlabels)
