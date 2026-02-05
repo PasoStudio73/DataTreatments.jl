@@ -1,7 +1,7 @@
 name = "DataTreatments"
 uuid = "1b3ff5f2-9b56-42a2-b38a-76a033f741ca"
-version = "0.2.1"
-authors = ["Riccardo Pasini"]
+version = "0.3.0"
+authors = ["Federico Manzella", "Riccardo Pasini"]
 
 [deps]
 Catch22 = "acdeb78f-3d39-4310-8fdf-6d75c17c6d5a"
