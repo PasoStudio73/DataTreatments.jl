@@ -2,8 +2,15 @@
 #                               GroupTreatment                                 #
 # ---------------------------------------------------------------------------- #
 struct GroupResult <: AbstractDataTreatment
-    groups::Vector{Vector{Int}}
-    feat_groups::Vector{Vector{FeatureId}}
+    group::Vector{Int64}
+    feat_group::Vector{FeatureId}
+
+    function GroupResult(
+        group::Vector{Int64},
+        feat_group::Vector{FeatureId}
+    )
+        new(group, feat_group)
+    end
 end
 
 
@@ -11,13 +18,13 @@ end
 #                                  groupby                                     #
 # ---------------------------------------------------------------------------- #
 """
-    @groupby(data, fields...)
+    groupby(data::DataTreatment, fields...)
 
 Group rows in a DataTreatment dataset by one or more feature attributes.
 
 ## Purpose
 
-The `@groupby` macro enables hierarchical grouping of DataTreatment columns based on 
+The `groupby` function enables hierarchical grouping of DataTreatment columns based on 
 feature properties stored in the `FeatureId` structure. This is essential for operations 
 that require consistent computation across groups rather than column-by-column, preventing 
 data inconsistencies and unwanted flattening.
@@ -26,7 +33,7 @@ data inconsistencies and unwanted flattening.
 
 Each feature in the dataset carries metadata through its `FeatureId`:
 - **vname**: The name/identifier of the feature
-- **win**: The window number associated with multidimensional levels
+- **nwin**: The window number associated with multidimensional levels
 - **feat**: The feature used to reduce or aggregate multidimensional elements to 
   manageable computational size
 
@@ -50,53 +57,50 @@ Tuple of:
 - **groups**: Vector of index groups mapping to original dataset positions
 - **feat_groups**: Corresponding FeatureId groups for each group of indices
 """
-macro groupby(d, fields...)
-    isempty(fields) && error("@atest requires at least one field")
+function groupby(df::DataTreatment, fields::Symbol...)
+    isempty(fields) && error("groupby requires at least one field")
 
-    quote
-        df = $(esc(d))
-        # initial setup Vector{Vector} of all indexes and featureids
-        featureids = get_featureid(df)
-        idxs = [[1:length(featureids)...]]
+    # initial setup Vector{Vector} of all indexes and featureids
+    featureids = get_featureid(df)
+    idxs = [[1:length(featureids)...]]
 
-        _groupby(idxs, [featureids], [$(esc.(fields)...)])
-    end
+    _groupby(idxs, [featureids], collect(fields))
 end
 
+# ---------------------------------------------------------------------------- #
+#                              internal _groupby                               #
+# ---------------------------------------------------------------------------- #
 function _groupby(idxs::Vector{Vector{Int64}}, featureids::Vector{Vector{FeatureId}}, fields::Vector{Symbol})
-    if length(fields) == 1
-        ngroups = length(featureids)
-        results = Vector{Tuple}(undef, ngroups)
-
-        for i in 1:ngroups
-            # results[i] = _groupby(idxs[i], featureids[i], fields[1])
-            g, f = _groupby(idxs[i], featureids[i], fields[1])
-            results[i] = (g, f)
-        end
-
-        # Flatten results
-        all_groups = vcat([r[1] for r in results]...)
-        all_feats = vcat([r[2] for r in results]...)
-        return all_groups, all_feats
-    end
+    # this function performs multi-level grouping (recursive).
+    # - idxs: current groups of column indices
+    # - featureids: current groups of FeatureId metadata (aligned with idxs)
+    # - fields: remaining fields to group by (e.g., [:feat, :vname, :nwin])
 
     ngroups = length(featureids)
     all_groups = Vector{Vector{Int}}()
     all_feats = Vector{Vector{FeatureId}}()
 
     for i in 1:ngroups
+        # first, split the i-th group by the first field
         sub_idxs, sub_featureids = _groupby(idxs[i], featureids[i], fields[1])
-        # Recursively group and flatten as we go
-        groups, feats = _groupby(sub_idxs, sub_featureids, fields[2:end])
-        append!(all_groups, groups)
-        append!(all_feats, feats)
+        
+        if length(fields) == 1
+            # base case: only one field left, append the final groups
+            append!(all_groups, sub_idxs)
+            append!(all_feats, sub_featureids)
+        else
+            # recursive case: keep grouping by the remaining fields
+            groups, feats = _groupby(sub_idxs, sub_featureids, fields[2:end])
+            append!(all_groups, groups)
+            append!(all_feats, feats)
+        end
     end
 
     return all_groups, all_feats
 end
 
 function _groupby(idxs::Vector{Int64}, featureids::Vector{FeatureId}, field::Symbol)
-    # dynamically construct the appropriate getter function (get_vname, get_win, or get_feat)
+    # dynamically construct the appropriate getter function (get_vname, get_nwin, or get_feat)
     # based on the field symbol passed as argument
     getter = @eval $(Symbol(:get_, field))
 

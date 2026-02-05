@@ -381,7 +381,7 @@ export get_vecvnames, get_vecfeatures, get_vecnwins
 export get_vnames, get_features, get_nwindows
 export get_dataset, get_featureid, get_reducefunc, get_aggrtype, get_norm
 
-export @groupby
+export groupby
 include("groupby.jl")
 
 function Base.show(io::IO, dt::DataTreatment)
