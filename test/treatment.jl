@@ -599,6 +599,10 @@ end
             UnitRange{Int}[1:30, 31:60, 61:90, 91:120])
     @test nvals(intervals) == 16
     @test nvals(intervals[1]) == 4
+
+    Xconv = DT.convert(Xmatrix; type=Float32)
+    @test eltype(Xmatrix) <: AbstractArray{Float64}
+    @test eltype(Xconv) <: AbstractArray{Float32}
 end
 
 @testset "wholewindow" begin

@@ -25,6 +25,9 @@ DT.normalize(Xmatrix, nfunc; tabular=true)
 
 DT.normalize(Xmatrix, nfunc; tabular=true, dim=:row)
 
+
+_X = Iterators.flatten(DT.convert(Xmatrix))
+
 # ---------------------------------------------------------------------------- #
 #                             tabular normalization                            #
 # ---------------------------------------------------------------------------- #
