@@ -18,9 +18,10 @@ makedocs(;
     pages=[
         "Home"          => "index.md",
         "DataTreatment" => "treatment.md",
-        "Api"           => "api.md",
-        "FeatureSet"    => "featureset.md",
+        "Grouping" => "grouping.md",
         "Normalization" => "normalization.md",
+        "FeatureSet"    => "featureset.md",
+        "Api"           => "api.md",
     ],
     warnonly=:true,
 )

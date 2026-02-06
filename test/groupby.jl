@@ -2,11 +2,15 @@ using Test
 using DataTreatments
 const DT = DataTreatments
 
+using MLJ, DataFrames
 using SoleData: Artifacts
 
 # ---------------------------------------------------------------------------- #
 #                                load dataset                                  #
 # ---------------------------------------------------------------------------- #
+Xc, yc = @load_iris
+Xc = DataFrame(Xc)
+
 natopsloader = Artifacts.NatopsLoader()
 Xts, yts = Artifacts.load(natopsloader)
 
@@ -20,13 +24,23 @@ rs_no_grp = DataTreatment(Xts, :reducesize; win)
 ag_no_grp = DataTreatment(Xts, :aggregate; win, features)
 
 # ---------------------------------------------------------------------------- #
-#                                  groupby                                     #
+#                             DataFrame groupby                                #
+# ---------------------------------------------------------------------------- #
+@testset "groupby adds leftover columns" begin
+    fileds = [[:sepal_length, :petal_length], [:sepal_width]]
+
+    groups = DT.groupby(Xc, fileds)
+    @test length(groups) == 3
+    @test propertynames(groups[3]) == [:petal_width]
+end
+
+# ---------------------------------------------------------------------------- #
+#                           DataTreatment groupby                              #
 # ---------------------------------------------------------------------------- #
 rs_grp = DataTreatment(Xts, :reducesize; win, groups=(:vname,))
 ag_grp = DataTreatment(Xts, :aggregate; win, features, groups=(:vname, :feat))
 
 @testset "Manual groupby vs built-in groupby" begin
-    
     # manual grouping for rs_no_grp by :vname
     rs_featureids = get_featureid(rs_no_grp)
     rs_vnames = unique(get_vecvnames(rs_featureids))

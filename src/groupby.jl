@@ -50,6 +50,52 @@ function groupby(df::DataTreatment, fields::Symbol...)
     _groupby(get_dataset(df), featureids, collect(fields))
 end
 
+"""
+    groupby(df::DataFrame, fields::Vector{Vector{Symbol}})
+
+Group DataFrame columns into multiple sub-DataFrames based on pre-defined column groups.
+
+## Arguments
+- `df`: Source `DataFrame`.
+- `fields`: Vector of column-name vectors (each inner vector is one group).
+
+## Behavior
+- Computes any leftover columns not listed in `fields` and appends them as a final group.
+- Returns a `Vector{DataFrame}` where each element is `df[!, fields[i]]`.
+
+## Example
+```julia
+using DataFrames
+
+df = DataFrame(
+    sepal_length = rand(3),
+    sepal_width  = rand(3),
+    petal_length = rand(3),
+    petal_width  = rand(3),
+)
+
+fields = [[:sepal_length, :petal_length], [:sepal_width]]
+groups = groupby(df, fields)
+```
+"""
+function groupby(df::DataFrame, fields::Vector{Vector{Symbol}})
+    isempty(fields) && error("groupby requires at least one field")
+
+    colnames = propertynames(df)
+    used = unique(vcat(fields...))
+    left = setdiff(colnames, used)
+    !isempty(left) && push!(fields, left)
+
+    groups = Vector{DataFrame}(undef, length(fields))
+
+    @inbounds for i in eachindex(fields)
+        groups[i] = df[!, fields[i]]
+    end
+
+    return groups
+end
+
+# 703.736 ns (34 allocations: 2.05 KiB)
 # ---------------------------------------------------------------------------- #
 #                              internal _groupby                               #
 # ---------------------------------------------------------------------------- #
