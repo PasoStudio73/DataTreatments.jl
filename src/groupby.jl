@@ -108,8 +108,6 @@ function groupby(df::DataFrame, fields::Vector{Vector{Symbol}})
     return groups
 end
 
-
-# 703.736 ns (34 allocations: 2.05 KiB)
 # ---------------------------------------------------------------------------- #
 #                              internal _groupby                               #
 # ---------------------------------------------------------------------------- #
