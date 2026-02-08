@@ -108,17 +108,18 @@ where σ_half = σ / √(1 - 2/π).
 
 ## Examples
 ```julia
-# Standard z-score normalization
 X = rand(100, 50)
-X_norm = element_norm(X, zscore())
+
+# Standard z-score normalization
+X_norm = DataTreatments.normalize(X, zscore())
 # Result: mean ≈ 0, std ≈ 1
 
 # Robust z-score (resistant to outliers)
-X_robust = element_norm(X, zscore(method=:robust))
+X_robust = DataTreatments.normalize(X, zscore(method=:robust))
 # Result: median ≈ 0, MAD ≈ 1
 
 # Half-normal z-score
-X_half = element_norm(X, zscore(method=:half))
+X_half = DataTreatments.normalize(X, zscore(method=:half))
 # Result: minimum ≈ 0, scaled by half-standard deviation
 ```
 """
@@ -144,11 +145,12 @@ where:
 - σ (sigma) is the standard deviation of the input data
 - The output is bounded: 0 < σ(x) < 1
 
-## Examples
+## Example
 ```julia
-# Sigmoid normalization
 X = rand(100, 50)
-X_sigmoid = element_norm(X, sigmoid())
+
+# Sigmoid normalization
+X_sigmoid = DataTreatments.normalize(X, sigmoid())
 # Result: all values in (0, 1), mean(X) → 0.5
 ```
 """
@@ -181,21 +183,22 @@ standardizing data magnitudes across different scales.
 
 ## Examples
 ```julia
-# L2 norm (Euclidean, default)
 X = rand(100, 50)
-X_norm = element_norm(X, norm())
+
+# L2 norm (Euclidean, default)
+X_norm = DataTreatments.normalize(X, pnorm())
 # Result: ‖X‖₂ = 1
 
 # L1 norm (Manhattan)
-X_L1 = element_norm(X, norm(p=1))
+X_L1 = DataTreatments.normalize(X, pnorm(p=1))
 # Result: sum(abs, X) = 1
 
 # L∞ norm (Maximum)
-X_Linf = element_norm(X, norm(p=Inf))
+X_Linf = DataTreatments.normalize(X, pnorm(p=Inf))
 # Result: maximum(abs, X) = 1
 
 # Custom p-norm
-X_L4 = element_norm(X, norm(p=4))
+X_L4 = DataTreatments.normalize(X, pnorm(p=4))
 # Result: (sum(X.^4))^(1/4) = 1
 ```
 """
@@ -247,23 +250,26 @@ where IQR = Q₃ - Q₁ (75th percentile - 25th percentile).
 
 ## Examples
 ```julia
-# Standard deviation scaling (default)
 X = rand(100, 50)
-X_scaled = element_norm(X, scale())
+
+# Standard deviation scaling (default)
+X_scaled = DataTreatments.normalize(X, scale())
 # Result: std(X_scaled) ≈ 1, mean unchanged
 
-# Robust scaling with MAD
 X_outliers = [1, 2, 3, 4, 100]  # Has outlier
-X_mad = element_norm(X_outliers, scale(factor=:mad))
+
+# Robust scaling with MAD
+X_mad = DataTreatments.normalize(X_outliers, scale(factor=:mad))
 # More robust than std scaling
 
 # IQR scaling
-X_iqr = element_norm(X, scale(factor=:iqr))
+X_iqr = DataTreatments.normalize(X, scale(factor=:iqr))
 # Result: IQR(X_iqr) ≈ 1
 
-# Baseline normalization (first element)
 prices = [100.0, 105.0, 98.0, 110.0]
-prices_norm = element_norm(prices, scale(factor=:first))
+
+# Baseline normalization (first element)
+prices_norm = DataTreatments.normalize(prices, scale(factor=:first))
 # Result: [1.0, 1.05, 0.98, 1.10] - percentage of initial price
 ```
 """
@@ -288,13 +294,14 @@ This maps the original range [x_min, x_max] to [lower, upper] via affine transfo
 
 ## Examples
 ```julia
-# Standard min-max scaling to [0, 1]
 X = rand(100, 50)
-X_norm = element_norm(X, minmax())
+
+# Standard min-max scaling to [0, 1]
+X_norm = DataTreatments.normalize(X, DataTreatments.minmax())
 # Result: min ≈ 0, max ≈ 1
 
 # Custom range scaling to [-1, 1]
-X_scaled = element_norm(X, minmax(lower=-1.0, upper=1.0))
+X_scaled = DataTreatments.normalize(X, DataTreatments.minmax(lower=-1.0, upper=1.0))
 # Result: min ≈ -1, max ≈ 1
 ```
 """
@@ -330,14 +337,17 @@ x_{\\text{centered}} = x - \\text{median}(x)
 ```
 
 ## Examples
-```julia# Mean centering (default)
+```julia
 X = rand(100, 50)
-X_centered = element_norm(X, center())
+
+# Mean centering (default)
+X_centered = DataTreatments.normalize(X, center())
 # Result: mean(X_centered) ≈ 0, std unchanged
 
-# Median centering
 X_outliers = [1, 2, 3, 4, 100]  # Has outlier
-X_med = element_norm(X_outliers, center(method=:median))
+
+# Median centering
+X_med = DataTreatments.normalize(X_outliers, center(method=:median))
 # Result: median(X_med) = 0, outlier less influential
 ```
 """
@@ -363,11 +373,12 @@ where the Root Mean Square (RMS) is:
 \\text{RMS}(x) = \\sqrt{\\frac{1}{n}\\sum_{i=1}^{n} x_i^2} = \\sqrt{\\text{mean}(x^2)}
 ```
 
-## Examples
+## Example
 ```julia
-# Unit power normalization
 X = rand(100, 50)
-X_norm = element_norm(X, unitpower())
+
+# Unit power normalization
+X_norm = DataTreatments.normalize(X, unitpower())
 # Result: RMS(X_norm) = 1
 ```
 """
@@ -408,13 +419,14 @@ where:
 
 ## Examples
 ```julia
-# Default threshold (0.5 standard deviations)
 X = [1, 2, 3, 4, 5, 100]  # 100 is an outlier
-X_suppressed = element_norm(X, outliersuppress())
+
+# Default threshold (0.5 standard deviations)
+X_suppressed = DataTreatments.normalize(X, outliersuppress())
 # Result: [1, 2, 3, 4, 5, ~mean+5*std] - outlier capped
 
 # More aggressive suppression (3 std)
-X_aggressive = element_norm(X, outliersuppress(thr=0.3))
+X_aggressive = DataTreatments.normalize(X, outliersuppress(thr=0.3))
 # Caps values beyond mean ± 3*std (more values affected)
 ```
 """
@@ -424,6 +436,48 @@ outliersuppress(x::NormType; kwargs...) = _outliersuppress(x; kwargs...)
 # ---------------------------------------------------------------------------- #
 #                                  normalize                                   #
 # ---------------------------------------------------------------------------- #
+"""
+    normalize(X, nfunc; tabular=false, dim=:col)
+    normalize!(X, nfunc; tabular=false, dim=:col)
+
+Apply a normalization function to data.
+
+## Supported inputs
+- `AbstractArray{<:Real}`: any numeric array (vector, matrix, or N‑D array)
+- `AbstractArray{<:AbstractArray{<:Real}}`: nested arrays (e.g., dataset of vectors or matrices)
+
+The `normalize` variants allocate a new array; `normalize!` mutates in place.
+
+## Whole‑dataset normalization (default)
+By default, `tabular=false`, the normalization function is computed on the *entire*
+dataset (flattened) and then applied element‑wise. This works for:
+- N‑D arrays (e.g., tensors)
+- arrays of vectors (audio segments)
+- arrays of matrices (images)
+
+## Tabular normalization (row/column‑wise)
+For tabular data (rows/columns as samples/features), set `tabular=true`.
+- `dim=:col`: normalize each column independently (typical: each column is a feature)
+- `dim=:row`: normalize each row independently
+
+## Examples
+```julia
+X = rand(100, 50)
+
+# Whole‑dataset zscore
+X_all = DataTreatments.normalize(X, zscore())
+
+# Column‑wise zscore (each feature independently)
+X_col = DataTreatments.normalize(X, zscore(); tabular=true, dim=:col)
+
+# Row‑wise minmax
+X_row = DataTreatments.normalize(X, minmax(); tabular=true, dim=:row)
+
+# Nested dataset (e.g., images)
+imgs = [rand(28,28) for _ in 1:100]
+imgs_norm = DataTreatments.normalize(imgs, unitpower())
+```
+"""
 @inline normalize(
     X::Union{AbstractArray{T}, AbstractArray{<:AbstractArray{T}}},
     args...; kwargs...
@@ -447,12 +501,17 @@ function normalize!(
     dim :: Symbol=:col
 ) where {T<:Float64}
     return if tabular
+        # column-wise or row-wise normalization for tabular data
         if dim == :col
             for i in axes(X, 2)
+                # build normalization function from each column's stats
+                # nfunc coeff is obtained flattering the whole column
                 X[:,i] = _normalize!(X[:,i], nfunc(Iterators.flatten(X[:,i])))
             end
         elseif dim == :row
             for i in axes(X, 1)
+                # build normalization function from each row's stats
+                # nfunc coeff is obtained flattering the whole row
                 X[i,:] = _normalize!(X[i,:], nfunc(Iterators.flatten(X[i,:])))
             end
         else
@@ -461,6 +520,8 @@ function normalize!(
 
         X
     else
+        # whole-dataset normalization
+        # nfunc coefficient is obtained spanning the whole dataset
         _normalize!(X, nfunc(Iterators.flatten(X)))
     end
 end
@@ -472,7 +533,9 @@ function _normalize!(
     X::AbstractArray{<:AbstractArray{T}},
     nfunc::Base.Callable
 ) where {T<:Float64}
+    # normalize each nested element (e.g., each vector/matrix) in parallel
     Threads.@threads for idx in CartesianIndices(X)
+        # apply normalization coefficient to every element
         X[idx] = nfunc.(X[idx])
     end
 
@@ -483,7 +546,9 @@ function _normalize!(
     X::AbstractArray{T},
     nfunc::Base.Callable
 ) where {T<:Float64}
+    # in-place element-wise normalization for numeric arrays
     for idx in CartesianIndices(X)
+        # apply normalization coefficient to every element
         X[idx] = nfunc(X[idx])
     end
 
