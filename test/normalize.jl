@@ -6,6 +6,20 @@ using Normalization
 using Statistics
 
 # ---------------------------------------------------------------------------- #
+#                                    methods                                   #
+# ---------------------------------------------------------------------------- #
+X = Float64.([8 1 6; 3 5 7; 4 9 2])
+
+@test_nowarn DT.zscore(X)
+@test_nowarn DT.sigmoid(X)
+@test_nowarn DT.pnorm(X)
+@test_nowarn DT.scale(X)
+@test_nowarn DT.minmax(X)
+@test_nowarn DT.center(X)
+@test_nowarn DT.unitpower(X)
+@test_nowarn DT.outliersuppress(X)
+
+# ---------------------------------------------------------------------------- #
 #                                 normalization                                #
 # ---------------------------------------------------------------------------- #
 X = Float64.([8 1 6; 3 5 7; 4 9 2])
