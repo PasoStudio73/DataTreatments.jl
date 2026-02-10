@@ -33,12 +33,13 @@ export movingwindow, wholewindow, splitwindow, adaptivewindow
 export @evalwindow
 include("windowing.jl")
 
-export is_multidim_dataset, nvals
+export is_multidim_dataset, nvals, convert
 export has_uniform_element_size
 include("treatment.jl")
 
 export zscore, sigmoid, pnorm, scale, minmax, center, unitpower, outliersuppress
 export element_norm, tabular_norm, grouped_norm, grouped_norm!, ds_norm
+export normalize, normalize!
 include("normalize.jl")
 
 # ---------------------------------------------------------------------------- #
@@ -73,7 +74,7 @@ fid = FeatureId(:pressure, maximum, 3)
 
 # Access metadata
 get_vname(fid)    # :pressure
-get_feature(fid)  # maximum
+get_feat(fid)  # maximum
 get_nwin(fid)     # 3
 ```
 
@@ -95,26 +96,40 @@ Base.getproperty(f::FeatureId, s::Symbol) = getfield(f, s)
 Base.propertynames(::FeatureId)           = (:vname, :feat, :nwin)
 
 get_vname(f::FeatureId)   = f.vname
-get_feature(f::FeatureId) = f.feat
+get_feat(f::FeatureId) = f.feat
 get_nwin(f::FeatureId)    = f.nwin
 
 get_vecvnames(f::Vector{FeatureId})   = [get_vname(n) for n in f]
-get_vecfeatures(f::Vector{FeatureId}) = [get_feature(_f) for _f in f]
+get_vecfeatures(f::Vector{FeatureId}) = [get_feat(_f) for _f in f]
 get_vecnwins(f::Vector{FeatureId})    = [get_nwin(w) for w in f]
 
 function Base.show(io::IO, f::FeatureId)
     feat_name = nameof(f.feat)
-    if f.nwin == 1
-        print(io, "$(feat_name)_$(f.vname)")
-    else
-        print(io, "$(feat_name)_$(f.vname)_w$(f.nwin)")
-    end
+    print(io, "$(feat_name)_$(f.vname)_w$(f.nwin)")
 end
 
 function Base.show(io::IO, ::MIME"text/plain", f::FeatureId)
     print(io, "FeatureId: ")
     show(io, f)
 end
+
+# ---------------------------------------------------------------------------- #
+#                               GroupTreatment                                 #
+# ---------------------------------------------------------------------------- #
+struct GroupResult <: AbstractDataTreatment
+    group::Vector{Int64}
+    method::Vector{Symbol}
+
+    function GroupResult(
+        group::Vector{Int64},
+        method::Vector{Symbol}
+    )
+        new(group, method)
+    end
+end
+
+get_group(g::GroupResult) = g.group
+get_method(g::GroupResult) = g.method
 
 # ---------------------------------------------------------------------------- #
 #                                DataTreatment                                 #
@@ -159,9 +174,28 @@ DataTreatment(
 
 # Processing Modes
 
+## `:aggregate` Mode
+Transforms the dataset from multi-dimensional to tabular format.
+- The dataset is windowed to reduce its dimensionality
+- Reduction functions from the `features` parameter are applied to each window (default: `mean`, `maximum`)
+
+```julia
+Xmatrix = fill(rand(200, 120), 100, 10)  # 100 samples, 10 variables
+win = splitwindow(nwindows=4)
+features = (mean, std, maximum)
+
+dt = DataTreatment(Xmatrix, :aggregate; 
+                   vnames=Symbol.("var", 1:10);
+                   win, 
+                   features)
+# Returns 100×(10×3×16) = 100×480 flat matrix
+# 10 vars × 3 features × 16 windows (4×4 grid)
+```
+
 ## `:reducesize` Mode
-Applies multiple feature functions to windowed regions, preserving the dataset structure.
-Each element is reduced but the matrix dimensions are maintained.
+Reduces the dataset dimensionality by windowing.
+- Once windowed, a reduction function called `reducefunc` (default: `mean`) is applied to each window
+- Note: it is still possible to specify `features` as in `:aggregate`, but these will simply be saved for future use (as in modal algorithms like ModalDecisionTrees)
 
 ```julia
 Xmatrix = fill(rand(200, 120), 100, 10)  # 100 samples, 10 variables
@@ -169,23 +203,65 @@ win = splitwindow(nwindows=4)
 features = (mean, std, maximum)
 
 dt = DataTreatment(Xmatrix, :reducesize; 
-                   vnames=Symbol.("var", 1:10),
-                   win=(win,), 
-                   features=features)
+                   vnames=Symbol.("var", 1:10);
+                   win, 
+                   features)
 # Each 200×120 element becomes 4×4, resulting in 100×10 output
 ```
 
-## `:aggregate` Mode
-Flattens multidimensional data into a single feature matrix suitable for ML models.
-Applies multiple features across windows and concatenates results.
+# Grouping
+
+## `groups` Parameter
+Optional parameter to group dataset elements before processing.
+- Accepts a tuple of symbols specifying grouping columns
+- Creates logical groups within the dataset for separate processing
+- Common grouping strategies: `(:vname,)`, `(:vname, :feat)`, `(:vname, :timestamp)`
 
 ```julia
-dt = DataTreatment(Xmatrix, :aggregate;
-                   vnames=Symbol.("var", 1:10),
-                   win=(win,),
-                   features=features)
-# Returns 100×(10×3×16) = 100×480 flat matrix
-# 10 vars × 3 features × 16 windows (4×4 grid)
+dt = DataTreatment(Xts, :aggregate;
+                   win=splitwindow(nwindows=2),
+                   features=(mean, maximum),
+                   groups=(:vname, :feat))
+# Processes each (vname, feat) group independently
+```
+
+# Normalization
+
+## `norm` Parameter
+Optional normalization function to apply during processing.
+- Accepts a normalization function (e.g., `zscore`, `minmax`, `center`)
+- Applied after windowing and feature reduction
+- Can be created with keyword arguments for customization
+
+```julia
+# Min-max normalization with custom range
+dt = DataTreatment(Xts, :aggregate;
+                   win=splitwindow(nwindows=2),
+                   features=(mean, maximum),
+                   norm=DT.minmax(lower=0.0, upper=1.0))
+
+# Z-score normalization
+dt = DataTreatment(Xts, :aggregate;
+                   win=splitwindow(nwindows=2),
+                   features=(mean, maximum),
+                   norm=DT.zscore())
+```
+
+## Grouped Normalization
+When using `groups` with `norm`, **never specify `dims` parameter**.
+- Grouped normalization works on all elements of each group as a whole
+- The `dims` parameter should NOT be used: it operates column-wise or row-wise, which breaks group semantics
+- Each group is normalized independently using all its data
+
+```julia
+# CORRECT: Grouped normalization without dims
+groups = DT.groupby(X, [[:var1, :var2]])
+normalized = DT.normalize(groups, DT.zscore())
+# Each group normalized using all its elements
+
+# INCORRECT: Do not use dims with grouped normalization
+# normalized = DT.normalize(groups, DT.zscore(dims=2))
+# This breaks the group semantics!
 ```
 
 # Examples
@@ -278,7 +354,9 @@ struct DataTreatment{T, S} <: AbstractDataTreatment
     featureid  :: Vector{FeatureId}
     reducefunc :: Base.Callable
     aggrtype   :: Symbol
+    groups     :: Union{Vector{GroupResult}, Nothing}
     norm       :: Union{Base.Callable, Nothing}
+    normdims:: Int64
 
     function DataTreatment(
         X          :: AbstractArray{T},
@@ -287,7 +365,9 @@ struct DataTreatment{T, S} <: AbstractDataTreatment
         win        :: Union{Base.Callable, Tuple{Vararg{Base.Callable}}},
         features   :: Tuple{Vararg{Base.Callable}}=(maximum, minimum, mean),
         reducefunc :: Base.Callable=mean,
-        norm       :: Union{Base.Callable, Nothing}=nothing
+        groups     :: Union{Tuple{Vararg{Symbol}}, Nothing}=nothing,
+        norm       :: Union{Base.Callable, Nothing}=nothing,
+        dims::Int64=0
     ) where {T<:AbstractArray{<:Real}}
         is_multidim_dataset(X) || throw(ArgumentError("Input DataFrame " * 
             "does not contain multidimensional data."))
@@ -300,6 +380,9 @@ struct DataTreatment{T, S} <: AbstractDataTreatment
         # because if all elements share the same size,
         # computing the window each time is a significant overhead
         uniform = has_uniform_element_size(X)
+
+        # convert to float
+        T isa AbstractFloat || (X = convert(X))
 
         vnames isa Vector{String} && (vnames = Symbol.(vnames))
         win isa Base.Callable && (win = (win,))
@@ -328,12 +411,28 @@ struct DataTreatment{T, S} <: AbstractDataTreatment
             error("Unknown treatment type: $treat")
         end
 
-        if !isnothing(norm)
-            aggrtype == :aggregate  && grouped_norm!(Xresult, norm; featvec=get_vecfeatures(Xinfo))
-            aggrtype == :reducesize && (Xresult = ds_norm(Xresult, norm))
+        grp_result = if !isnothing(groups)
+            fields = collect(groups)
+            groupidxs, _ = _groupby(Xresult, Xinfo, fields)
+            [GroupResult(groupidx, fields) for groupidx in groupidxs]
+        else
+            nothing
         end
 
-        new{eltype(Xresult), core_eltype(Xresult)}(Xresult, Xinfo, reducefunc, aggrtype, norm)
+        if !isnothing(norm)
+            if isnothing(grp_result)
+                normalize!(Xresult, norm; dims)
+            else
+                Threads.@threads for g in grp_result
+                    Xresult[:, get_group(g)] =
+                        normalize!(Xresult[:, get_group(g)], norm; dims)
+                end
+            end
+        end
+
+        new{eltype(Xresult), core_eltype(Xresult)}(
+            Xresult, Xinfo, reducefunc, aggrtype, grp_result, norm, dims
+        )
     end
 
     function DataTreatment(
@@ -349,13 +448,16 @@ end
 
 # value access methods
 Base.getproperty(dt::DataTreatment, s::Symbol) = getfield(dt, s)
-Base.propertynames(::DataTreatment) = (:dataset, :featureid, :reducefunc, :aggrtype, :norm)
+Base.propertynames(::DataTreatment) =
+    (:dataset, :featureid, :reducefunc, :aggrtype, :groups, :norm)
 
 get_dataset(dt::DataTreatment)    = dt.dataset
 get_featureid(dt::DataTreatment)  = dt.featureid
 get_reducefunc(dt::DataTreatment) = dt.reducefunc
 get_aggrtype(dt::DataTreatment)   = dt.aggrtype
+get_groups(dt::DataTreatment)       = dt.groups
 get_norm(dt::DataTreatment)       = dt.norm
+get_normdims(dt::DataTreatment) = dt.normdims
 
 # Convenience methods for common operations
 get_vnames(dt::DataTreatment)   = unique(get_vecvnames(dt.featureid))
@@ -374,6 +476,13 @@ Base.getindex(dt::DataTreatment, i::Int, j::Int) = dt.dataset[i, j]
 Base.getindex(dt::DataTreatment, ::Colon, j::Int) = dt.dataset[:, j]
 Base.getindex(dt::DataTreatment, i::Int, ::Colon) = dt.dataset[i, :]
 Base.getindex(dt::DataTreatment, I...) = dt.dataset[I...]
+
+export FeatureId, DataTreatment
+export get_vname, get_feat, get_nwin
+export get_vecvnames, get_vecfeatures, get_vecnwins
+export get_vnames, get_features, get_nwindows
+export get_dataset, get_featureid, get_reducefunc, get_aggrtype
+export get_groups, get_norm, get_normdims
 
 function Base.show(io::IO, dt::DataTreatment)
     nrows, ncols = size(dt.dataset)
@@ -410,10 +519,7 @@ function Base.show(io::IO, ::MIME"text/plain", dt::DataTreatment)
     end
 end
 
-export FeatureId, DataTreatment
-export get_vname, get_feature, get_nwin
-export get_vecvnames, get_vecfeatures, get_vecnwins
-export get_vnames, get_features, get_nwindows
-export get_dataset, get_featureid, get_reducefunc, get_aggrtype, get_norm
+export groupby
+include("groupby.jl")
 
 end

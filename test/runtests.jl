@@ -1,6 +1,11 @@
 using Test
 using DataTreatments
 
+using SoleData.Artifacts
+
+# fill your Artifacts.toml file;
+fillartifacts()
+
 function run_tests(list)
     println("\n" * ("#"^50))
     for test in list
@@ -15,7 +20,9 @@ test_suites = [
     ("Windowing",  ["windowing.jl",]),
     ("FeatureSet", ["featureset.jl",]),
     ("Treatment",  ["treatment.jl",]),
+    ("Groupby", ["groupby.jl"]),
     ("Normalize",  ["normalize.jl",]),
+    ("Grouped Norm", ["grouped_norm.jl"]),
 ]
 
 @testset "DataTreatments.jl" begin

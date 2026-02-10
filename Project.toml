@@ -1,7 +1,7 @@
 name = "DataTreatments"
 uuid = "1b3ff5f2-9b56-42a2-b38a-76a033f741ca"
-version = "0.2.0"
-authors = ["Riccardo Pasini"]
+version = "0.2.1"
+authors = ["Federico Manzella", "Riccardo Pasini"]
 
 [deps]
 Catch22 = "acdeb78f-3d39-4310-8fdf-6d75c17c6d5a"
@@ -19,8 +19,10 @@ StatsBase = "0.34"
 julia = "1"
 
 [extras]
+MLJ = "add582a8-e3ab-11e8-2d5e-e98b27df1bc7"
 Normalization = "be38d6a3-8366-4a42-ad57-222272b5bbe7"
+SoleData = "123f1ae1-6307-4526-ab5b-aab3a92a2b8c"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Normalization", "Test"]
+test = ["MLJ", "Normalization", "SoleData", "Test"]
