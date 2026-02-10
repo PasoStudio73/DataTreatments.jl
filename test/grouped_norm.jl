@@ -109,6 +109,9 @@ test1 = DataTreatment(
         res_merged = vcat(get_dataset(test1)[:,i]...)
         @test isapprox(res_merged, test_norm)
     end
+
+    @test DT.get_group.(get_groups(test1)) isa Vector{Vector{Int64}}
+    @test DT.get_method.(get_groups(test1)) isa Vector{Vector{Symbol}}
 end
 
 test2 = DataTreatment(
@@ -136,3 +139,34 @@ test2 = DataTreatment(
         @test isapprox(res_merged, vcat(test_norm'...))
     end
 end
+
+# ---------------------------------------------------------------------------- #
+
+ndims = DataTreatment(
+    Xts,
+    :aggregate,
+    win=splitwindow(nwindows=2),
+    features=(mean, maximum),
+    norm=DT.minmax(lower=0.0, upper=1.0)
+)
+@test get_normdims(ndims) == 0
+
+ndims = DataTreatment(
+    Xts,
+    :aggregate,
+    win=splitwindow(nwindows=2),
+    features=(mean, maximum),
+    norm=DT.minmax(lower=0.0, upper=1.0),
+    dims=1
+)
+@test get_normdims(ndims) == 1
+
+ndims = DataTreatment(
+    Xts,
+    :aggregate,
+    win=splitwindow(nwindows=2),
+    features=(mean, maximum),
+    norm=DT.minmax(lower=0.0, upper=1.0),
+    dims=2
+)
+@test get_normdims(ndims) == 2

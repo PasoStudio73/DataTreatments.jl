@@ -107,7 +107,7 @@ function groupby(df::DataFrame, fields::Vector{Vector{Symbol}})
     return groups
 end
 
-groupby(df::DataFrame, fields::Vector{Symbol}) = groupby(df, [fileds])
+groupby(df::DataFrame, fields::Vector{Symbol}) = groupby(df, [fields])
 # ---------------------------------------------------------------------------- #
 #                              internal _groupby                               #
 # ---------------------------------------------------------------------------- #

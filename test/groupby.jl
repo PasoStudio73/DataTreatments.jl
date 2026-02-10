@@ -26,10 +26,18 @@ ag_no_grp = DataTreatment(Xts, :aggregate; win, features)
 # ---------------------------------------------------------------------------- #
 #                             DataFrame groupby                                #
 # ---------------------------------------------------------------------------- #
-@testset "groupby adds leftover columns" begin
-    fileds = [[:sepal_length, :petal_length], [:sepal_width]]
+@testset "groupby single column" begin
+    fields = [:sepal_length]
 
-    groups = DT.groupby(Xc, fileds)
+    groups = DT.groupby(Xc, fields)
+    @test length(groups) == 2
+    @test propertynames(groups[2]) == [:sepal_width, :petal_length, :petal_width]
+end
+
+@testset "groupby adds leftover columns" begin
+    fields = [[:sepal_length, :petal_length], [:sepal_width]]
+
+    groups = DT.groupby(Xc, fields)
     @test length(groups) == 3
     @test propertynames(groups[3]) == [:petal_width]
 end
