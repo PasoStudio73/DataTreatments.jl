@@ -279,3 +279,23 @@ test_ds_norm(X, outliersuppress(;thr=5), OutlierSuppress)
 # non-float convertion
 b = [rand(0:10, 20) for _ in 1:25, _ in 1:5]
 @test_nowarn DT.normalize(b, DT.zscore())
+
+# ---------------------------------------------------------------------------- #
+#                              benchmark test                                  #
+# ---------------------------------------------------------------------------- #
+# test against julia package Normalization
+X = rand(2000,1000)
+
+test = DT.normalize(X, DT.zscore(); dims=2)
+n = fit(ZScore, X, dims=1)
+norm = Normalization.normalize(X, n)
+@test isapprox(test, norm)
+
+@btime test = DT.normalize(X, DT.zscore(); dims=2)
+# 13.703 ms (6006 allocations: 45.91 MiB)
+
+@btime begin
+    n = fit(ZScore, X, dims=1)
+    norm = Normalization.normalize(X, n)   
+end
+# 2.245 ms (178 allocations: 15.29 MiB)
