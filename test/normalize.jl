@@ -76,15 +76,6 @@ zscore_robust = normalize(X, ZScore(:robust); dims=1)
 
 @test_nowarn normalize(X, Sigmoid; dims=2)
 
-# norm_norm = normalize(X, pnorm(); dims=2)
-# @test isapprox(norm_norm, [0.847998 0.0966736 0.635999; 0.317999 0.483368 0.741999; 0.423999 0.870063 0.212], atol=1e-6)
-
-# norm_norm = normalize(X, pnorm(p=4); dims=2)
-# @test isapprox(norm_norm, [0.980428 0.108608 0.768635; 0.36766 0.543042 0.896741; 0.490214 0.977475 0.256212], atol=1e-5)
-
-# norm_norm = normalize(X, pnorm(p=Inf); dims=2)
-# @test isapprox(norm_norm, [1.0 0.111111 0.857143; 0.375 0.555556 1.0; 0.5 1.0 0.285714], atol=1e-6)
-
 scale_norm = normalize(X, Scale; dims=1)
 @test isapprox(scale_norm, [3.02372 0.25 2.26779; 1.13389 1.25 2.64575; 1.51186 2.25 0.755929], atol=1e-5)
 
@@ -102,17 +93,27 @@ minmax_norm = normalize(X, MinMax; dims=1)
 minmax_norm = normalize(X, ScaledMinMax; dims=1, lower=-2, upper=4)
 @test minmax_norm == [4.0 -2.0 2.8; -2.0 1.0 4.0; -0.8 4.0 -2.0]
 
-center_norm = normalize(X, center(); dims=2)
+center_norm = normalize(X, Center; dims=1)
 @test center_norm == [3.0 -4.0 1.0; -2.0 0.0 2.0; -1.0 4.0 -3.0]
 
-center_norm = normalize(X, center(method=:median); dims=2)
+center_norm = normalize(X, Center(:median); dims=1)
 @test center_norm == [4.0 -4.0 0.0; -1.0 0.0 1.0; 0.0 4.0 -4.0]
 
-@test_nowarn normalize(X, unitpower(); dims=2)
+@test_nowarn normalize(X, UnitEnergy; dims=1)
+@test_nowarn normalize(X, UnitPower; dims=1)
 
 # assolutamente da verificare
 @test_nowarn normalize(X, outliersuppress(); dims=2)
 @test_nowarn normalize(X, outliersuppress(thr=3); dims=2)
+
+norm_norm = normalize(X, PNorm; dims=1)
+@test isapprox(norm_norm, [0.533333 0.0666667 0.4; 0.2 0.333333 0.466667; 0.266667 0.6 0.133333], atol=1e-5)
+
+norm_norm = normalize(X, PNorm(:_2); dims=1)
+@test isapprox(norm_norm, [0.847998 0.0966736 0.635999; 0.317999 0.483368 0.741999; 0.423999 0.870063 0.212], atol=1e-6)
+
+norm_norm = normalize(X, PNorm(:max); dims=1)
+@test isapprox(norm_norm, [1.0 0.111111 0.857143; 0.375 0.555556 1.0; 0.5 1.0 0.285714], atol=1e-6)
 
 # test against julia package Normalization
 X = rand(200,100)
