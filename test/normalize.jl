@@ -2,6 +2,12 @@ using Test
 using DataTreatments
 const DT = DataTreatments
 
+function z(;kwargs...)
+    @show typeof(kwargs)
+    @show typeof(kwargs...)
+    @show kwargs
+end
+
 # ---------------------------------------------------------------------------- #
 #                                 normalization                                #
 # ---------------------------------------------------------------------------- #

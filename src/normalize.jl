@@ -14,10 +14,59 @@ macro _ParamNormalization(name, 𝑝, 𝑠, 𝑓)
 end
 parameters(::N) where {N<:AbstractParamNormalization} = parameters(N)
 
-# function optparams!(N::AbstractNormalization, ps)
-#     all(x->x==ps[1], length.(ps)) && error("Inconsistent parameter dimensions")
-#     normalization(N).s = ps
-# end
+# ---------------------------------------------------------------------------- #
+#                                     fit                                      #
+# ---------------------------------------------------------------------------- #
+function fit!(T::AbstractParamNormalization, X::AbstractArray{A}; dims=Normalization.dims(T), kwargs...) where {A}
+    eltype(T) == A || throw(TypeError(:fit!, "Normalization", eltype(T), X))
+
+    dims, nps = dimparams(dims, X)
+    Xs = eachslice(X; dims=negdims(dims, ndims(X)), drop=false)
+    ps = map(estimators(T)) do f
+        reshape(map(f, Xs), nps...)
+    end
+
+    dims!(T, dims)
+    params!(T, ps)
+    optparams!(T; kwargs...)
+    nothing
+end
+
+function fit(::Type{𝒯}, X::AbstractArray{A}; dims=nothing, kwargs...) where {A,T,𝒯<:AbstractParamNormalization{T}}
+    dims, nps = dimparams(dims, X)
+    Xs = eachslice(X; dims=negdims(dims, ndims(X)), drop=false)
+    ps = map(estimators(𝒯)) do f
+        reshape(map(f, Xs), nps...)
+    end
+    𝒯(dims, ps; kwargs...)
+end
+function fit(::Type{𝒯}, X::AbstractArray{A}; kwargs...) where {A,𝒯<:AbstractParamNormalization}
+    fit(𝒯{A}, X; kwargs...)
+end
+fit(N::AbstractParamNormalization, X::AbstractArray{A}; dims=Normalization.dims(N), kwargs...) where {A} = fit(typeof(N), X; dims, kwargs...)
+
+# ---------------------------------------------------------------------------- #
+#                                  normalize                                   #
+# ---------------------------------------------------------------------------- #
+function normalize!(Z::AbstractArray, X::AbstractArray, T::AbstractNormalization)
+    dims = Normalization.dims(T)
+    isfit(T) || fit!(T, X; dims)
+    mapdims!(Z, forward(T), X, params(T); dims)
+    return nothing
+end
+function normalize!(Z, X, ::Type{𝒯}; kwargs...) where {𝒯 <: AbstractNormalization}
+    normalize!(Z, X, fit(𝒯, X; kwargs...))
+end
+normalize!(X, T::NormUnion; kwargs...) = normalize!(X, X, T; kwargs...)
+
+function normalize(X, T::AbstractNormalization; kwargs...)
+    Y = copy(X)
+    normalize!(Y, T; kwargs...)
+    return Y
+end
+function normalize(X, ::Type{𝒯}; kwargs...) where {𝒯 <: AbstractNormalization}
+    normalize(X, fit(𝒯, X; kwargs...))
+end
 
 # ---------------------------------------------------------------------------- #
 #                                    ZScore                                    #
@@ -61,12 +110,16 @@ end
 # ---------------------------------------------------------------------------- #
 @_ParamNormalization ScaledMinMax (minimum, maximum) (:lower, :upper) scaled_minmax
 
-# (::Type{N})(;
-#     dims=nothing,
-#     p=ntuple(_->Vector{T}(), length(estimators(N))),
-#     lower::Real=0.0,
-#     upper::Real=1.0
-# ) where {T, N<:AbstractParamNormalization{T}} = N(dims, p, (lower, upper));
+function optparams!(N::ScaledMinMax; lower::Real=0.0, upper::Real=1.0)
+    normalization(N).s = (lower, upper)
+end
+
+(::Type{N})(
+    dims=nothing,
+    p=ntuple(_->Vector{T}(), length(estimators(N)));
+    lower::Real=0.0,
+    upper::Real=1.0
+) where {T, N<:ScaledMinMax{T}} = N(dims, p, (lower, upper));
 
 # function scaled_minmax(xmin, xmax; lower, upper)
 #     scale = (upper - lower) / (xmax - xmin)
@@ -74,18 +127,31 @@ end
 # end
 
 function scaled_minmax(l, u)
-    @show "PASO3"
     (x)->(x - l) / (u - l)
 end
 
-function fit(𝒯::Type{ScaledMinMax{T}}, X::AbstractArray{A}; dims=nothing, lower::Real=0.0, upper::Real=1.0) where {A,T}
-    dims, nps = dimparams(dims, X)
-    Xs = eachslice(X; dims=negdims(dims, ndims(X)), drop=false)
-    ps = map(estimators(𝒯)) do f
-        reshape(map(f, Xs), nps...)
-    end
-    𝒯(dims, ps, (lower, upper))
-end
+
+
+# # * Normalizations
+# function normalize!(Z::AbstractArray, X::AbstractArray, T::AbstractNormalization)
+#     dims = Normalization.dims(T)
+#     isfit(T) || fit!(T, X; dims)
+#     mapdims!(Z, forward(T), X, params(T); dims)
+#     return nothing
+# end
+# function normalize!(Z, X, ::Type{𝒯}; kwargs...) where {𝒯 <: AbstractNormalization}
+#     normalize!(Z, X, fit(𝒯, X; kwargs...))
+# end
+# normalize!(X, T::NormUnion; kwargs...) = normalize!(X, X, T; kwargs...)
+
+# function normalize(X, T::AbstractNormalization; kwargs...)
+#     Y = copy(X)
+#     normalize!(Y, T; kwargs...)
+#     return Y
+# end
+# function normalize(X, ::Type{𝒯}; kwargs...) where {𝒯 <: AbstractNormalization}
+#     normalize(X, fit(𝒯, X; kwargs...))
+# end
 
 
 # # ---------------------------------------------------------------------------- #
