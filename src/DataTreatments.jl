@@ -9,9 +9,10 @@ using DataFrames
 using Catch22
 
 using Normalization
-@reexport using Normalization: fit!, fit, normalize!, normalize
-@reexport using Normalization: ZScore, Sigmoid, MinMax, Center
-@reexport using Normalization: UnitEnergy, UnitPower, HalfZScore
+# @reexport using Normalization: fit!, fit, normalize!, normalize
+# @reexport using Normalization: ZScore, Sigmoid, Center
+# @reexport using Normalization: UnitEnergy, UnitPower, HalfZScore
+# @reexport using Normalization: OutlierSuppress
 
 # ---------------------------------------------------------------------------- #
 #                               abstract types                                 #
@@ -44,7 +45,7 @@ export is_multidim_dataset, nvals, convert
 export has_uniform_element_size
 include("treatment.jl")
 
-using Normalization: HalfZScore, halfstd, zscore, center
+# using Normalization: HalfZScore, MinMax, halfstd, zscore, center
 using Normalization: dimparams, negdims, forward, estimators, normalization
 import Normalization: @_Normalization, ZScore, Center
 import Normalization: fit!, fit, normalize!, normalize
@@ -53,7 +54,8 @@ using Statistics: mean, median, std
 using StatsBase: mad, iqr
 using LinearAlgebra: norm
 
-export Scale, ScaledMinMax, PNorm
+export ZScore, MinMax, Scale, Center, Sigmoid, UnitEnergy, UnitPower, PNorm
+# export Scale, ScaledMinMax, PNorm
 include("normalize.jl")
 
 # ---------------------------------------------------------------------------- #

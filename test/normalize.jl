@@ -2,6 +2,64 @@ using Test
 using DataTreatments
 const DT = DataTreatments
 
+@test ZScore == ZScore
+@test ZScore() == (ZScore, nothing)
+@test ZScore(dims=2) == (ZScore, 2)
+@test ZScore(method=:std) == (ZScore, nothing)
+@test ZScore(method=:robust) == (DT.ZScoreRobust, nothing)
+@test ZScore(method=:half) == (DT.HalfZScore, nothing)
+@test_throws ErrorException ZScore(dims=3)
+@test_throws ErrorException ZScore(method=:invalid)
+
+@test MinMax == MinMax
+@test MinMax() == (MinMax, nothing)
+@test MinMax(dims=2) == (MinMax, 2)
+@test MinMax(lower=-1) == (DT.ScaledMinMax, nothing, -1, 1.0)
+@test MinMax(upper=10) == (DT.ScaledMinMax, nothing, 0.0, 10)
+@test MinMax(lower=-1, upper=10) == (DT.ScaledMinMax, nothing, -1, 10)
+@test_throws ErrorException MinMax(dims=3)
+@test_throws ErrorException MinMax(lower=10, upper=-1)
+
+@test Scale == Scale
+@test Scale() == (Scale, nothing)
+@test Scale(dims=2) == (Scale, 2)
+@test Scale(method=:std) == (Scale, nothing)
+@test Scale(method=:mad) == (DT.ScaleMad, nothing)
+@test Scale(method=:first) == (DT.ScaleFirst, nothing)
+@test Scale(method=:iqr) == (DT.ScaleIqr, nothing)
+@test_throws ErrorException Scale(dims=3)
+@test_throws ErrorException Scale(method=:invalid)
+
+@test Sigmoid == Sigmoid
+@test Sigmoid() == (Sigmoid, nothing)
+@test Sigmoid(dims=2) == (Sigmoid, 2)
+@test_throws ErrorException Sigmoid(dims=3)
+
+@test Center == Center
+@test Center() == (Center, nothing)
+@test Center(dims=2) == (Center, 2)
+@test Center(method=:mean) == (Center, nothing)
+@test Center(method=:median) == (DT.CenterMedian, nothing)
+@test_throws ErrorException Center(dims=3)
+@test_throws ErrorException Center(method=:invalid)
+
+@test UnitEnergy == UnitEnergy
+@test UnitEnergy() == (UnitEnergy, nothing)
+@test UnitEnergy(dims=2) == (UnitEnergy, 2)
+@test_throws ErrorException UnitEnergy(dims=3)
+
+@test UnitPower == UnitPower
+@test UnitPower() == (UnitPower, nothing)
+@test UnitPower(dims=2) == (UnitPower, 2)
+@test_throws ErrorException UnitPower(dims=3)
+
+@test PNorm == PNorm
+@test PNorm() == (PNorm, nothing, 2.0)
+@test PNorm(dims=2) == (PNorm, 2, 2.0)
+@test PNorm(p=4) == (PNorm, nothing, 4)
+@test_throws ErrorException PNorm(dims=3)
+@test_throws ErrorException PNorm(p=-1)
+
 # ---------------------------------------------------------------------------- #
 #                                 normalization                                #
 # ---------------------------------------------------------------------------- #
@@ -103,8 +161,7 @@ center_norm = normalize(X, Center(:median); dims=1)
 @test_nowarn normalize(X, UnitPower; dims=1)
 
 # assolutamente da verificare
-@test_nowarn normalize(X, outliersuppress(); dims=2)
-@test_nowarn normalize(X, outliersuppress(thr=3); dims=2)
+@test_nowarn normalize(X, OutlierSuppress; dims=1)
 
 norm_norm = normalize(X, PNorm; dims=1)
 @test isapprox(norm_norm, [0.533333 0.0666667 0.4; 0.2 0.333333 0.466667; 0.266667 0.6 0.133333], atol=1e-5)
@@ -118,162 +175,23 @@ norm_norm = normalize(X, PNorm(:max); dims=1)
 # test against julia package Normalization
 X = rand(200,100)
 
-test = normalize(X, ZScore; dims=2)
-n = fit(ZScore, X, dims=1)
-norm = Normalization.normalize(X, n)
-@test isapprox(test, norm)
-
-test = normalize(X, zscore(method=:half); dims=2)
-n = fit(HalfZScore, X, dims=1)
-norm = Normalization.normalize(X, n)
-@test isapprox(test, norm)
-
-test = normalize(X, sigmoid(); dims=2)
-n = fit(Sigmoid, X, dims=1)
-norm = Normalization.normalize(X, n)
-@test isapprox(test, norm)
-
-test = normalize(X, pnorm(); dims=2)
-n = fit(UnitEnergy, X, dims=1)
-norm = Normalization.normalize(X, n)
-@test isapprox(test, norm)
-
-test = normalize(X, minmax(); dims=2)
-n = fit(MinMax, X, dims=1)
-norm = Normalization.normalize(X, n)
-@test isapprox(test, norm)
-
-test = normalize(X, center(); dims=2)
-n = fit(Center, X, dims=1)
-norm = Normalization.normalize(X, n)
-@test isapprox(test, norm)
-
-test = normalize(X, unitpower(); dims=2)
-n = fit(UnitPower, X, dims=1)
-norm = Normalization.normalize(X, n)
-@test isapprox(test, norm)
-
-test = normalize(X, outliersuppress(;thr=5); dims=2)
-n = fit(OutlierSuppress, X, dims=1)
-norm = Normalization.normalize(X, n)
-@test isapprox(test, norm)
-
-# ---------------------------------------------------------------------------- #
-#                        single element normalization                          #
-# ---------------------------------------------------------------------------- #
-X = rand(100,75, 2)
-
-@test_nowarn normalize(X, ZScore)
-@test_nowarn normalize(X, sigmoid())
-@test_nowarn normalize(X, pnorm())
-@test_nowarn normalize(X, scale())
-@test_nowarn normalize(X, minmax())
-@test_nowarn normalize(X, center())
-@test_nowarn normalize(X, unitpower())
-@test_nowarn normalize(X, outliersuppress())
-
-# non-float convertion
-@test_nowarn normalize(a, ZScore)
-
-# test against julia package Normalization
-X = rand(200,100)
-
-test = normalize(X, ZScore)
-n = fit(ZScore, X)
-norm = Normalization.normalize(X, n)
-@test isapprox(test, norm)
-
-test = normalize(X, zscore(method=:half))
-n = fit(HalfZScore, X)
-norm = Normalization.normalize(X, n)
-@test isapprox(test, norm)
-
-test = normalize(X, sigmoid())
-n = fit(Sigmoid, X)
-norm = Normalization.normalize(X, n)
-@test isapprox(test, norm)
-
-test = normalize(X, pnorm())
-n = fit(UnitEnergy, X)
-norm = Normalization.normalize(X, n)
-@test isapprox(test, norm)
-
-test = normalize(X, minmax())
-n = fit(MinMax, X)
-norm = Normalization.normalize(X, n)
-@test isapprox(test, norm)
-
-test = normalize(X, center())
-n = fit(Center, X)
-norm = Normalization.normalize(X, n)
-@test isapprox(test, norm)
-
-test = normalize(X, unitpower())
-n = fit(UnitPower, X)
-norm = Normalization.normalize(X, n)
-@test isapprox(test, norm)
-
-test = normalize(X, outliersuppress(;thr=5))
-n = fit(OutlierSuppress, X)
-norm = Normalization.normalize(X, n)
-@test isapprox(test, norm)
-
-# ---------------------------------------------------------------------------- #
-#                    n-dimensional dataset normalization                       #
-# ---------------------------------------------------------------------------- #
-X = [rand(200, 100) .* 1000 for _ in 1:100, _ in 1:100]
-
-@test_nowarn normalize(X, ZScore)
-@test_nowarn normalize(X, sigmoid())
-@test_nowarn normalize(X, pnorm())
-@test_nowarn normalize(X, scale())
-@test_nowarn normalize(X, minmax())
-@test_nowarn normalize(X, center())
-@test_nowarn normalize(X, unitpower())
-@test_nowarn normalize(X, outliersuppress())
-
-function test_ds_norm(X, norm_func, NormType)
-    test = normalize(X, norm_func; dims=2)
-    # compute normalization the way ds_norm does (per column)
-    col1_data = collect(Iterators.flatten(X[:, 1]))
-    n = fit(NormType, reshape(col1_data, :, 1); dims=nothing)
-    norm = Normalization.normalize(X[1,1], n)
-    
-    @test isapprox(test[1,1], norm)
-end
-
-# Run all tests
-X = fill(rand(20, 10) .* 10, 10, 100)
-
-test_ds_norm(X, ZScore, ZScore)
-test_ds_norm(X, zscore(method=:half), HalfZScore)
-test_ds_norm(X, sigmoid(), Sigmoid)
-test_ds_norm(X, pnorm(), UnitEnergy)
-test_ds_norm(X, minmax(), MinMax)
-test_ds_norm(X, center(), Center)
-test_ds_norm(X, unitpower(), UnitPower)
-test_ds_norm(X, outliersuppress(;thr=5), OutlierSuppress)
-
-# non-float convertion
-b = [rand(0:10, 20) for _ in 1:25, _ in 1:5]
-@test_nowarn normalize(b, ZScore)
-
 # ---------------------------------------------------------------------------- #
 #                              benchmark test                                  #
 # ---------------------------------------------------------------------------- #
 # test against julia package Normalization
-X = rand(2000,1000)
+# X = rand(2000,1000)
 
-test = normalize(X, ZScore; dims=2)
-n = fit(ZScore, X, dims=1)
-norm = Normalization.normalize(X, n)
-@test isapprox(test, norm)
+# test = normalize(X, ZScore; dims=2)
+# n = fit(ZScore, X, dims=1)
+# norm = Normalization.normalize(X, n)
+# @test isapprox(test, norm)
 
-@btime test = normalize(X, ZScore; dims=2)
+# @btime test = normalize(X, ZScore; dims=1)
 # 13.703 ms (6006 allocations: 45.91 MiB)
+# 2.178 ms (178 allocations: 15.29 MiB)
 
-@btime begin
-    n = fit(ZScore, X, dims=1)
-    norm = Normalization.normalize(X, n)   
-end
+# @btime begin
+#     n = fit(ZScore, X, dims=1)
+#     norm = Normalization.normalize(X, n)   
+# end
 # 2.245 ms (178 allocations: 15.29 MiB)

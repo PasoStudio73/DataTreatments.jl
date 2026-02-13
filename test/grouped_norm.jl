@@ -48,7 +48,7 @@ end
     :aggregate,
     win=splitwindow(nwindows=2),
     features=(mean, maximum),
-    norm=DT.minmax(lower=0.0, upper=1.0)
+    norm=MinMax(lower=0.0, upper=1.0)
 )
 
 @test_nowarn DataTreatment(
@@ -56,7 +56,7 @@ end
     :reducesize,
     win=splitwindow(nwindows=2),
     features=(mean, maximum),
-    norm=DT.minmax(lower=0.0, upper=1.0)
+    norm=MinMax(lower=0.0, upper=1.0)
 )
 
 @test_nowarn DataTreatment(
@@ -65,7 +65,7 @@ end
     win=splitwindow(nwindows=2),
     features=(mean, maximum),
     groups=(:vname, :feat),
-    norm=DT.minmax(lower=0.0, upper=1.0)
+    norm=MinMax(lower=0.0, upper=1.0)
 )
 
 @test_nowarn DataTreatment(
@@ -74,7 +74,7 @@ end
     win=splitwindow(nwindows=2),
     features=(mean, maximum),
     groups=(:vname, :feat),
-    norm=DT.minmax(lower=0.0, upper=1.0)
+    norm=MinMax(lower=0.0, upper=1.0)
 )
 
 # ---------------------------------------------------------------------------- #
@@ -94,7 +94,7 @@ test1 = DataTreatment(
     win=splitwindow(nwindows=3), #should actually not change the dataset
     features=(mean, maximum),
     groups=(:vname,),
-    norm=DT.minmax(lower=0.0, upper=1.0)
+    norm=MinMax(lower=0.0, upper=1.0)
 )
 
 # Since the dataset is composed of two columns named :v1 and :v2 and we have grouped by :vname,
@@ -121,7 +121,7 @@ test2 = DataTreatment(
     win=splitwindow(nwindows=3), #should actually not change the dataset
     features=(mean,),
     groups=(:vname,),
-    norm=DT.minmax(lower=0.0, upper=1.0)
+    norm=MinMax(lower=0.0, upper=1.0)
 )
 
 # In this case as well, since a windowing of 3 elements was used, the windowing will generate
@@ -147,7 +147,7 @@ ndims = DataTreatment(
     :aggregate,
     win=splitwindow(nwindows=2),
     features=(mean, maximum),
-    norm=DT.minmax(lower=0.0, upper=1.0)
+    norm=MinMax(lower=0.0, upper=1.0)
 )
 @test get_normdims(ndims) == 0
 
@@ -156,7 +156,7 @@ ndims = DataTreatment(
     :aggregate,
     win=splitwindow(nwindows=2),
     features=(mean, maximum),
-    norm=DT.minmax(lower=0.0, upper=1.0),
+    norm=MinMax(lower=0.0, upper=1.0),
     dims=1
 )
 @test get_normdims(ndims) == 1
@@ -166,7 +166,7 @@ ndims = DataTreatment(
     :aggregate,
     win=splitwindow(nwindows=2),
     features=(mean, maximum),
-    norm=DT.minmax(lower=0.0, upper=1.0),
+    norm=MinMax(lower=0.0, upper=1.0),
     dims=2
 )
 @test get_normdims(ndims) == 2

@@ -1,21 +1,21 @@
 abstract type AbstractParamNormalization{T} <: AbstractNormalization{T} end
 const ParamNormUnion = Union{<:AbstractParamNormalization, Type{<:AbstractParamNormalization}}
 
-macro _ParamNormalization(name, 𝑝, 𝑠, 𝑓)
+macro _ParamNormalization(name, 𝑝, 𝑜, 𝑓)
     quote
         mutable struct $(esc(name)){T} <: AbstractParamNormalization{T}
             dims
             p::NTuple{length($(esc(𝑝))), AbstractArray{T}}
-            s::NTuple{length($(esc(𝑠))), Real}
+            s::NTuple{length($(esc(𝑜))), Real}
         end
         Normalization.estimators(::Type{N}) where {N<:$(esc(name))} = $(esc(𝑝))
-        DataTreatments.parameters(::Type{N}) where {N<:$(esc(name))} = $(esc(𝑠))
+        DataTreatments.options(::Type{N}) where {N<:$(esc(name))} = $(esc(𝑜))
         Normalization.forward(::Type{N}) where {N<:$(esc(name))} = $(esc(𝑓))
     end
 end
-parameters(::N) where {N<:AbstractParamNormalization} = parameters(N)
+options(::N) where {N<:AbstractParamNormalization} = options(N)
 params(N::AbstractParamNormalization) = N.p
-options(N::AbstractParamNormalization) = N.s
+_options(N::AbstractParamNormalization) = N.o
 
 function __parammapdims!(z, f, x, y, o)
     @inbounds map!(f(map(only, y)..., o...), z, x)
@@ -98,50 +98,32 @@ function normalize(X, ::Type{𝒯}; kwargs...) where {𝒯 <: AbstractParamNorma
 end
 
 # ---------------------------------------------------------------------------- #
-#                                    ZScore                                    #
+#                                @_Normalization                               #
 # ---------------------------------------------------------------------------- #
 @_Normalization ZScoreRobust (median, (x)->median(abs.(x .- median(x)))) zscore
 
-function(::Type{ZScore})(method::Symbol)
-    return if method == :robust
-        ZScoreRobust
-    elseif method == :half
-        HalfZScore
-    else
-        ZScore
-    end
-end
+@_ParamNormalization ScaledMinMax (minimum, maximum) (:lower, :upper) scaled_minmax
 
-# ---------------------------------------------------------------------------- #
-#                                     Scale                                    #
-# ---------------------------------------------------------------------------- #
 @_Normalization Scale (std,) scale
 @_Normalization ScaleMad ((x)->mad(x; normalize=false),) scale
 @_Normalization ScaleFirst (first,) scale
 @_Normalization ScaleIqr (iqr,) scale
 
-scale(s) = Base.Fix2(/, s)
+@_Normalization CenterMedian (median,) center
 
-function(::Type{Scale})(factor::Symbol=:std)
-    return if factor == :mad
-        ScaleMad
-    elseif factor == :first
-        ScaleFirst
-    elseif factor == :iqr
-        ScaleIqr
-    else
-        Scale
-    end
-end
+@_ParamNormalization PNorm ((x)->(x),) (:p,) pnorm
+
+scale(s) = Base.Fix2(/, s)
+pnorm(s, p) = Base.Fix2(/, norm(s, p))
 
 # ---------------------------------------------------------------------------- #
 #                                    MinMax                                    #
 # ---------------------------------------------------------------------------- #
-@_ParamNormalization ScaledMinMax (minimum, maximum) (:lower, :upper) scaled_minmax
 
-function optparams!(N::ScaledMinMax; lower::Real=0.0, upper::Real=1.0)
-    normalization(N).s = (lower, upper)
-end
+
+# function optparams!(N::ScaledMinMax; lower::Real=0.0, upper::Real=1.0)
+#     normalization(N).s = (lower, upper)
+# end
 
 (::Type{N})(
     dims=nothing,
@@ -158,29 +140,71 @@ end
 # ---------------------------------------------------------------------------- #
 #                                     Center                                   #
 # ---------------------------------------------------------------------------- #
-@_Normalization CenterMedian (median,) center
 
-function(::Type{Center})(method::Symbol=:mean)
-    return if method == :median
-        CenterMedian
-    else
-        Center
-    end
+
+# ---------------------------------------------------------------------------- #
+#                                    callers                                   #
+# ---------------------------------------------------------------------------- #
+checkdims(dims::Union{Int64,Nothing}=nothing) =
+    (isnothing(dims) || dims == 1 || dims == 2) ||
+        error("dims must be nothing, 1 (column-wise), or 2 (row-wise)")
+
+checkmethod(method::Symbol, methods::Tuple{Vararg{Symbol}}) =
+    (method in methods) || error("method must be $methods")
+
+checkrange(lower::Real, upper::Real) =
+    lower < upper || error("lower must be less than upper")
+
+checkrange(p::Real) =
+    (p > 0 || p == Inf || p == -Inf) || error("p must be positive, Inf, or -Inf")
+
+function (::Type{ZScore})(; dims::Union{Int64,Nothing}=nothing, method::Symbol=:std)
+    checkdims(dims)
+    checkmethod(method, (:std, :robust, :half))
+    method == :robust && return (ZScoreRobust, dims)
+    method == :half && return (HalfZScore, dims)
+    return (ZScore, dims)
 end
 
-# ---------------------------------------------------------------------------- #
-#                                     PNorm                                    #
-# ---------------------------------------------------------------------------- #
-@_Normalization PNorm ((x)->(norm(x, 1)),) scale
-@_Normalization PNorm2 ((x)->(norm(x, 2)),) scale
-@_Normalization PNormMax ((x)->(norm(x, Inf)),) scale
+function (::Type{MinMax})(; dims::Union{Int64,Nothing}=nothing, lower::Real=0.0, upper::Real=1.0)
+    checkdims(dims)
+    checkrange(lower, upper)
+    (lower == 0.0 && upper == 1.0) ? (MinMax, dims) : (ScaledMinMax, dims, lower, upper)
+end
 
-function(::Type{PNorm})(type::Symbol)
-    return if type == :_1
-        PNorm2
-    elseif type == :max
-        PNormMax
-    else
-        PNorm2
-    end
+function (::Type{Scale})(; dims::Union{Int64,Nothing}=nothing, method::Symbol=:std)
+    checkdims(dims)
+    checkmethod(method, (:std, :mad, :first, :iqr))
+    method == :mad && return (ScaleMad, dims)
+    method == :first && return (ScaleFirst, dims)
+    method == :iqr && return (ScaleIqr, dims)
+    return (Scale, dims)
+end
+
+function (::Type{Sigmoid})(; dims::Union{Int64,Nothing}=nothing)
+    checkdims(dims)
+    return (Sigmoid, dims)
+end
+
+function (::Type{Center})(; dims::Union{Int64,Nothing}=nothing, method::Symbol=:mean)
+    checkdims(dims)
+    checkmethod(method, (:mean, :median))
+    method == :median && return (CenterMedian, dims)
+    return (Center, dims)
+end
+
+function (::Type{UnitEnergy})(; dims::Union{Int64,Nothing}=nothing)
+    checkdims(dims)
+    return (UnitEnergy, dims)
+end
+
+function (::Type{UnitPower})(; dims::Union{Int64,Nothing}=nothing)
+    checkdims(dims)
+    return (UnitPower, dims)
+end
+
+function (::Type{PNorm})(; dims::Union{Int64,Nothing}=nothing, p::Real=2.0)
+    checkdims(dims)
+    checkrange(p)
+    return (PNorm, dims, p)
 end
