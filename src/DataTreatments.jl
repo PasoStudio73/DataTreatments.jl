@@ -9,7 +9,7 @@ using DataFrames
 using Catch22
 
 using Normalization
-# @reexport using Normalization: fit!, fit, normalize!, normalize
+@reexport using Normalization: fit!, fit, normalize!, normalize
 # @reexport using Normalization: ZScore, Sigmoid, Center
 # @reexport using Normalization: UnitEnergy, UnitPower, HalfZScore
 # @reexport using Normalization: OutlierSuppress
@@ -48,7 +48,7 @@ include("treatment.jl")
 # using Normalization: HalfZScore, MinMax, halfstd, zscore, center
 using Normalization: dimparams, negdims, forward, estimators, normalization
 import Normalization: @_Normalization, ZScore, Center
-import Normalization: fit!, fit, normalize!, normalize
+import Normalization: fit!, fit, normalize!, normalize, __mapdims!
 
 using Statistics: mean, median, std
 using StatsBase: mad, iqr
