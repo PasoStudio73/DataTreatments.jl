@@ -10,9 +10,6 @@ using Catch22
 
 using Normalization
 @reexport using Normalization: fit!, fit, normalize!, normalize
-# @reexport using Normalization: ZScore, Sigmoid, Center
-# @reexport using Normalization: UnitEnergy, UnitPower, HalfZScore
-# @reexport using Normalization: OutlierSuppress
 
 # ---------------------------------------------------------------------------- #
 #                               abstract types                                 #
@@ -55,7 +52,6 @@ using StatsBase: mad, iqr
 using LinearAlgebra: norm
 
 export ZScore, MinMax, Scale, Center, Sigmoid, UnitEnergy, UnitPower, PNorm
-# export Scale, ScaledMinMax, PNorm
 include("normalize.jl")
 
 # ---------------------------------------------------------------------------- #

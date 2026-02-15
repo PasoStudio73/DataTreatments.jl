@@ -14,11 +14,7 @@ const DT = DataTreatments
 @test MinMax == MinMax
 @test MinMax() == (type=MinMax, dims=nothing)
 @test MinMax(dims=2) == (type=MinMax, dims=2)
-@test MinMax(lower=-1) == (type=DT.ScaledMinMax, dims=nothing, lower=-1, upper=1.0)
-@test MinMax(upper=10) == (type=DT.ScaledMinMax, dims=nothing, lower=0.0, upper=10)
-@test MinMax(lower=-1, upper=10) == (type=DT.ScaledMinMax, dims=nothing, lower=-1, upper=10)
 @test_throws ErrorException MinMax(dims=3)
-@test_throws ErrorException MinMax(lower=10, upper=-1)
 
 @test Scale == Scale
 @test Scale() == (type=Scale, dims=nothing)
@@ -54,8 +50,8 @@ const DT = DataTreatments
 @test_throws ErrorException UnitPower(dims=3)
 
 @test PNorm == PNorm
-@test PNorm() == (type=DT.PNorm2, dims=nothing)
-@test PNorm(dims=2) == (type=DT.PNorm2, dims=2)
+@test PNorm() == (type=DT.PNorm, dims=nothing)
+@test PNorm(dims=2) == (type=DT.PNorm, dims=2)
 @test PNorm(p=1) == (type=DT.PNorm1, dims=nothing)
 @test PNorm(p=Inf) == (type=DT.PNormInf, dims=nothing)
 @test_throws ErrorException PNorm(dims=3)
@@ -149,9 +145,6 @@ scale_norm = normalize(X, Scale(method=:first, dims=1))
 minmax_norm = normalize(X, MinMax(dims=1))
 @test minmax_norm == [1.0 0.0 0.8; 0.0 0.5 1.0; 0.2 1.0 0.0]
 
-minmax_norm = normalize(X, MinMax(dims=1, lower=-2, upper=4))
-@test minmax_norm == [4.0 -2.0 2.8; -2.0 1.0 4.0; -0.8 4.0 -2.0]
-
 center_norm = normalize(X, Center(dims=1))
 @test center_norm == [3.0 -4.0 1.0; -2.0 0.0 2.0; -1.0 4.0 -3.0]
 
@@ -172,24 +165,3 @@ norm_pnorm = normalize(X, PNorm(dims=1))
 
 norm_pnorm = normalize(X, PNorm(dims=1, p=Inf))
 @test isapprox(norm_pnorm, [1.0 0.111111 0.857143; 0.375 0.555556 1.0; 0.5 1.0 0.285714], atol=1e-6)
-
-# ---------------------------------------------------------------------------- #
-#                              benchmark test                                  #
-# ---------------------------------------------------------------------------- #
-# test against julia package Normalization
-# X = rand(2000,1000)
-
-# test = normalize(X, ZScore; dims=2)
-# n = fit(ZScore, X, dims=1)
-# norm = Normalization.normalize(X, n)
-# @test isapprox(test, norm)
-
-# @btime test = normalize(X, ZScore; dims=1)
-# 13.703 ms (6006 allocations: 45.91 MiB)
-# 2.178 ms (178 allocations: 15.29 MiB)
-
-# @btime begin
-#     n = fit(ZScore, X, dims=1)
-#     norm = Normalization.normalize(X, n)   
-# end
-# 2.245 ms (178 allocations: 15.29 MiB)
