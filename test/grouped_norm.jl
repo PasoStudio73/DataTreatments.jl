@@ -23,7 +23,7 @@ Xts, yts = Artifacts.load(natopsloader)
     fileds = [[:sepal_length, :petal_length], [:sepal_width]]
     groups = DT.groupby(Xc, fileds)
 
-    normalized = DT.normalize(groups, DT.zscore(); dims=0)
+    normalized = DT.normalize.(groups, ZScore)
 
     for i in eachindex(groups)
         n = fit(ZScore, groups[i], dims=nothing)
@@ -48,7 +48,7 @@ end
     :aggregate,
     win=splitwindow(nwindows=2),
     features=(mean, maximum),
-    norm=MinMax(lower=0.0, upper=1.0)
+    norm=ZScore
 )
 
 @test_nowarn DataTreatment(
@@ -56,7 +56,7 @@ end
     :reducesize,
     win=splitwindow(nwindows=2),
     features=(mean, maximum),
-    norm=MinMax(lower=0.0, upper=1.0)
+    norm=MinMax
 )
 
 @test_nowarn DataTreatment(
@@ -65,7 +65,7 @@ end
     win=splitwindow(nwindows=2),
     features=(mean, maximum),
     groups=(:vname, :feat),
-    norm=MinMax(lower=0.0, upper=1.0)
+    norm=PNorm
 )
 
 @test_nowarn DataTreatment(
@@ -74,7 +74,7 @@ end
     win=splitwindow(nwindows=2),
     features=(mean, maximum),
     groups=(:vname, :feat),
-    norm=MinMax(lower=0.0, upper=1.0)
+    norm=Scale
 )
 
 # ---------------------------------------------------------------------------- #
@@ -94,12 +94,11 @@ test1 = DataTreatment(
     win=splitwindow(nwindows=3), #should actually not change the dataset
     features=(mean, maximum),
     groups=(:vname,),
-    norm=MinMax(lower=0.0, upper=1.0)
+    norm=MinMax
 )
 
 # Since the dataset is composed of two columns named :v1 and :v2 and we have grouped by :vname,
 # we expect the dataset to have been normalized separately for :v1 and for :v2
-
 @testset "DataTreatment reducesize groupby normalization" begin
     for (i, m) in enumerate(eachcol(M))
         merged = vcat(m...)
@@ -121,12 +120,11 @@ test2 = DataTreatment(
     win=splitwindow(nwindows=3), #should actually not change the dataset
     features=(mean,),
     groups=(:vname,),
-    norm=MinMax(lower=0.0, upper=1.0)
+    norm=MinMax
 )
 
 # In this case as well, since a windowing of 3 elements was used, the windowing will generate
 # single elements, so we expect the normalization to have been applied separately for :v1 and :v2
-
 @testset "DataTreatment aggregate groupby normalization" begin
     for (i, m) in enumerate(eachcol(M))
         merged = vcat(m...)
@@ -142,31 +140,38 @@ end
 
 # ---------------------------------------------------------------------------- #
 
-ndims = DataTreatment(
+norm_type = DataTreatment(
     Xts,
     :aggregate,
     win=splitwindow(nwindows=2),
     features=(mean, maximum),
-    norm=MinMax(lower=0.0, upper=1.0)
+    norm=MinMax
 )
-@test get_normdims(ndims) == 0
+@test DT._nt(get_norm(norm_type)) == (type=MinMax, dims=nothing)
 
-ndims = DataTreatment(
+norm_type = DataTreatment(
     Xts,
     :aggregate,
     win=splitwindow(nwindows=2),
     features=(mean, maximum),
-    norm=MinMax(lower=0.0, upper=1.0),
-    dims=1
+    norm=Scale()
 )
-@test get_normdims(ndims) == 1
+@test DT._nt(get_norm(norm_type)) == (type=Scale, dims=nothing)
 
-ndims = DataTreatment(
+norm_type = DataTreatment(
     Xts,
     :aggregate,
     win=splitwindow(nwindows=2),
     features=(mean, maximum),
-    norm=MinMax(lower=0.0, upper=1.0),
-    dims=2
+    norm=ZScore(dims=1)
 )
-@test get_normdims(ndims) == 2
+@test DT._nt(get_norm(norm_type)) == (type=ZScore, dims=1)
+
+norm_type = DataTreatment(
+    Xts,
+    :aggregate,
+    win=splitwindow(nwindows=2),
+    features=(mean, maximum),
+    norm=PNorm(p=Inf)
+)
+@test DT._nt(get_norm(norm_type)) == (type=DT.PNormInf, dims=nothing)

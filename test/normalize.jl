@@ -3,57 +3,57 @@ using DataTreatments
 const DT = DataTreatments
 
 @test ZScore == ZScore
-@test ZScore() == (type = ZScore, dims=nothing)
-@test ZScore(dims=2) == (type=ZScore, dims=2)
-@test ZScore(method=:std) == (type=ZScore, dims=nothing)
-@test ZScore(method=:robust) == (type=DT.ZScoreRobust, dims=nothing)
-@test ZScore(method=:half) == (type=DT.HalfZScore, dims=nothing)
+@test DT._nt(ZScore()) == (type = ZScore, dims=nothing)
+@test DT._nt(ZScore(dims=2)) == (type=ZScore, dims=2)
+@test DT._nt(ZScore(method=:std)) == (type=ZScore, dims=nothing)
+@test DT._nt(ZScore(method=:robust)) == (type=DT.ZScoreRobust, dims=nothing)
+@test DT._nt(ZScore(method=:half)) == (type=DT.HalfZScore, dims=nothing)
 @test_throws ErrorException ZScore(dims=3)
 @test_throws ErrorException ZScore(method=:invalid)
 
 @test MinMax == MinMax
-@test MinMax() == (type=MinMax, dims=nothing)
-@test MinMax(dims=2) == (type=MinMax, dims=2)
+@test DT._nt(MinMax()) == (type=MinMax, dims=nothing)
+@test DT._nt(MinMax(dims=2)) == (type=MinMax, dims=2)
 @test_throws ErrorException MinMax(dims=3)
 
 @test Scale == Scale
-@test Scale() == (type=Scale, dims=nothing)
-@test Scale(dims=2) == (type=Scale, dims=2)
-@test Scale(method=:std) == (type=Scale, dims=nothing)
-@test Scale(method=:mad) == (type=DT.ScaleMad, dims=nothing)
-@test Scale(method=:first) == (type=DT.ScaleFirst, dims=nothing)
-@test Scale(method=:iqr) == (type=DT.ScaleIqr, dims=nothing)
+@test DT._nt(Scale()) == (type=Scale, dims=nothing)
+@test DT._nt(Scale(dims=2)) == (type=Scale, dims=2)
+@test DT._nt(Scale(method=:std)) == (type=Scale, dims=nothing)
+@test DT._nt(Scale(method=:mad)) == (type=DT.ScaleMad, dims=nothing)
+@test DT._nt(Scale(method=:first)) == (type=DT.ScaleFirst, dims=nothing)
+@test DT._nt(Scale(method=:iqr)) == (type=DT.ScaleIqr, dims=nothing)
 @test_throws ErrorException Scale(dims=3)
 @test_throws ErrorException Scale(method=:invalid)
 
 @test Sigmoid == Sigmoid
-@test Sigmoid() == (type=Sigmoid, dims=nothing)
-@test Sigmoid(dims=2) == (type=Sigmoid, dims=2)
+@test DT._nt(Sigmoid()) == (type=Sigmoid, dims=nothing)
+@test DT._nt(Sigmoid(dims=2)) == (type=Sigmoid, dims=2)
 @test_throws ErrorException Sigmoid(dims=3)
 
 @test Center == Center
-@test Center() == (type=Center, dims=nothing)
-@test Center(dims=2) == (type=Center, dims=2)
-@test Center(method=:mean) == (type=Center, dims=nothing)
-@test Center(method=:median) == (type=DT.CenterMedian, dims=nothing)
+@test DT._nt(Center()) == (type=Center, dims=nothing)
+@test DT._nt(Center(dims=2)) == (type=Center, dims=2)
+@test DT._nt(Center(method=:mean)) == (type=Center, dims=nothing)
+@test DT._nt(Center(method=:median)) == (type=DT.CenterMedian, dims=nothing)
 @test_throws ErrorException Center(dims=3)
 @test_throws ErrorException Center(method=:invalid)
 
 @test UnitEnergy == UnitEnergy
-@test UnitEnergy() == (type=UnitEnergy, dims=nothing)
-@test UnitEnergy(dims=2) == (type=UnitEnergy, dims=2)
+@test DT._nt(UnitEnergy()) == (type=UnitEnergy, dims=nothing)
+@test DT._nt(UnitEnergy(dims=2)) == (type=UnitEnergy, dims=2)
 @test_throws ErrorException UnitEnergy(dims=3)
 
 @test UnitPower == UnitPower
-@test UnitPower() == (type=UnitPower, dims=nothing)
-@test UnitPower(dims=2) == (type=UnitPower, dims=2)
+@test DT._nt(UnitPower()) == (type=UnitPower, dims=nothing)
+@test DT._nt(UnitPower(dims=2)) == (type=UnitPower, dims=2)
 @test_throws ErrorException UnitPower(dims=3)
 
 @test PNorm == PNorm
-@test PNorm() == (type=DT.PNorm, dims=nothing)
-@test PNorm(dims=2) == (type=DT.PNorm, dims=2)
-@test PNorm(p=1) == (type=DT.PNorm1, dims=nothing)
-@test PNorm(p=Inf) == (type=DT.PNormInf, dims=nothing)
+@test DT._nt(PNorm()) == (type=DT.PNorm, dims=nothing)
+@test DT._nt(PNorm(dims=2)) == (type=DT.PNorm, dims=2)
+@test DT._nt(PNorm(p=1)) == (type=DT.PNorm1, dims=nothing)
+@test DT._nt(PNorm(p=Inf)) == (type=DT.PNormInf, dims=nothing)
 @test_throws ErrorException PNorm(dims=3)
 @test_throws ErrorException PNorm(p=5)
 

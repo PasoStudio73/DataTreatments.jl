@@ -3,8 +3,10 @@ module NormalizationExt
 using Normalization
 using DataTreatments
 
-import Normalization: __mapdims!, fit!, fit
+import Normalization: __mapdims!, fit!, fit, normalize
 import Normalization: dimparams, negdims, estimators, dims!, params!
+
+using DataTreatments: NormSpec
 
 # ---------------------------------------------------------------------------- #
 #                 extend fit & normalize to multidim elements                  #
@@ -61,5 +63,13 @@ function fit(
 ) where {A,𝒯<:AbstractNormalization}
     fit(𝒯{A}, X; kwargs...)
 end
+
+function normalize(X::AbstractArray{<:AbstractArray}, T::AbstractNormalization; kwargs...)
+    Y = copy.(X)
+    normalize!(Y, T; kwargs...)
+    return Y
+end
+
+normalize(X, n::NormSpec) = normalize(X, n.type; dims=n.dims)
 
 end
