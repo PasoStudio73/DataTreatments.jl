@@ -166,6 +166,33 @@ norm_pnorm = normalize(X, PNorm(dims=1))
 norm_pnorm = normalize(X, PNorm(dims=1, p=Inf))
 @test isapprox(norm_pnorm, [1.0 0.111111 0.857143; 0.375 0.555556 1.0; 0.5 1.0 0.285714], atol=1e-6)
 
+@testset "NormalizationExt.fit! on AbstractArray{<:AbstractArray}" begin
+    X  = [rand(Float64, 4, 2) for _ in 1:6, _ in 1:5]
+    X2 = [rand(Float64, 4, 2) for _ in 1:6, _ in 1:5]
+
+    # Build a normalization object (same family used by fit!)
+    T = fit(ZScore{Float64}, X; dims=1)
+
+    # Calls the extension method in ext/NormalizationExt.jl
+    @test fit!(T, X2; dims=2) === nothing
+    @test fit!(T, X2; dims=nothing) === nothing
+
+    # Sanity check: normalized output keeps container + element sizes
+    Yn = normalize(X2, T)
+    @test size(Yn) == size(X2)
+    @test all(size.(Yn) .== size.(X2))
+end
+
+@testset "NormalizationExt.fit! type check" begin
+    X32 = [rand(Float32, 4, 2) for _ in 1:3, _ in 1:2]
+    X64 = [rand(Float64, 4, 2) for _ in 1:3, _ in 1:2]
+
+    T32 = fit(ZScore{Float32}, X32; dims=1)
+
+    # eltype(T) == A guard in fit! should throw
+    @test_throws TypeError fit!(T32, X64; dims=1)
+end
+
 @testset "NormSpec show/convert/Tuple" begin
     ns1 = ZScore(dims=1)
     ns2 = MinMax()
