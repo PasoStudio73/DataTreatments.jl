@@ -173,6 +173,8 @@ DataTreatment(
     win::Union{Base.Callable, Tuple{Vararg{Base.Callable}}},
     features::Tuple{Vararg{Base.Callable}}=(maximum, minimum, mean),
     reducefunc::Base.Callable=mean,
+    groups::Union{Tuple{Vararg{Symbol}},Nothing}=nothing,
+    norm::Union{NormSpec,Type{<:AbstractNormalization},Nothing}=nothing
 )
 ```
 
@@ -196,8 +198,7 @@ Xmatrix = fill(rand(200, 120), 100, 10)  # 100 samples, 10 variables
 win = splitwindow(nwindows=4)
 features = (mean, std, maximum)
 
-dt = DataTreatment(Xmatrix, :aggregate; 
-                   vnames=Symbol.("var", 1:10);
+dt = DataTreatment(Xmatrix, :aggregate;
                    win, 
                    features)
 # Returns 100×(10×3×16) = 100×480 flat matrix
@@ -214,8 +215,7 @@ Xmatrix = fill(rand(200, 120), 100, 10)  # 100 samples, 10 variables
 win = splitwindow(nwindows=4)
 features = (mean, std, maximum)
 
-dt = DataTreatment(Xmatrix, :reducesize; 
-                   vnames=Symbol.("var", 1:10);
+dt = DataTreatment(Xmatrix, :reducesize;
                    win, 
                    features)
 # Each 200×120 element becomes 4×4, resulting in 100×10 output
@@ -230,7 +230,10 @@ Optional parameter to group dataset elements before processing.
 - Common grouping strategies: `(:vname,)`, `(:vname, :feat)`, `(:vname, :timestamp)`
 
 ```julia
-dt = DataTreatment(Xts, :aggregate;
+Xmatrix = [rand(1:100, 4, 2) for _ in 1:10, _ in 1:5]  # 10×5 dataset where each element is a 4×2 matrix
+vnames = Symbol.("auto", 1:5)
+
+dt = DataTreatment(Xmatrix, :aggregate;
                    win=splitwindow(nwindows=2),
                    features=(mean, maximum),
                    groups=(:vname, :feat))
@@ -247,16 +250,16 @@ Optional normalization function to apply during processing.
 
 ```julia
 # Min-max normalization with custom range
-dt = DataTreatment(Xts, :aggregate;
+dt = DataTreatment(Xmatrix, :aggregate;
                    win=splitwindow(nwindows=2),
                    features=(mean, maximum),
-                   norm=DT.minmax(lower=0.0, upper=1.0))
+                   norm=MinMax)
 
-# Z-score normalization
-dt = DataTreatment(Xts, :aggregate;
+# Z-score robust normalization
+dt = DataTreatment(Xmatrix, :aggregate;
                    win=splitwindow(nwindows=2),
                    features=(mean, maximum),
-                   norm=DT.zscore())
+                   norm=ZScore(method=:robust))
 ```
 
 ## Grouped Normalization
@@ -267,58 +270,16 @@ When using `groups` with `norm`, **never specify `dims` parameter**.
 
 ```julia
 # CORRECT: Grouped normalization without dims
-groups = DT.groupby(X, [[:var1, :var2]])
-normalized = DT.normalize(groups, DT.zscore())
+# groups = DataTreatments.groupby(X, [[:var1, :var2]])
+# normalized = DataTreatments.normalize(groups, UnitPower)
 # Each group normalized using all its elements
 
 # INCORRECT: Do not use dims with grouped normalization
-# normalized = DT.normalize(groups, DT.zscore(dims=2))
+# normalized = DataTreatments.normalize(groups, UnitPower(dims=2))
 # This breaks the group semantics!
 ```
 
 # Examples
-
-## Basic Usage with DataFrame
-```julia
-using DataFrames
-
-# Create dataset with multidimensional elements
-df = DataFrame(
-    channel1 = [rand(200, 120) for _ in 1:1000],
-    channel2 = [rand(200, 120) for _ in 1:1000],
-    channel3 = [rand(200, 120) for _ in 1:1000]
-)
-
-# Define processing parameters
-win = adaptivewindow(nwindows=6, overlap=0.15)
-features = (mean, std, maximum, minimum, median)
-
-# Process to tabular format
-dt = DataTreatment(df, :reducesize; win, features)
-
-# Access processed data
-X_flat = get_dataset(dt)        # Flat feature matrix
-feature_ids = get_featureid(dt) # Feature metadata
-```
-
-## Feature Selection Using Metadata
-```julia
-# Get all feature metadata
-feature_ids = get_featureid(dt)
-
-# Select specific features
-mean_features = findall(fid -> get_feature(fid) == mean, feature_ids)
-X_means = dt.dataset[:, mean_features]
-
-# Select features from specific variable
-ch1_features = findall(fid -> get_vname(fid) == :channel1, feature_ids)
-X_ch1 = dt.dataset[:, ch1_features]
-
-# Select features from specific windows
-early_windows = findall(fid -> get_nwin(fid) <= 3, feature_ids)
-X_early = dt.dataset[:, early_windows]
-```
-
 ## Reproducibility and Documentation
 ```julia
 # All parameters are stored for experiment reproduction
@@ -332,10 +293,10 @@ feat_funcs = get_features(dt)     # (mean, std, maximum, minimum, median)
 n_windows = get_nwindows(dt)      # 6
 
 # Document experiment
-println("Processing: \$aggrtype mode")
-println("Variables: \$(join(var_names, ", "))")
-println("Features: \$(join(nameof.(feat_funcs), ", "))")
-println("Windows: \$n_windows per dimension")
+println("Processing: $aggrtype mode")
+println("Variables: $(join(var_names, ", "))")
+println("Features: $(join(nameof.(feat_funcs), ", "))")
+println("Windows: $n_windows per dimension")
 ```
 
 # Accessor Functions
@@ -343,19 +304,11 @@ println("Windows: \$n_windows per dimension")
 - `get_featureid(dt)`: Get feature metadata vector
 - `get_reducefunc(dt)`: Get the reduction function used
 - `get_aggrtype(dt)`: Get the processing mode
+- `get_groups(dt)`: Get grouped items
+- `get_norm(dt)`: Get normalization technique
 - `get_vnames(dt)`: Get unique variable names
 - `get_features(dt)`: Get unique feature functions
 - `get_nwindows(dt)`: Get maximum window number
-
-# Indexing
-DataTreatment supports array-like indexing:
-```julia
-dt[1, :]      # First sample (row)
-dt[:, 1]      # First feature (column)
-dt[1:10, :]   # First 10 samples
-size(dt)      # Dataset dimensions
-length(dt)    # Number of features
-```
 
 # See Also
 - [`FeatureId`](@ref): Individual feature metadata

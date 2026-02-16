@@ -38,7 +38,7 @@ vnames = Symbol.("auto", 1:5)
 # Define processing parameters
 win = splitwindow(nwindows=2)
 features = (mean, std, maximum, minimum)
-norm = zscore()
+norm = ZScore
 reducefunc = median
 
 # Process for propositional analysis
@@ -63,7 +63,7 @@ df = DataFrame(
 # Define processing parameters
 win = adaptivewindow(nwindows=6, overlap=0.15)
 features = (mean, std, maximum, minimum, median)
-norm = pnorm(p=1)
+norm = PNorm(p=1)
 reducefunc = median
 
 # Process for propositional analysis
@@ -142,9 +142,7 @@ dt = DataFrame([rand(1:100, 4, 2) for _ in 1:10, _ in 1:5], :auto)
 win = splitwindow(nwindows=2)
 
 grp1 = [:x1, :x2]
-
-groups = DT.groupby(dt, grp1)
-
+groups = DataTreatments.groupby(dt, grp1)
 dt_norm = DataTreatment(dt, :aggregate; win, features, groups=(:vname,), norm=ZScore)
 ```
 
@@ -183,7 +181,7 @@ df = DataFrame(
 win = adaptivewindow(nwindows=6, overlap=0.15)
 features = (mean, std, maximum, minimum, median)
 
-dt = DataTreatment(df, :reducesize; win, features, norm=DT.minmax())
+dt = DataTreatment(df, :reducesize; win, features, norm=MinMax)
 
 # Access processed data
 X_flat = get_dataset(dt)        # Flat feature matrix
@@ -193,8 +191,6 @@ feature_ids = get_featureid(dt) # Feature metadata
 aggrtype = get_aggrtype(dt)     # :reducesize
 reduction = get_reducefunc(dt)   # mean (default)
 var_names = get_vnames(dt)       # [:channel1, :channel2, :channel3]
-feat_funcs = get_features(dt)    # (mean, std, maximum, minimum, median)
-n_windows = get_nwindows(dt)     # 6
 ```
 
 ## Use Cases
