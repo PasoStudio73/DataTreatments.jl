@@ -370,7 +370,7 @@ struct DataTreatment{T,S} <: AbstractDataTreatment
     norm::Union{NormSpec,Nothing}
 
     function DataTreatment(
-        X::AbstractArray{T},
+        X::AbstractArray{<:AbstractArray{T}},
         aggrtype::Symbol;
         vnames::Union{Vector{<:NameTypes},Nothing}=nothing,
         win::Union{Base.Callable,Tuple{Vararg{Base.Callable}}},
@@ -378,7 +378,7 @@ struct DataTreatment{T,S} <: AbstractDataTreatment
         reducefunc::Base.Callable=mean,
         groups::Union{Tuple{Vararg{Symbol}},Nothing}=nothing,
         norm::Union{NormSpec,Type{<:AbstractNormalization},Nothing}=nothing
-    ) where {T<:AbstractArray{<:Real}}
+    ) where {T<:Real}
         # checks the special case of a dataset whose elements have different sizes
         # verifies that the chosen window is either adaptivewindow (recommended) or wholewindow,
         # and otherwise throws an error
