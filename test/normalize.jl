@@ -2,58 +2,92 @@ using Test
 using DataTreatments
 const DT = DataTreatments
 
-using Normalization
-using Statistics
+@test ZScore == ZScore
+@test DT._nt(ZScore()) == (type = ZScore, dims=nothing)
+@test DT._nt(ZScore(dims=2)) == (type=ZScore, dims=2)
+@test DT._nt(ZScore(method=:std)) == (type=ZScore, dims=nothing)
+@test DT._nt(ZScore(method=:robust)) == (type=DT.ZScoreRobust, dims=nothing)
+@test DT._nt(ZScore(method=:half)) == (type=DT.HalfZScore, dims=nothing)
+@test_throws ErrorException ZScore(dims=3)
+@test_throws ErrorException ZScore(method=:invalid)
 
-# ---------------------------------------------------------------------------- #
-#                                    methods                                   #
-# ---------------------------------------------------------------------------- #
-X = Float64.([8 1 6; 3 5 7; 4 9 2])
+@test MinMax == MinMax
+@test DT._nt(MinMax()) == (type=MinMax, dims=nothing)
+@test DT._nt(MinMax(dims=2)) == (type=MinMax, dims=2)
+@test_throws ErrorException MinMax(dims=3)
 
-@test_nowarn DT.zscore(X)
-@test_nowarn DT.sigmoid(X)
-@test_nowarn DT.pnorm(X)
-@test_nowarn DT.scale(X)
-@test_nowarn DT.minmax(X)
-@test_nowarn DT.center(X)
-@test_nowarn DT.unitpower(X)
-@test_nowarn DT.outliersuppress(X)
+@test Scale == Scale
+@test DT._nt(Scale()) == (type=Scale, dims=nothing)
+@test DT._nt(Scale(dims=2)) == (type=Scale, dims=2)
+@test DT._nt(Scale(method=:std)) == (type=Scale, dims=nothing)
+@test DT._nt(Scale(method=:mad)) == (type=DT.ScaleMad, dims=nothing)
+@test DT._nt(Scale(method=:first)) == (type=DT.ScaleFirst, dims=nothing)
+@test DT._nt(Scale(method=:iqr)) == (type=DT.ScaleIqr, dims=nothing)
+@test_throws ErrorException Scale(dims=3)
+@test_throws ErrorException Scale(method=:invalid)
+
+@test Sigmoid == Sigmoid
+@test DT._nt(Sigmoid()) == (type=Sigmoid, dims=nothing)
+@test DT._nt(Sigmoid(dims=2)) == (type=Sigmoid, dims=2)
+@test_throws ErrorException Sigmoid(dims=3)
+
+@test Center == Center
+@test DT._nt(Center()) == (type=Center, dims=nothing)
+@test DT._nt(Center(dims=2)) == (type=Center, dims=2)
+@test DT._nt(Center(method=:mean)) == (type=Center, dims=nothing)
+@test DT._nt(Center(method=:median)) == (type=DT.CenterMedian, dims=nothing)
+@test_throws ErrorException Center(dims=3)
+@test_throws ErrorException Center(method=:invalid)
+
+@test UnitEnergy == UnitEnergy
+@test DT._nt(UnitEnergy()) == (type=UnitEnergy, dims=nothing)
+@test DT._nt(UnitEnergy(dims=2)) == (type=UnitEnergy, dims=2)
+@test_throws ErrorException UnitEnergy(dims=3)
+
+@test UnitPower == UnitPower
+@test DT._nt(UnitPower()) == (type=UnitPower, dims=nothing)
+@test DT._nt(UnitPower(dims=2)) == (type=UnitPower, dims=2)
+@test_throws ErrorException UnitPower(dims=3)
+
+@test PNorm == PNorm
+@test DT._nt(PNorm()) == (type=DT.PNorm, dims=nothing)
+@test DT._nt(PNorm(dims=2)) == (type=DT.PNorm, dims=2)
+@test DT._nt(PNorm(p=1)) == (type=DT.PNorm1, dims=nothing)
+@test DT._nt(PNorm(p=Inf)) == (type=DT.PNormInf, dims=nothing)
+@test_throws ErrorException PNorm(dims=3)
+@test_throws ErrorException PNorm(p=5)
 
 # ---------------------------------------------------------------------------- #
 #                                 normalization                                #
 # ---------------------------------------------------------------------------- #
 X = Float64.([8 1 6; 3 5 7; 4 9 2])
-nfunc = DT.minmax()
 
-all_elements = DT.normalize(X, nfunc)
+all_elements = normalize(X, MinMax)
 @test all_elements == [
     0.875 0.0 0.625;
     0.25 0.5 0.75;
     0.375 1.0 0.125
 ]
 
-grouby_cols = DT.normalize(X, nfunc; dims=2)
+grouby_cols = normalize(X, MinMax(dims=1))
 @test grouby_cols == [
     1.0 0.0 0.8;
     0.0 0.5 1.0;
     0.2 1.0 0.0
 ]
 
-grouby_rows = DT.normalize(X, nfunc; dims=1)
+grouby_rows = normalize(X, MinMax(dims=2))
 @test isapprox(grouby_rows, [
     1.0 0.0 0.714285714;
     0.0 0.5 1.0;
     0.285714286 1.0 0.0
 ])
 
-Xmatrix = [rand(1:100, 4, 2) for _ in 1:10, _ in 1:5]
-nfunc = DT.zscore()
+Xmatrix = [Float64.(rand(1:100, 4, 2)) for _ in 1:10, _ in 1:5]
 
-@test_nowarn DT.normalize(Xmatrix, nfunc)
-
-@test_nowarn DT.normalize(Xmatrix, nfunc; dims=2)
-
-@test_nowarn DT.normalize(Xmatrix, nfunc; dims=1)
+@test_nowarn normalize(Xmatrix, ZScore)
+@test_nowarn normalize(Xmatrix, ZScore(dims=1))
+@test_nowarn normalize(Xmatrix, ZScore(dims=2))
 
 # ---------------------------------------------------------------------------- #
 #                            multi dim normalization                           #
@@ -65,7 +99,7 @@ m4 = [9.0 9.0 9.0; 9.0 7.5 9.0; 9.0 9.0 9.0]
 
 M = reshape([m1, m2, m3, m4], 2, 2) # 2x2 matrix of matrices
 
-multidim_norm = DT.normalize(M, DT.minmax(lower=0.0, upper=1.0))
+multidim_norm = normalize(M, MinMax)
 
 # all elements of the matrices were scaled by the same coefficient,
 # computed using all values across the matrices.
@@ -81,201 +115,102 @@ multidim_norm = DT.normalize(M, DT.minmax(lower=0.0, upper=1.0))
 # ---------------------------------------------------------------------------- #
 #                             tabular normalization                            #
 # ---------------------------------------------------------------------------- #
-a = [8 1 6; 3 5 7; 4 9 2]
+X = Float64.([8 1 6; 3 5 7; 4 9 2])
 
 # test values verified against MATLAB
-zscore_norm = DT.normalize(a, DT.zscore(); dims=2)
+zscore_norm = normalize(X, ZScore(dims=1))
 @test isapprox(zscore_norm, [1.13389 -1.0 0.377964; -0.755929 0.0 0.755929; -0.377964 1.0 -1.13389], atol=1e-5)
 
-zscore_row = DT.normalize(a, DT.zscore(); dims=1)
+zscore_row = normalize(X, ZScore(dims=2))
 @test isapprox(zscore_row, [0.83205 -1.1094 0.27735; -1.0 0.0 1.0; -0.27735 1.1094 -0.83205], atol=1e-5)
 
-zscore_robust = DT.normalize(a, DT.zscore(method=:robust); dims=2)
+zscore_robust = normalize(X, ZScore(method=:robust, dims=1))
 @test zscore_robust == [4.0 -1.0 0.0; -1.0 0.0 1.0; 0.0 1.0 -4.0]
 
-zscore_half = DT.normalize(a, DT.zscore(method=:half); dims=2)
+@test_nowarn zscore_half = normalize(X, ZScore(method=:half, dims=2))
 
-@test_throws ArgumentError DT.normalize(a, DT.zscore(); dims=5) # invalid
-@test_throws ArgumentError DT.normalize(a, DT.zscore(method=:invalid))
+@test_nowarn normalize(X, Sigmoid(dims=2))
 
-@test_nowarn DT.normalize(a, sigmoid(); dims=2)
-
-norm_norm = DT.normalize(a, pnorm(); dims=2)
-@test isapprox(norm_norm, [0.847998 0.0966736 0.635999; 0.317999 0.483368 0.741999; 0.423999 0.870063 0.212], atol=1e-6)
-
-norm_norm = DT.normalize(a, pnorm(p=4); dims=2)
-@test isapprox(norm_norm, [0.980428 0.108608 0.768635; 0.36766 0.543042 0.896741; 0.490214 0.977475 0.256212], atol=1e-5)
-
-norm_norm = DT.normalize(a, pnorm(p=Inf); dims=2)
-@test isapprox(norm_norm, [1.0 0.111111 0.857143; 0.375 0.555556 1.0; 0.5 1.0 0.285714], atol=1e-6)
-
-scale_norm = DT.normalize(a, scale(factor=:std); dims=2)
+scale_norm = normalize(X, Scale(dims=1))
 @test isapprox(scale_norm, [3.02372 0.25 2.26779; 1.13389 1.25 2.64575; 1.51186 2.25 0.755929], atol=1e-5)
 
-scale_norm = DT.normalize(a, scale(factor=:mad); dims=2)
+scale_norm = normalize(X, Scale(method=:mad, dims=1))
 @test scale_norm == [8.0 0.25 6.0; 3.0 1.25 7.0; 4.0 2.25 2.0]
 
-scale_norm = DT.normalize(a, scale(factor=:first); dims=2)
+scale_norm = normalize(X, Scale(method=:first, dims=1))
 @test isapprox(scale_norm, [1.0 1.0 1.0; 0.375 5.0 1.16667; 0.5 9.0 0.333333], atol=1e-5)
 
-scale_norm = DT.normalize(a, scale(factor=:iqr); dims=2)
+@test_nowarn scale_norm = normalize(X, Scale(method=:iqr, dims=1))
 
-minmax_norm = DT.normalize(a, DT.minmax(); dims=2)
+minmax_norm = normalize(X, MinMax(dims=1))
 @test minmax_norm == [1.0 0.0 0.8; 0.0 0.5 1.0; 0.2 1.0 0.0]
 
-minmax_norm = DT.normalize(a, DT.minmax(lower=-2, upper=4); dims=2)
-@test minmax_norm == [4.0 -2.0 2.8; -2.0 1.0 4.0; -0.8 4.0 -2.0]
-
-center_norm = DT.normalize(a, center(); dims=2)
+center_norm = normalize(X, Center(dims=1))
 @test center_norm == [3.0 -4.0 1.0; -2.0 0.0 2.0; -1.0 4.0 -3.0]
 
-center_norm = DT.normalize(a, center(method=:median); dims=2)
+center_norm = normalize(X, Center(method=:median, dims=1))
 @test center_norm == [4.0 -4.0 0.0; -1.0 0.0 1.0; 0.0 4.0 -4.0]
 
-@test_nowarn DT.normalize(a, unitpower(); dims=2)
+@test_nowarn normalize(X, UnitEnergy(dims=1))
+@test_nowarn normalize(X, UnitPower(dims=1))
 
-@test_nowarn DT.normalize(a, outliersuppress(); dims=2)
-@test_nowarn DT.normalize(a, outliersuppress(thr=3); dims=2)
+# assolutamente da verificare
+# @test_nowarn normalize(X, OutlierSuppress; dims=1)
 
-# test against julia package Normalization
-X = rand(200,100)
+norm_pnorm = normalize(X, PNorm(dims=1, p=1))
+@test isapprox(norm_pnorm, [0.533333 0.0666667 0.4; 0.2 0.333333 0.466667; 0.266667 0.6 0.133333], atol=1e-5)
 
-test = DT.normalize(X, DT.zscore(); dims=2)
-n = fit(ZScore, X, dims=1)
-norm = Normalization.normalize(X, n)
-@test isapprox(test, norm)
+norm_pnorm = normalize(X, PNorm(dims=1))
+@test isapprox(norm_pnorm, [0.847998 0.0966736 0.635999; 0.317999 0.483368 0.741999; 0.423999 0.870063 0.212], atol=1e-6)
 
-test = DT.normalize(X, DT.zscore(method=:half); dims=2)
-n = fit(HalfZScore, X, dims=1)
-norm = Normalization.normalize(X, n)
-@test isapprox(test, norm)
+norm_pnorm = normalize(X, PNorm(dims=1, p=Inf))
+@test isapprox(norm_pnorm, [1.0 0.111111 0.857143; 0.375 0.555556 1.0; 0.5 1.0 0.285714], atol=1e-6)
 
-test = DT.normalize(X, sigmoid(); dims=2)
-n = fit(Sigmoid, X, dims=1)
-norm = Normalization.normalize(X, n)
-@test isapprox(test, norm)
+@testset "NormalizationExt.fit! on AbstractArray{<:AbstractArray}" begin
+    X  = [rand(Float64, 4, 2) for _ in 1:6, _ in 1:5]
+    X2 = [rand(Float64, 4, 2) for _ in 1:6, _ in 1:5]
 
-test = DT.normalize(X, pnorm(); dims=2)
-n = fit(UnitEnergy, X, dims=1)
-norm = Normalization.normalize(X, n)
-@test isapprox(test, norm)
+    # Build a normalization object (same family used by fit!)
+    T = fit(ZScore{Float64}, X; dims=1)
 
-test = DT.normalize(X, DT.minmax(); dims=2)
-n = fit(MinMax, X, dims=1)
-norm = Normalization.normalize(X, n)
-@test isapprox(test, norm)
+    # Calls the extension method in ext/NormalizationExt.jl
+    @test fit!(T, X2; dims=2) === nothing
+    @test fit!(T, X2; dims=nothing) === nothing
 
-test = DT.normalize(X, center(); dims=2)
-n = fit(Center, X, dims=1)
-norm = Normalization.normalize(X, n)
-@test isapprox(test, norm)
-
-test = DT.normalize(X, unitpower(); dims=2)
-n = fit(UnitPower, X, dims=1)
-norm = Normalization.normalize(X, n)
-@test isapprox(test, norm)
-
-test = DT.normalize(X, outliersuppress(;thr=5); dims=2)
-n = fit(OutlierSuppress, X, dims=1)
-norm = Normalization.normalize(X, n)
-@test isapprox(test, norm)
-
-# ---------------------------------------------------------------------------- #
-#                        single element normalization                          #
-# ---------------------------------------------------------------------------- #
-X = rand(100,75, 2)
-
-@test_nowarn DT.normalize(X, DT.zscore())
-@test_nowarn DT.normalize(X, sigmoid())
-@test_nowarn DT.normalize(X, pnorm())
-@test_nowarn DT.normalize(X, scale())
-@test_nowarn DT.normalize(X, DT.minmax())
-@test_nowarn DT.normalize(X, center())
-@test_nowarn DT.normalize(X, unitpower())
-@test_nowarn DT.normalize(X, outliersuppress())
-
-# non-float convertion
-@test_nowarn DT.normalize(a, DT.zscore())
-
-# test against julia package Normalization
-X = rand(200,100)
-
-test = DT.normalize(X, DT.zscore())
-n = fit(ZScore, X)
-norm = Normalization.normalize(X, n)
-@test isapprox(test, norm)
-
-test = DT.normalize(X, DT.zscore(method=:half))
-n = fit(HalfZScore, X)
-norm = Normalization.normalize(X, n)
-@test isapprox(test, norm)
-
-test = DT.normalize(X, sigmoid())
-n = fit(Sigmoid, X)
-norm = Normalization.normalize(X, n)
-@test isapprox(test, norm)
-
-test = DT.normalize(X, pnorm())
-n = fit(UnitEnergy, X)
-norm = Normalization.normalize(X, n)
-@test isapprox(test, norm)
-
-test = DT.normalize(X, DT.minmax())
-n = fit(MinMax, X)
-norm = Normalization.normalize(X, n)
-@test isapprox(test, norm)
-
-test = DT.normalize(X, center())
-n = fit(Center, X)
-norm = Normalization.normalize(X, n)
-@test isapprox(test, norm)
-
-test = DT.normalize(X, unitpower())
-n = fit(UnitPower, X)
-norm = Normalization.normalize(X, n)
-@test isapprox(test, norm)
-
-test = DT.normalize(X, outliersuppress(;thr=5))
-n = fit(OutlierSuppress, X)
-norm = Normalization.normalize(X, n)
-@test isapprox(test, norm)
-
-# ---------------------------------------------------------------------------- #
-#                    n-dimensional dataset normalization                       #
-# ---------------------------------------------------------------------------- #
-X = [rand(200, 100) .* 1000 for _ in 1:100, _ in 1:100]
-
-@test_nowarn DT.normalize(X, DT.zscore())
-@test_nowarn DT.normalize(X, sigmoid())
-@test_nowarn DT.normalize(X, pnorm())
-@test_nowarn DT.normalize(X, scale())
-@test_nowarn DT.normalize(X, DT.minmax())
-@test_nowarn DT.normalize(X, center())
-@test_nowarn DT.normalize(X, unitpower())
-@test_nowarn DT.normalize(X, outliersuppress())
-
-function test_ds_norm(X, norm_func, NormType)
-    test = DT.normalize(X, norm_func; dims=2)
-    # compute normalization the way ds_norm does (per column)
-    col1_data = collect(Iterators.flatten(X[:, 1]))
-    n = fit(NormType, reshape(col1_data, :, 1); dims=nothing)
-    norm = Normalization.normalize(X[1,1], n)
-    
-    @test isapprox(test[1,1], norm)
+    # Sanity check: normalized output keeps container + element sizes
+    Yn = normalize(X2, T)
+    @test size(Yn) == size(X2)
+    @test all(size.(Yn) .== size.(X2))
 end
 
-# Run all tests
-X = fill(rand(20, 10) .* 10, 10, 100)
+@testset "NormalizationExt.fit! type check" begin
+    X32 = [rand(Float32, 4, 2) for _ in 1:3, _ in 1:2]
+    X64 = [rand(Float64, 4, 2) for _ in 1:3, _ in 1:2]
 
-test_ds_norm(X, DT.zscore(), ZScore)
-test_ds_norm(X, DT.zscore(method=:half), HalfZScore)
-test_ds_norm(X, sigmoid(), Sigmoid)
-test_ds_norm(X, pnorm(), UnitEnergy)
-test_ds_norm(X, DT.minmax(), MinMax)
-test_ds_norm(X, center(), Center)
-test_ds_norm(X, unitpower(), UnitPower)
-test_ds_norm(X, outliersuppress(;thr=5), OutlierSuppress)
+    T32 = fit(ZScore{Float32}, X32; dims=1)
 
-# non-float convertion
-b = [rand(0:10, 20) for _ in 1:25, _ in 1:5]
-@test_nowarn DT.normalize(b, DT.zscore())
+    # eltype(T) == A guard in fit! should throw
+    @test_throws TypeError fit!(T32, X64; dims=1)
+end
+
+@testset "NormSpec show/convert/Tuple" begin
+    ns1 = ZScore(dims=1)
+    ns2 = MinMax()
+
+    for ns in (ns1, ns2)
+        nt = DT._nt(ns)
+
+        @test nt isa NamedTuple
+        @test haskey(nt, :type)
+        @test haskey(nt, :dims)
+
+        @test Tuple(ns) == (nt.type, nt.dims)
+
+        # Base.show(io::IO, ns::NormSpec)
+        @test sprint(show, ns) == sprint(show, nt)
+
+        # Base.show(io::IO, ::MIME"text/plain", ns::NormSpec)
+        @test sprint(show, MIME"text/plain"(), ns) ==
+              sprint(show, MIME"text/plain"(), nt)
+    end
+end

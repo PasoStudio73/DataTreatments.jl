@@ -121,75 +121,16 @@ intervals = @evalwindow X splitwindow(nwindows=4)
 intervals = @evalwindow X splitwindow(nwindows=4) movingwindow(winsize=40, winstep=20)
 ```
 
-### Normalization Functions
+## Normalization
 
-DataTreatments provides flexible normalization strategies for different data structures:
+`DataTreatments.jl` uses **Normalization.jl** as its normalization backend.
 
-#### Normalization Methods
+- Core normalization algorithms are provided by `Normalization.jl`.
+- `DataTreatments.jl` re-exports `fit`, `fit!`, `normalize`, and `normalize!`.
+- `DataTreatments.jl` adds integration for nested/multidimensional dataset elements in `ext/NormalizationExt.jl`.
+- `NormSpec` provides a package-local convenience interface for selecting normalization type and `dims`.
 
-```julia
-const DT = DataTreatments
-
-# Z-score normalization (mean=0, std=1)
-DT.zscore()                    # Standard z-score
-DT.zscore(method=:robust)      # Robust z-score (median, MAD)
-DT.zscore(method=:half)        # Half-normal z-score
-
-# Min-max scaling
-DT.minmax()                    # Scale to [0, 1]
-DT.minmax(lower=-1, upper=1)   # Scale to custom range
-
-# Sigmoid transformation
-DT.sigmoid()                   # Logistic sigmoid to (0, 1)
-
-# Centering
-DT.center()                    # Center to mean=0
-DT.center(method=:median)      # Center to median=0
-
-# Scaling
-DT.scale()                     # Scale to std=1
-DT.scale(factor=:mad)          # Scale by MAD
-
-# Power normalization
-DT.unitpower()                 # Normalize to unit RMS power
-
-# P-norm normalization
-DT.pnorm(p=2)                  # L2 normalization (unit length)
-
-# Outlier suppression
-DT.outliersuppress(thr=3.0)    # Cap outliers beyond threshold
-```
-
-#### Element-wise Normalization
-
-Normalize using global statistics across all elements:
-
-```julia
-X = rand(100, 50)  # 100 samples, 50 features
-
-# Z-score: mean ≈ 0, std ≈ 1 globally
-X_norm = DT.normalize(X, DT.zscore())
-
-# Time series dataset: each element is a time series
-X = [rand(100) for _ in 1:50, _ in 1:3]  # 50 samples × 3 channels
-
-# Each channel normalized across all 50 time series
-X_norm = DT.normalize(X, DT.zscore())
-```
-
-#### Tabular Normalization
-
-Normalize each column or row independently:
-
-```julia
-X = rand(100, 50)  # 100 samples, 50 features
-
-# Column-wise (each feature normalized independently)
-X_norm = DT.normalize(X, zscore(); dims=2)
-
-# Row-wise (each sample normalized independently)
-X_norm = DT.normalize(X, zscore(); dims=1)
-```
+We thank the maintainers and contributors of **Normalization.jl** for their work and for making this integration possible.
 
 ### Grouping Functions
 
@@ -204,7 +145,7 @@ grp1 = [:x1, :x2]
 
 groups = DT.groupby(dt, grp1)
 
-dt_norm = DataTreatment(dt, :aggregate; win, features, groups=(:vname,), norm=DT.zscore())
+dt_norm = DataTreatment(dt, :aggregate; win, features, groups=(:vname,), norm=ZScore)
 ```
 
 ## Data Structures

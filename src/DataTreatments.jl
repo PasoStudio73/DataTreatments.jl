@@ -1,10 +1,15 @@
 module DataTreatments
 
+using Reexport
+
 using Statistics
 using StatsBase
 using LinearAlgebra
 using DataFrames
 using Catch22
+
+using Normalization
+@reexport using Normalization: fit!, fit, normalize!, normalize
 
 # ---------------------------------------------------------------------------- #
 #                               abstract types                                 #
@@ -37,9 +42,16 @@ export is_multidim_dataset, nvals, convert
 export has_uniform_element_size
 include("treatment.jl")
 
-export zscore, sigmoid, pnorm, scale, minmax, center, unitpower, outliersuppress
-export element_norm, tabular_norm, grouped_norm, grouped_norm!, ds_norm
-export normalize, normalize!
+# using Normalization: HalfZScore, MinMax, halfstd, zscore, center
+using Normalization: dimparams, negdims, forward, estimators, normalization
+import Normalization: @_Normalization, ZScore, Center
+import Normalization: fit!, fit, normalize!, normalize, __mapdims!
+
+using Statistics: mean, median, std
+using StatsBase: mad, iqr
+using LinearAlgebra: norm
+
+export ZScore, MinMax, Scale, Center, Sigmoid, UnitEnergy, UnitPower, PNorm
 include("normalize.jl")
 
 # ---------------------------------------------------------------------------- #
@@ -355,7 +367,7 @@ struct DataTreatment{T, S} <: AbstractDataTreatment
     reducefunc :: Base.Callable
     aggrtype   :: Symbol
     groups     :: Union{Vector{GroupResult}, Nothing}
-    norm       :: Union{Base.Callable, Nothing}
+    norm       :: Union{NormSpec, Nothing}
     normdims:: Int64
 
     function DataTreatment(
@@ -366,8 +378,7 @@ struct DataTreatment{T, S} <: AbstractDataTreatment
         features   :: Tuple{Vararg{Base.Callable}}=(maximum, minimum, mean),
         reducefunc :: Base.Callable=mean,
         groups     :: Union{Tuple{Vararg{Symbol}}, Nothing}=nothing,
-        norm       :: Union{Base.Callable, Nothing}=nothing,
-        dims::Int64=0
+        norm       :: Union{NormSpec, Type{<:AbstractNormalization}, Nothing}=nothing
     ) where {T<:AbstractArray{<:Real}}
         is_multidim_dataset(X) || throw(ArgumentError("Input DataFrame " * 
             "does not contain multidimensional data."))
@@ -420,18 +431,19 @@ struct DataTreatment{T, S} <: AbstractDataTreatment
         end
 
         if !isnothing(norm)
+            norm isa Type{<:AbstractNormalization} && (norm = norm())
             if isnothing(grp_result)
-                normalize!(Xresult, norm; dims)
+                Xresult = normalize(Xresult, norm)
             else
                 Threads.@threads for g in grp_result
                     Xresult[:, get_group(g)] =
-                        normalize!(Xresult[:, get_group(g)], norm; dims)
+                        normalize(Xresult[:, get_group(g)], norm)
                 end
             end
         end
 
         new{eltype(Xresult), core_eltype(Xresult)}(
-            Xresult, Xinfo, reducefunc, aggrtype, grp_result, norm, dims
+            Xresult, Xinfo, reducefunc, aggrtype, grp_result, norm
         )
     end
 
@@ -457,7 +469,6 @@ get_reducefunc(dt::DataTreatment) = dt.reducefunc
 get_aggrtype(dt::DataTreatment)   = dt.aggrtype
 get_groups(dt::DataTreatment)       = dt.groups
 get_norm(dt::DataTreatment)       = dt.norm
-get_normdims(dt::DataTreatment) = dt.normdims
 
 # Convenience methods for common operations
 get_vnames(dt::DataTreatment)   = unique(get_vecvnames(dt.featureid))
@@ -500,7 +511,7 @@ function Base.show(io::IO, ::MIME"text/plain", dt::DataTreatment)
     println(io, "  Reduction function: $(nameof(dt.reducefunc))")
     isnothing(dt.norm) ?
         println(io, "  Normalization: none") :
-        println(io, "  Normalization: $(nameof(dt.norm))")
+        println(io, "  Normalization: $(dt.norm.type)")
     
     if nfeatures <= 10
         println(io, "  Feature IDs:")
