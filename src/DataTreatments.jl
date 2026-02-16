@@ -166,16 +166,16 @@ full experiment documentation and reproducibility.
 
 # Constructor
 ```julia
-DataTreatment(
-    X::Union{AbstractMatrix, AbstractDataFrame},
-    aggrtype::Symbol;
-    vnames::Vector{<:NameTypes},
-    win::Union{Base.Callable, Tuple{Vararg{Base.Callable}}},
-    features::Tuple{Vararg{Base.Callable}}=(maximum, minimum, mean),
-    reducefunc::Base.Callable=mean,
-    groups::Union{Tuple{Vararg{Symbol}},Nothing}=nothing,
-    norm::Union{NormSpec,Type{<:AbstractNormalization},Nothing}=nothing
-)
+# DataTreatment(
+#     X::Union{AbstractMatrix, AbstractDataFrame},
+#     aggrtype::Symbol;
+#     vnames::Vector{<:NameTypes},
+#     win::Union{Base.Callable, Tuple{Vararg{Base.Callable}}},
+#     features::Tuple{Vararg{Base.Callable}}=(maximum, minimum, mean),
+#     reducefunc::Base.Callable=mean,
+#     groups::Union{Tuple{Vararg{Symbol}},Nothing}=nothing,
+#     norm::Union{NormSpec,Type{<:AbstractNormalization},Nothing}=nothing
+# )
 ```
 
 # Arguments
