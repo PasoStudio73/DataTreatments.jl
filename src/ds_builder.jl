@@ -112,6 +112,7 @@ function build_datasets(
     tc_cols = findall(T -> !isnothing(T) && T <: AbstractFloat, valtype)
     md_cols = findall(T -> !isnothing(T) && T <: AbstractArray, valtype)
 
+    # discrete
     if !isempty(td_cols)
         vnames_td = @views vnames[td_cols]
         miss_td = hasmissing[td_cols]
@@ -121,12 +122,13 @@ function build_datasets(
         td_feats = [DiscreteFeat(i, vnames_td[i], levels[i], miss_td[i]) for i in eachindex(vnames_td)]
     end
 
+    # scalar
     if !isempty(tc_cols)
         vnames_tc = @views vnames[tc_cols]
         miss_tc, nan_tc = hasmissing[tc_cols], hasnan[tc_cols]
 
-        Xtc = @views any(miss_tc) ? Union{Missing,float_type}.(X[:, tc_cols]) : float_type.(X[:, tc_cols])
-        tc_feats = [ScalarFeat{float_type}(i, float_type, vnames_tc[i], miss_tc[i], nan_tc[i]) for i in eachindex(vnames_tc)]
+        Xtc = @views X[:, tc_cols]
+        tc_feats = [ScalarFeat{float_type}(i, vnames_tc[i], miss_tc[i], nan_tc[i]) for i in eachindex(vnames_tc)]
     end
 
     if !isempty(md_cols)

@@ -56,10 +56,7 @@ struct DiscreteFeat <: AbstractDataFeature
 end
 
 struct ScalarFeat{T} <: AbstractDataFeature
-# mutable struct ScalarFeat{T} <: AbstractDataFeature
-    # X::AbstractArray{T}
     id::Int
-    type::Type
     vname::Symbol
     hasmissing::Bool
     hasnan::Bool
@@ -197,12 +194,63 @@ end
 # ---------------------------------------------------------------------------- #
 #                            DataTreatment methods                             #
 # ---------------------------------------------------------------------------- #
+# # value access methods
+# Base.getproperty(dt::DataTreatment, s::Symbol) = getfield(dt, s)
+# Base.propertynames(::DataTreatment) =
+#     (:Xtd, :Xtc, :Xmd, :td_feats, :tc_feats, :md_feats, :y, :metadata)
+
+# get_X(dt::DataTreatment) = dt.X
+# get_y(dt::DataTreatment) = dt.y
+# get_datafeature(dt::DataTreatment) = dt.datafeature
+# get_metadata(dt::DataTreatment) = dt.metadata
+
+# # metadata
+# get_groups(dt::DataTreatment) = reduce(vcat, collect.(dt.metadata.groups))
+# get_groupmethod(dt::DataTreatment) = dt.metadata.groupmethod
+# get_norm(dt::DataTreatment) = dt.metadata.norm
+
+# # Convenience methods for common operations
+# get_vnames(dt::DataTreatment) = unique(get_vname.(dt.datafeature))
+# get_features(dt::DataTreatment) = unique(get_feat.(dt.datafeature))
+# get_nwindows(dt::DataTreatment) = maximum(get_nwin.(dt.datafeature))
+# get_reducefuncs(dt::DataTreatment) = unique(get_reducefunc.(dt.datafeature))
+
+# # Size and iteration methods
+# Base.size(dt::DataTreatment) = size(dt.X)
+# Base.size(dt::DataTreatment, dim::Int) = size(dt.X, dim)
+# Base.length(dt::DataTreatment) = length(dt.datafeature)
+# Base.eltype(dt::DataTreatment) = eltype(dt.X)
+
+# # Indexing methods
+# Base.getindex(dt::DataTreatment, i::Int) = dt.X[:, i]
+# Base.getindex(dt::DataTreatment, i::Int, j::Int) = dt.X[i, j]
+# Base.getindex(dt::DataTreatment, ::Colon, j::Int) = dt.X[:, j]
+# Base.getindex(dt::DataTreatment, i::Int, ::Colon) = dt.X[i, :]
+# Base.getindex(dt::DataTreatment, I...) = dt.X[I...]
+
 # value access methods
 Base.getproperty(dt::DataTreatment, s::Symbol) = getfield(dt, s)
 Base.propertynames(::DataTreatment) =
     (:Xtd, :Xtc, :Xmd, :td_feats, :tc_feats, :md_feats, :y, :metadata)
 
-get_X(dt::DataTreatment) = dt.X
+function get_X(dt::DataTreatment, type::Symbol=:all)
+    if type === :all
+        parts = []
+        !isnothing(dt.Xtd) && push!(parts, dt.Xtd)
+        !isnothing(dt.Xtc) && push!(parts, dt.Xtc)
+        !isnothing(dt.Xmd) && push!(parts, dt.Xmd)
+        return isempty(parts) ? nothing : reduce(hcat, parts)
+    elseif type === :discrete
+        return dt.Xtd
+    elseif type === :scalar
+        return dt.Xtc
+    elseif type === :multivariate
+        return dt.Xmd
+    else
+        throw(ArgumentError("type must be :all, :discrete, :scalar, or :multivariate"))
+    end
+end
+
 get_y(dt::DataTreatment) = dt.y
 get_datafeature(dt::DataTreatment) = dt.datafeature
 get_metadata(dt::DataTreatment) = dt.metadata
@@ -210,26 +258,57 @@ get_metadata(dt::DataTreatment) = dt.metadata
 # metadata
 get_groups(dt::DataTreatment) = reduce(vcat, collect.(dt.metadata.groups))
 get_groupmethod(dt::DataTreatment) = dt.metadata.groupmethod
-get_norm(dt::DataTreatment) = dt.metadata.norm
+get_norm(dt::DataTreatment, type::Symbol=:all) = 
+    type === :all ? (dt.metadata.norm_tc, dt.metadata.norm_md) :
+    type === :scalar ? dt.metadata.norm_tc :
+    type === :multivariate ? dt.metadata.norm_md :
+    throw(ArgumentError("type must be :all, :scalar, or :multivariate"))
 
 # Convenience methods for common operations
-get_vnames(dt::DataTreatment) = unique(get_vname.(dt.datafeature))
-get_features(dt::DataTreatment) = unique(get_feat.(dt.datafeature))
-get_nwindows(dt::DataTreatment) = maximum(get_nwin.(dt.datafeature))
-get_reducefuncs(dt::DataTreatment) = unique(get_reducefunc.(dt.datafeature))
+function get_vnames(dt::DataTreatment, type::Symbol=:all)
+    feats = []
+    type ∈ (:all, :discrete) && !isnothing(dt.td_feats) && push!(feats, dt.td_feats...)
+    type ∈ (:all, :scalar) && !isnothing(dt.tc_feats) && push!(feats, dt.tc_feats...)
+    type ∈ (:all, :multivariate) && !isnothing(dt.md_feats) && push!(feats, dt.md_feats...)
+    return unique(get_vname.(feats))
+end
+
+function get_features(dt::DataTreatment, type::Symbol=:all)
+    feats = []
+    type ∈ (:all, :multivariate) && !isnothing(dt.md_feats) && push!(feats, dt.md_feats...)
+    return unique(get_feat.(filter(f -> f isa AggregateFeat, feats)))
+end
+
+function get_nwindows(dt::DataTreatment, type::Symbol=:multivariate)
+    type != :multivariate && throw(ArgumentError("get_nwindows only applies to :multivariate type"))
+    isnothing(dt.md_feats) && return 0
+    return maximum(get_nwin.(filter(f -> f isa AggregateFeat, dt.md_feats)))
+end
+
+function get_reducefuncs(dt::DataTreatment, type::Symbol=:multivariate)
+    type != :multivariate && throw(ArgumentError("get_reducefuncs only applies to :multivariate type"))
+    isnothing(dt.md_feats) && return []
+    return unique(get_reducefunc.(filter(f -> f isa ReduceFeat, dt.md_feats)))
+end
 
 # Size and iteration methods
-Base.size(dt::DataTreatment) = size(dt.X)
-Base.size(dt::DataTreatment, dim::Int) = size(dt.X, dim)
-Base.length(dt::DataTreatment) = length(dt.datafeature)
-Base.eltype(dt::DataTreatment) = eltype(dt.X)
+Base.size(dt::DataTreatment) = size(get_X(dt, :all))
+Base.size(dt::DataTreatment, dim::Int) = size(get_X(dt, :all), dim)
+function Base.length(dt::DataTreatment, type::Symbol=:all)
+    count = 0
+    type ∈ (:all, :discrete) && !isnothing(dt.td_feats) && (count += length(dt.td_feats))
+    type ∈ (:all, :scalar) && !isnothing(dt.tc_feats) && (count += length(dt.tc_feats))
+    type ∈ (:all, :multivariate) && !isnothing(dt.md_feats) && (count += length(dt.md_feats))
+    return count
+end
+Base.eltype(dt::DataTreatment) = Union{eltype(get_X(dt, :discrete)), eltype(get_X(dt, :scalar)), eltype(get_X(dt, :multivariate))}
 
 # Indexing methods
-Base.getindex(dt::DataTreatment, i::Int) = dt.X[:, i]
-Base.getindex(dt::DataTreatment, i::Int, j::Int) = dt.X[i, j]
-Base.getindex(dt::DataTreatment, ::Colon, j::Int) = dt.X[:, j]
-Base.getindex(dt::DataTreatment, i::Int, ::Colon) = dt.X[i, :]
-Base.getindex(dt::DataTreatment, I...) = dt.X[I...]
+Base.getindex(dt::DataTreatment, i::Int) = get_X(dt, :all)[:, i]
+Base.getindex(dt::DataTreatment, i::Int, j::Int) = get_X(dt, :all)[i, j]
+Base.getindex(dt::DataTreatment, ::Colon, j::Int) = get_X(dt, :all)[:, j]
+Base.getindex(dt::DataTreatment, i::Int, ::Colon) = get_X(dt, :all)[i, :]
+Base.getindex(dt::DataTreatment, I...) = get_X(dt, :all)[I...]
 
 export DataTreatment
 export get_id, get_type, get_vname, get_feat, get_nwin, get_reducefunc
@@ -242,7 +321,6 @@ export get_groups, get_groupmethod, get_norm
 #                              DataTreatment show                              #
 # ---------------------------------------------------------------------------- #
 function _show_datatreatment(io::IO, dt::DataTreatment{T,S}) where {T,S}
-    green  = "\e[32m"
     yellow = "\e[33m"
     white  = "\e[37m"
     cyan   = "\e[36m"
@@ -284,19 +362,11 @@ function _show_datatreatment(io::IO, dt::DataTreatment{T,S}) where {T,S}
 
     visible_length(s) = length(replace(s, r"\e\[[0-9;]*m" => ""))
 
-    full_lines = ["│$(prefix)$(content)" for (prefix, content) in lines]
-    seps  = Set([1])
-    width = maximum(visible_length, full_lines) + 1
-
-    hline(left, right) = green * left * "─"^(width - 1) * right * reset
-
-    println(io, hline("┌", "┐"))
-    for (i, line) in enumerate(full_lines)
-        pad = width - visible_length(line)
-        println(io, green * "│" * reset * line[4:end] * " "^pad * green * "│" * reset)
-        i in seps && println(io, hline("├", "┤"))
+    full_lines = ["$(prefix)$(content)" for (prefix, content) in lines]
+    
+    for line in full_lines
+        println(io, line)
     end
-    print(io, hline("└", "┘"))
 end
 
 Base.show(io::IO, dt::DataTreatment) = _show_datatreatment(io, dt)
