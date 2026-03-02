@@ -48,12 +48,11 @@ include("ds_builder.jl")
 # ---------------------------------------------------------------------------- #
 #                                DataFeature                                   #
 # ---------------------------------------------------------------------------- #
-struct DiscreteFeat{T<:Int} <: AbstractDataFeature
+struct DiscreteFeat <: AbstractDataFeature
     id::Int
     vname::Symbol
     values::Vector{String}
     hasmissing::Bool
-    hasnan::Bool
 end
 
 struct ScalarFeat{T} <: AbstractDataFeature

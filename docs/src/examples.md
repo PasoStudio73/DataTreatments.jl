@@ -18,3 +18,21 @@ df = DataFrame(
 ```
 
 ```@example
+dt = DataTreatment(df)
+```
+
+```@example
+df = DataFrame(
+    str_col  = [missing, missing, "green", "red", "blue"],                     # AbstractString
+    sym_col  = [missing, :square, :triangle, :square, :circle],                # Symbol
+    cat_col  = categorical([missing, "medium", "large", "small", missing]),    # CategoricalValue
+    uint_col = Union{Missing, UInt32}[missing, 2, 3, 4, 5],                    # UInt32
+    int_col  = Union{Missing, Int}[missing, 20, 30, 40, 50]                    # Int
+)
+```
+
+```@example
+dt = DataTreatment(df)
+```
+
+

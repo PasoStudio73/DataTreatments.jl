@@ -72,19 +72,23 @@ end
 
 Encode each column of `X` as a categorical variable.
 
+`missing` values are **not** categorized: they are preserved as
+`missing` in the output `codes` and are excluded from the level labels.
+
 # Arguments
 - `X::Matrix`: a matrix whose columns contain discrete values of any type.
 
 # Returns
-- `codes`: a vector of `Vector{Int}`, where `codes[i]` contains the integer level
-  codes for column `i`. Each unique value is mapped to an integer index.
-- `levels`: a vector of `Vector{String}`, where `levels[i]` contains the sorted unique
-  string labels for column `i`, such that `levels[i][codes[i][j]]` reconstructs the
-  original value of `X[j, i]`.
-```
+- `codes`: a vector of `Vector{Union{Missing,Int}}`, where `codes[i]` contains
+  the integer level codes for column `i`. `missing` and entries in the
+  original column are mapped to `missing` (not assigned a level code).
+- `levels`: a vector of `Vector{String}`, where `levels[i]` contains the sorted
+  unique string labels for column `i`, such that `levels[i][codes[i][j]]`
+  reconstructs the original value of `X[j, i]` for non-missing entries.
 """
 function discrete_encode(X::Matrix)
-    cats  = [categorical(string.(col)) for col in eachcol(X)]
+    to_str(v) = (ismissing(v) || (v isa AbstractFloat && isnan(v))) ? missing : string(v)
+    cats = [categorical(to_str.(col)) for col in eachcol(X)]
     return [levelcode.(cat) for cat in cats], levels.(cats)
 end
 
@@ -110,13 +114,13 @@ function build_datasets(
 
     if !isempty(td_cols)
         vnames_td = @views vnames[td_cols]
-        miss_td, nan_td = hasmissing[td_cols], hasnan[td_cols]
+        miss_td = hasmissing[td_cols]
 
         codes, levels = discrete_encode(X[:, td_cols])
 
         # Xtd = @views any(miss_td) ? categorical(X[:, td_cols]) : categorical(X[:, td_cols])
         Xtd = stack(codes)
-        td_feats = [DiscreteFeat{eltype(Xtd)}(i, vnames_td[i], levels[i], miss_td[i], nan_td[i]) for i in eachindex(vnames_td)]
+        td_feats = [DiscreteFeat(i, vnames_td[i], levels[i], miss_td[i]) for i in eachindex(vnames_td)]
     end
 
     if !isempty(tc_cols)
