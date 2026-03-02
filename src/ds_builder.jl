@@ -90,10 +90,10 @@ function build_datasets(
             end
 
         elseif aggrtype == :reducesize
-            Xmd = DataTreatments.reducesize(X, intervals; reducefunc, win, uniform, float_type)
+            Xmd = DataTreatments.reducesize(_X, intervals; reducefunc, win, uniform, float_type)
 
             md_feats = [ReduceFeat{AbstractArray{float_type}}(i, float_type, vnames_md[c], reducefunc, miss_md[c], nan_md[c])
-                for (i, c) in enumerate(axes(X,2))]
+                for (i, c) in enumerate(axes(_X,2))]
 
         else
             error("Unknown treatment type: $treat")
