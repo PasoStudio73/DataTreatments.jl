@@ -214,18 +214,23 @@ function aggregate(
 )
     nwindows = prod(length.(intervals))
     nfeats = nwindows * length(features)
-    Xresult = Array{float_type}(undef, size(X, 1), size(X, 2) * nfeats)
+    Xresult = Array{Union{Missing,float_type}}(undef, size(X, 1), size(X, 2) * nfeats)
 
-    Threads.@threads for colidx in axes(X, 2)
+    # Threads.@threads for colidx in axes(X, 2)
+    for colidx in axes(X, 2)
         for rowidx in axes(X, 1)
             out_idx = (colidx - 1) * nfeats + 1
-            uniform || (intervals = @evalwindow X[rowidx, colidx] win...)
-
+            x = X[rowidx, colidx]
+            uniform || !(x isa AbstractArray) || (intervals = @evalwindow x win...)
+@show x
             for feat in features
                 for cart_idx in CartesianIndices(length.(intervals))
-                    ranges = get_window_ranges(intervals, cart_idx)
-                    window_view = @views X[rowidx, colidx][ranges...]
-                    Xresult[rowidx, out_idx] = feat(reshape(window_view, :))
+                    x isa AbstractArray ? begin
+                        ranges = get_window_ranges(intervals, cart_idx)
+                        window_view = @views x[ranges...]
+                        Xresult[rowidx, out_idx] = feat(reshape(window_view, :))
+                    end :
+                        Xresult[rowidx, out_idx] = x
                     out_idx += 1
                 end
             end
