@@ -52,10 +52,6 @@ function build_datasets(
     tc_cols = findall(T -> !isnothing(T) && T <: AbstractFloat, valtype)
     md_cols = findall(T -> !isnothing(T) && T <: AbstractArray, valtype)
 
-    @show td_cols
-    @show tc_cols
-    @show md_cols
-
     if !isempty(td_cols)
         n_td_cols = length(td_cols)
         Xtd = Matrix{<:Discrete}(undef, (size(X,1), n_td_cols))

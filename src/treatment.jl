@@ -116,9 +116,21 @@ has_uniform_element_size(df)  # false
 """
 @inline function has_uniform_element_size(X::AbstractDataFrame)
     isempty(X) && return true
-    refsize = size(X[1,1]) # size of first element in first column
+    refsize = nothing
     @inbounds for col in eachcol(X)
         for elem in col
+            if !ismissing(elem) && !(elem isa AbstractFloat && isnan(elem))
+                refsize = size(elem)
+                break
+            end
+        end
+        !isnothing(refsize) && break
+    end
+    isnothing(refsize) && return true  # all missing/NaN
+    @inbounds for col in eachcol(X)
+        for elem in col
+            ismissing(elem) && continue
+            elem isa AbstractFloat && isnan(elem) && continue
             size(elem) == refsize || return false
         end
     end
@@ -127,12 +139,23 @@ end
 
 @inline function has_uniform_element_size(X::AbstractArray)
     isempty(X) && return true
-    refsize = size(first(X))
+    refsize = nothing
     @inbounds for x in X
+        if !ismissing(x) && !(x isa AbstractFloat && isnan(x))
+            refsize = size(x)
+            break
+        end
+    end
+    isnothing(refsize) && return true  # all missing/NaN
+    @inbounds for x in X
+        ismissing(x) && continue
+        x isa AbstractFloat && isnan(x) && continue
         size(x) == refsize || return false
     end
     return true
 end
+
+safe_feat(v, f) = f(x for x in skipmissing(v) if !(x isa AbstractFloat && isnan(x)))
 
 # ---------------------------------------------------------------------------- #
 #                             reducesize functions                              #
@@ -222,13 +245,13 @@ function aggregate(
             out_idx = (colidx - 1) * nfeats + 1
             x = X[rowidx, colidx]
             uniform || !(x isa AbstractArray) || (intervals = @evalwindow x win...)
-@show x
+
             for feat in features
                 for cart_idx in CartesianIndices(length.(intervals))
                     x isa AbstractArray ? begin
                         ranges = get_window_ranges(intervals, cart_idx)
                         window_view = @views x[ranges...]
-                        Xresult[rowidx, out_idx] = feat(reshape(window_view, :))
+                        Xresult[rowidx, out_idx] = safe_feat(reshape(window_view, :), feat)
                     end :
                         Xresult[rowidx, out_idx] = x
                     out_idx += 1

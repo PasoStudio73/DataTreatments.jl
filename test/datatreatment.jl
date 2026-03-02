@@ -24,6 +24,25 @@ X = DataFrame(
     v4  = [1.1, 2.2, 3.3, 4.4, NaN]
 )
 
+X = DataFrame(
+    v1 = [
+        [1.0, NaN, 3.0, 4.0, 5.0],      # NaN inside ts
+        [1.0, 2.0, missing, 4.0, 5.0],  # missing inside ts
+        [1.0, 2.0, 3.0, 4.0, 5.0],      # clean
+        [NaN, missing, 3.0, 4.0, 5.0],  # both inside ts
+        missing                          # whole ts missing
+    ],
+    v2 = [
+        [1.0, 2.0, 3.0, 4.0, 5.0],      # clean
+        [1.0, 2.0, NaN, 4.0, 5.0],      # NaN inside ts
+        missing,                         # whole ts missing
+        [1.0, 2.0, 3.0, missing, 5.0],  # missing inside ts
+        [1.0, 2.0, 3.0, 4.0, 5.0],      # clean
+    ],
+    v3 = [1.1, 2.2, 3.3, 4.4, 5.5],     # clean scalar col
+    v4 = [1.1, 2.2, 3.3, 4.4, NaN]      # NaN scalar col
+)
+
 test = DataTreatment(X, aggrtype=:aggregate)
 
 
