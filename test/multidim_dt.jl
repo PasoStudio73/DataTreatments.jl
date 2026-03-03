@@ -84,3 +84,29 @@ dt = DataTreatment(df; features=(mean,)) |> get_X
 dt = DataTreatment(df; features=(mean,), float_type=Float32) |> get_X
 dt = DataTreatment(df; features=(mean,), aggrtype=:reducesize) |> get_X
 dt = DataTreatment(df; features=(mean,), aggrtype=:reducesize, float_type=Float32) |> get_X
+
+# nan and missing
+df = DataFrame(
+    ts1 = [collect(1.0:6.0), collect(2.0:7.0), collect(3.0:8.0), collect(4.0:9.0), collect(5.0:10.0)],
+    ts2 = [NaN, collect(1.0:0.5:4.5), collect(3.0:0.5:6.5), missing, collect(5.0:0.5:8.5)],
+    ts3 = [missing, collect(2.0:1.2:8.0), NaN, collect(1.5:1.2:7.5), missing],
+    ts4 = [missing, NaN, collect(5.0:-0.8:0.0), collect(8.0:-0.8:3.0), NaN]
+)
+
+is_multidim_dataset(df) == true
+has_uniform_element_size(df) == false
+
+dt = DataTreatment(df) |> get_X
+dt = DataTreatment(df; float_type=Float32) |> get_X
+dt = DataTreatment(df; aggrtype=:reducesize) |> get_X
+dt = DataTreatment(df; aggrtype=:reducesize, float_type=Float32) |> get_X
+
+dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5)) |> get_X
+dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), float_type=Float32) |> get_X
+dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), aggrtype=:reducesize) |> get_X
+dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), aggrtype=:reducesize, float_type=Float32) |> get_X
+
+dt = DataTreatment(df; features=(mean,)) |> get_X
+dt = DataTreatment(df; features=(mean,), float_type=Float32) |> get_X
+dt = DataTreatment(df; features=(mean,), aggrtype=:reducesize) |> get_X
+dt = DataTreatment(df; features=(mean,), aggrtype=:reducesize, float_type=Float32) |> get_X

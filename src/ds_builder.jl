@@ -18,45 +18,27 @@ of `missing` and `NaN` values.
 - `hasmissing::Bool`: `true` if any element is `missing`.
 - `hasnan::Bool`: `true` if any element is `NaN` (scalar or inside a vector).
 """
-# function base_eltype(col::AbstractVector)
-#     valtype, hasmissing, hasnan = nothing, false, false
-#     for val in col
-#         if ismissing(val)
-#             hasmissing = true
-#         elseif val isa AbstractFloat
-#             isnan(val) && (hasnan = true)
-#             isnothing(valtype) && (valtype = Float64)
-#         elseif val isa AbstractVector{<:AbstractFloat}
-#             if any(isnan, val)
-#                 hasnan = true
-#             end
-#             isnothing(valtype) && (valtype = typeof(val))
-#         else
-#             isnothing(valtype) && (valtype = typeof(val))
-#         end
-#         !isnothing(valtype) && hasmissing && hasnan && break
-#     end
-#     return valtype, hasmissing, hasnan
-# end
 function base_eltype(col::AbstractVector)
     valtype, hasmissing, hasnan = nothing, false, false
+    
+    # First pass: scan entire column to find actual value type
     for val in col
         if ismissing(val)
             hasmissing = true
-        elseif val isa AbstractFloat
-            isnan(val) && (hasnan = true)
-            isnothing(valtype) && (valtype = Float64)
+        elseif val isa AbstractFloat && isnan(val)
+            hasnan = true
         elseif val isa AbstractVector{<:AbstractFloat}
             if any(isnan, val)
                 hasnan = true
             end
-            # Override scalar Float64 with actual array type
             valtype = typeof(val)
-        else
-            isnothing(valtype) && (valtype = typeof(val))
+        elseif !val isa AbstractFloat || !isnan(val)  # Skip NaN scalars
+            if isnothing(valtype) || !(valtype <: AbstractVector)
+                valtype = typeof(val)
+            end
         end
-        !isnothing(valtype) && hasmissing && hasnan && break
     end
+    
     return valtype, hasmissing, hasnan
 end
 
