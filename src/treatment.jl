@@ -94,7 +94,7 @@ operations on windowed data.
 - If all values are missing/NaN, `f` receives an empty iterator
 """
 @inline function safe_feat(v, f)
-    f(x for x in skipmissing(v) if !(x isa AbstractFloat && isnan(x)))
+    f(collect(x for x in skipmissing(v) if !(x isa AbstractFloat && isnan(x))))
 end
 
 # ---------------------------------------------------------------------------- #
@@ -131,29 +131,58 @@ function aggregate(
     uniform::Bool,
     float_type::DataType
 )
-    nwindows = prod(length.(intervals))
-    nfeats = nwindows * length(features)
-    Xresult = Array{Union{Missing,float_type}}(undef, size(X, 1), size(X, 2) * nfeats)
+    if uniform
+        nwindows = prod(length.(intervals))
+        nfeats = nwindows * length(features)
+        Xresult = Array{Union{Missing,float_type}}(undef, size(X, 1), size(X, 2) * nfeats)
 
-    @inbounds for colidx in axes(X, 2), rowidx in axes(X, 1)
-        out_idx = (colidx - 1) * nfeats + 1
-        x = X[rowidx, colidx]
-        uniform || !(x isa AbstractArray) || (intervals = @evalwindow x win...)
+        @inbounds for colidx in axes(X, 2), rowidx in axes(X, 1)
+            out_idx = (colidx - 1) * nfeats + 1
+            x = X[rowidx, colidx]
 
-        for feat in features
-            for cart_idx in CartesianIndices(length.(intervals))
-                x isa AbstractArray ? begin
-                    ranges = get_window_ranges(intervals, cart_idx)
-                    window_view = @views x[ranges...]
-                    Xresult[rowidx, out_idx] = safe_feat(reshape(window_view, :), feat)
-                end :
-                    Xresult[rowidx, out_idx] = x
-                out_idx += 1
+            for feat in features
+                for cart_idx in CartesianIndices(length.(intervals))
+                    x isa AbstractArray ? begin
+                        ranges = get_window_ranges(intervals, cart_idx)
+                        window_view = @views x[ranges...]
+                        Xresult[rowidx, out_idx] = safe_feat(reshape(window_view, :), feat)
+                    end :
+                        Xresult[rowidx, out_idx] = x
+                    out_idx += 1
+                end
             end
         end
-    end
 
-    return Xresult
+        return Xresult
+    else
+        data_by_row = [Union{Missing,float_type}[] for _ in 1:size(X, 1)]
+
+        @inbounds for colidx in axes(X, 2)
+            for rowidx in axes(X, 1)
+                x = X[rowidx, colidx]
+                if x isa AbstractArray
+                    intervals = @evalwindow x win...
+                else
+                    intervals = intervals
+                end
+
+                for feat in features
+                    for cart_idx in CartesianIndices(length.(intervals))
+                        if x isa AbstractArray
+                            ranges = get_window_ranges(intervals, cart_idx)
+                            window_view = @views x[ranges...]
+                            push!(data_by_row[rowidx], safe_feat(reshape(window_view, :), feat))
+                        else
+                            push!(data_by_row[rowidx], x)
+                        end
+                    end
+                end
+            end
+        end
+
+        # Convert rows to matrix
+        return reduce(vcat, permutedims.(data_by_row))
+    end
 end
 
 # ---------------------------------------------------------------------------- #
@@ -185,8 +214,9 @@ function reducesize(
     @inbounds for i in eachindex(X)
         x = X[i]
         uniform || !(x isa AbstractArray) || begin
-            intervals = @evalwindow X[i] win...
+            intervals = @evalwindow x win...
             output_dims  = length.(intervals)
+            cart_indices = CartesianIndices(output_dims)
         end
 
         x isa AbstractArray ? begin

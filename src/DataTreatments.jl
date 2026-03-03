@@ -254,7 +254,15 @@ function get_X(dt::DataTreatment, type::Symbol=:all)
 end
 
 get_y(dt::DataTreatment) = dt.y
-get_datafeature(dt::DataTreatment) = dt.datafeature
+
+function get_datafeature(dt::DataTreatment)
+    feats = []
+    !isnothing(dt.td_feats) && push!(feats, dt.td_feats...)
+    !isnothing(dt.tc_feats) && push!(feats, dt.tc_feats...)
+    !isnothing(dt.md_feats) && push!(feats, dt.md_feats...)
+    return feats
+end
+
 get_metadata(dt::DataTreatment) = dt.metadata
 
 # metadata
