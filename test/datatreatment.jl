@@ -894,6 +894,146 @@ dt = DataTreatment(df; features=(mean,), float_type=Float32) |> get_X
 dt = DataTreatment(df; features=(mean,), aggrtype=:reducesize) |> get_X
 dt = DataTreatment(df; features=(mean,), aggrtype=:reducesize, float_type=Float32) |> get_X
 
+# missing
+df = DataFrame(
+    str_col  = [missing, "blue", "green", "red", "blue"],
+    sym_col  = [:circle, :square, :triangle, :square, missing],
+    cat_col  = categorical(["small", "medium", missing, "small", "large"]),
+    uint_col = UInt32[1, 2, 3, 4, 5],
+    int_col  = Int[10, 20, 30, 40, 50],
+    V1 = [missing, 2.0, 3.0, 4.0, 5.6],
+    V2 = [2.5, 3.5, 4.5, 5.5, missing],
+    V3 = [3.2, 4.2, 5.2, 6.2, 2.4],
+    V4 = [4.1, missing, missing, 7.1, 5.5],
+    V5 = [5.0, 6.0, 7.0, 8.0, 1.8],
+    ts1 = [missing, collect(2.0:7.0), collect(3.0:8.0), collect(4.0:9.0), collect(5.0:10.0)],
+    ts2 = [collect(2.0:0.5:5.5), collect(1.0:0.5:4.5), collect(3.0:0.5:6.5), collect(4.0:0.5:7.5), missing],
+    ts3 = [collect(1.0:1.2:7.0), missing, missing, collect(1.5:1.2:7.5), collect(3.0:1.2:9.0)],
+    ts4 = [collect(6.0:-0.8:1.0), collect(7.0:-0.8:2.0), collect(5.0:-0.8:0.0), collect(8.0:-0.8:3.0), collect(9.0:-0.8:4.0)],
+    img1 = [create_image(i) for i in 1:5],
+    img2 = [i == 1 ? missing : create_image(i+10) for i in 1:5],
+    img3 = [create_image(i+20) for i in 1:5],
+    img4 = [i == 3 ? missing : create_image(i+30) for i in 1:5]
+)
+
+is_multidim_dataset(df) == true
+
+dt = DataTreatment(df) |> get_X
+dt = DataTreatment(df; float_type=Float32) |> get_X
+dt = DataTreatment(df; aggrtype=:reducesize) |> get_X
+dt = DataTreatment(df; aggrtype=:reducesize, float_type=Float32) |> get_X
+
+dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5)) |> get_X
+dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), float_type=Float32) |> get_X
+dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), aggrtype=:reducesize) |> get_X
+dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), aggrtype=:reducesize, float_type=Float32) |> get_X
+
+dt = DataTreatment(df; features=(mean,)) |> get_X
+dt = DataTreatment(df; features=(mean,), float_type=Float32) |> get_X
+dt = DataTreatment(df; features=(mean,), aggrtype=:reducesize) |> get_X
+dt = DataTreatment(df; features=(mean,), aggrtype=:reducesize, float_type=Float32) |> get_X
+
+# nan
+df = DataFrame(
+    str_col  = [missing, "blue", "green", "red", "blue"],
+    sym_col  = [:circle, :square, :triangle, :square, missing],
+    cat_col  = categorical(["small", "medium", missing, "small", "large"]),
+    uint_col = UInt32[1, 2, 3, 4, 5],
+    int_col  = Int[10, 20, 30, 40, 50],
+    V1 = [NaN, 2.0, 3.0, 4.0, 5.6],
+    V2 = [2.5, 3.5, 4.5, 5.5, NaN],
+    V3 = [3.2, 4.2, 5.2, 6.2, 2.4],
+    V4 = [4.1, NaN, NaN, 7.1, 5.5],
+    V5 = [5.0, 6.0, 7.0, 8.0, 1.8],
+    ts1 = [NaN, collect(2.0:7.0), collect(3.0:8.0), collect(4.0:9.0), collect(5.0:10.0)],
+    ts2 = [collect(2.0:0.5:5.5), collect(1.0:0.5:4.5), collect(3.0:0.5:6.5), collect(4.0:0.5:7.5), NaN],
+    ts3 = [collect(1.0:1.2:7.0), NaN, NaN, collect(1.5:1.2:7.5), collect(3.0:1.2:9.0)],
+    ts4 = [collect(6.0:-0.8:1.0), collect(7.0:-0.8:2.0), collect(5.0:-0.8:0.0), collect(8.0:-0.8:3.0), collect(9.0:-0.8:4.0)],
+    img1 = [create_image(i) for i in 1:5],
+    img2 = [i == 1 ? NaN : create_image(i+10) for i in 1:5],
+    img3 = [create_image(i+20) for i in 1:5],
+    img4 = [i == 3 ? NaN : create_image(i+30) for i in 1:5]
+)
+
+is_multidim_dataset(df) == true
+
+dt = DataTreatment(df) |> get_X
+dt = DataTreatment(df; float_type=Float32) |> get_X
+dt = DataTreatment(df; aggrtype=:reducesize) |> get_X
+dt = DataTreatment(df; aggrtype=:reducesize, float_type=Float32) |> get_X
+
+dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5)) |> get_X
+dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), float_type=Float32) |> get_X
+dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), aggrtype=:reducesize) |> get_X
+dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), aggrtype=:reducesize, float_type=Float32) |> get_X
+
+dt = DataTreatment(df; features=(mean,)) |> get_X
+dt = DataTreatment(df; features=(mean,), float_type=Float32) |> get_X
+dt = DataTreatment(df; features=(mean,), aggrtype=:reducesize) |> get_X
+dt = DataTreatment(df; features=(mean,), aggrtype=:reducesize, float_type=Float32) |> get_X
+
+# nan and missing
+df = DataFrame(
+    str_col  = [missing, "blue", "green", "red", "blue"],
+    sym_col  = [:circle, :square, :triangle, :square, missing],
+    cat_col  = categorical(["small", "medium", missing, "small", "large"]),
+    uint_col = UInt32[1, 2, 3, 4, 5],
+    int_col  = Int[10, 20, 30, 40, 50],
+    V1 = [NaN, missing, 3.0, 4.0, 5.6],
+    V2 = [2.5, missing, 4.5, 5.5, NaN],
+    V3 = [3.2, 4.2, 5.2, missing, 2.4],
+    V4 = [4.1, NaN, NaN, 7.1, 5.5],
+    V5 = [5.0, 6.0, 7.0, 8.0, 1.8],
+    ts1 = [NaN, collect(2.0:7.0), missing, collect(4.0:9.0), collect(5.0:10.0)],
+    ts2 = [collect(2.0:0.5:5.5), collect(1.0:0.5:4.5), collect(3.0:0.5:6.5), collect(4.0:0.5:7.5), NaN],
+    ts3 = [collect(1.0:1.2:7.0), NaN, NaN, missing, collect(3.0:1.2:9.0)],
+    ts4 = [collect(6.0:-0.8:1.0), missing, collect(5.0:-0.8:0.0), collect(8.0:-0.8:3.0), collect(9.0:-0.8:4.0)],
+    img1 = [create_image(i) for i in 1:5],
+    img2 = [i == 1 ? NaN : create_image(i+10) for i in 1:5],
+    img3 = [create_image(i+20) for i in 1:5],
+    img4 = [i == 3 ? NaN : create_image(i+30) for i in 1:5]
+)
+
+is_multidim_dataset(df) == true
+
+dt = DataTreatment(df) |> get_X
+dt = DataTreatment(df; float_type=Float32) |> get_X
+dt = DataTreatment(df; aggrtype=:reducesize) |> get_X
+dt = DataTreatment(df; aggrtype=:reducesize, float_type=Float32) |> get_X
+
+dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5)) |> get_X
+dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), float_type=Float32) |> get_X
+dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), aggrtype=:reducesize) |> get_X
+dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), aggrtype=:reducesize, float_type=Float32) |> get_X
+
+dt = DataTreatment(df; features=(mean,)) |> get_X
+dt = DataTreatment(df; features=(mean,), float_type=Float32) |> get_X
+dt = DataTreatment(df; features=(mean,), aggrtype=:reducesize) |> get_X
+dt = DataTreatment(df; features=(mean,), aggrtype=:reducesize, float_type=Float32) |> get_X
+
+
+
+df = DataFrame(
+    str_col  = ["red", "blue", "green", "red", "blue"],
+    sym_col  = [:circle, :square, :triangle, :square, :circle],
+    cat_col  = categorical(["small", "medium", "large", "small", "large"]),
+    uint_col = UInt32[1, 2, 3, 4, 5],
+    int_col  = Int[10, 20, 30, 40, 50],
+    V1 = [1.0, 2.0, 3.0, 4.0, 5.6],
+    V2 = [2.5, 3.5, 4.5, 5.5, 7.8],
+    V3 = [3.2, 4.2, 5.2, 6.2, 2.4],
+    V4 = [4.1, 5.1, 6.1, 7.1, 5.5],
+    V5 = [5.0, 6.0, 7.0, 8.0, 1.8],
+    ts1 = [collect(1.0:6.0), collect(2.0:7.0), collect(3.0:8.0), collect(4.0:9.0), collect(5.0:10.0)],
+    ts2 = [collect(2.0:0.5:5.5), collect(1.0:0.5:4.5), collect(3.0:0.5:6.5), collect(4.0:0.5:7.5), collect(5.0:0.5:8.5)],
+    ts3 = [collect(1.0:1.2:7.0), collect(2.0:1.2:8.0), collect(0.5:1.2:6.5), collect(1.5:1.2:7.5), collect(3.0:1.2:9.0)],
+    ts4 = [collect(6.0:-0.8:1.0), collect(7.0:-0.8:2.0), collect(5.0:-0.8:0.0), collect(8.0:-0.8:3.0), collect(9.0:-0.8:4.0)],
+    img1 = [create_image(i) for i in 1:5],
+    img2 = [create_image(i+10) for i in 1:5],
+    img3 = [create_image(i+20) for i in 1:5],
+    img4 = [create_image(i+30) for i in 1:5]
+)
+
 @testset "Multidimensional Dataset Detection" begin
     @test is_multidim_dataset(df) == true
 end
