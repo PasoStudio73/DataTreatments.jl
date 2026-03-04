@@ -125,64 +125,41 @@ end
 # with results concatenated in the order: `[col1_feat1_win1, col1_feat1_win2, col1_feat2_win1, ...]`
 function aggregate(
     X::AbstractArray,
-    intervals::Tuple{Vararg{Vector{UnitRange{Int}}}};
-    features::Tuple{Vararg{Base.Callable}}=(mean,),
-    win::Union{Base.Callable,Tuple{Vararg{Base.Callable}}},
-    uniform::Bool,
-    float_type::DataType
+    win::Tuple{Vararg{Base.Callable}},
+    features::Tuple{Vararg{Base.Callable}},
+    idx::AbstractVector{Vector{Int}},
+    float_type::Type
 )
-    if uniform
-        nwindows = prod(length.(intervals))
-        nfeats = nwindows * length(features)
-        Xresult = Array{Union{Missing,float_type}}(undef, size(X, 1), size(X, 2) * nfeats)
+    colwin = [[n > length(win) ? last(win) : win[n] for n in 1:ndims(X[first(idx[i]), i])] for i in axes(X, 2)]
+    nwindows = [prod(hasfield(typeof(w), :nwindows) ? w.nwindows : 1 for w in c) for c in colwin]
 
-        @inbounds for colidx in axes(X, 2), rowidx in axes(X, 1)
-            out_idx = (colidx - 1) * nfeats + 1
+    Xa = Matrix{Union{Missing,float_type}}(undef, size(X, 1), sum(nwindows) * length(features))
+    outidx = 1
+
+    @inbounds for colidx in axes(X, 2)
+        for rowidx in axes(X, 1)
             x = X[rowidx, colidx]
+            outidx = (colidx - 1) * nwindows[colidx] + 1
 
-            for feat in features
-                for cart_idx in CartesianIndices(length.(intervals))
-                    x isa AbstractArray ? begin
-                        ranges = get_window_ranges(intervals, cart_idx)
-                        window_view = @views x[ranges...]
-                        Xresult[rowidx, out_idx] = safe_feat(reshape(window_view, :), feat)
-                    end :
-                        Xresult[rowidx, out_idx] = x
-                    out_idx += 1
-                end
-            end
-        end
-
-        return Xresult
-    else
-        data_by_row = [Union{Missing,float_type}[] for _ in 1:size(X, 1)]
-
-        @inbounds for colidx in axes(X, 2)
-            for rowidx in axes(X, 1)
-                x = X[rowidx, colidx]
-                if x isa AbstractArray
-                    intervals = @evalwindow x win...
-                else
-                    intervals = intervals
-                end
-
+            if rowidx in idx[colidx]
+                intervals = @evalwindow X[rowidx, colidx] colwin[colidx]...
                 for feat in features
                     for cart_idx in CartesianIndices(length.(intervals))
-                        if x isa AbstractArray
-                            ranges = get_window_ranges(intervals, cart_idx)
-                            window_view = @views x[ranges...]
-                            push!(data_by_row[rowidx], safe_feat(reshape(window_view, :), feat))
-                        else
-                            push!(data_by_row[rowidx], x)
-                        end
+                        ranges = get_window_ranges(intervals, cart_idx)
+                        window_view = @views x[ranges...]
+                        Xa[rowidx, outidx] = safe_feat(reshape(window_view, :), feat)
+                        outidx += 1
                     end
                 end
+            else
+                intervals = nwindows[colidx] * length(features)
+                Xa[rowidx, outidx:outidx+intervals-1] .= x
+                outidx += intervals
             end
         end
-
-        # Convert rows to matrix
-        return reduce(vcat, permutedims.(data_by_row))
     end
+
+    return Xa, nwindows
 end
 
 # ---------------------------------------------------------------------------- #
@@ -204,7 +181,6 @@ function reducesize(
     intervals::Tuple{Vararg{Vector{UnitRange{Int}}}};
     reducefunc::Base.Callable=mean,
     win::Union{Base.Callable,Tuple{Vararg{Base.Callable}}},
-    uniform::Bool,
     float_type::DataType
 )
     output_dims = length.(intervals)
@@ -213,7 +189,7 @@ function reducesize(
 
     @inbounds for i in eachindex(X)
         x = X[i]
-        uniform || !(x isa AbstractArray) || begin
+        !(x isa AbstractArray) || begin
             intervals = @evalwindow x win...
             output_dims  = length.(intervals)
             cart_indices = CartesianIndices(output_dims)
@@ -234,4 +210,3 @@ function reducesize(
 
     return Xresult
 end
-

@@ -20,9 +20,8 @@ of `missing` and `NaN` values.
 - `hasnan::Bool`: `true` if any element is `NaN` (scalar or inside a vector).
 """
 function base_eltype(col::AbstractArray)
-    valtype, idx, hasmissing, hasnan = nothing, nothing, false, false
-    
-    # First pass: scan entire column to find actual value type
+    valtype, idx, hasmissing, hasnan = nothing, Int[], false, false
+
     for i in eachindex(col)
         val = col[i]
         if ismissing(val)
@@ -34,15 +33,15 @@ function base_eltype(col::AbstractArray)
                 hasnan = true
             end
             valtype = typeof(val)
-            idx = i
-        elseif !(val isa AbstractFloat) || !isnan(val)  # Skip NaN scalars
+            push!(idx, i)
+        elseif !(val isa AbstractFloat) || !isnan(val)
             if isnothing(valtype) || !(valtype <: AbstractVector)
                 valtype = typeof(val)
-                idx = i
+                push!(idx, i)
             end
         end
     end
-    
+
     return valtype, idx, hasmissing, hasnan
 end
 
@@ -64,7 +63,7 @@ detecting `missing` and `NaN` values.
 function check_integrity(X::Matrix)
     dim = size(X, 2)
     valtype = Vector{Type}(undef, dim)
-    idx = Vector{Int}(undef, dim)
+    idx = Vector{Vector{Int}}(undef, dim)
     hasmissing = Vector{Bool}(undef, dim)
     hasnan = Vector{Bool}(undef, dim)
 
@@ -143,33 +142,21 @@ function build_datasets(
 
     # multivariate
     if !isempty(md_cols)
+        X = @view X[:, md_cols]
         vnames_md = @views vnames[md_cols]
-        miss_md, nan_md = hasmissing[md_cols], hasnan[md_cols]
-
-        _X = @view X[:, md_cols]
-        uniform = has_uniform_element_size(_X)
+        idx_md = @views idx[md_cols]
+        miss, nan = hasmissing[md_cols], hasnan[md_cols]
         win isa Base.Callable && (win = (win,))
-        intervals = @evalwindow _X[idx] win...
-        nwindows = prod(length.(intervals))
 
         if aggrtype == :aggregate
-            Xmd = DataTreatments.aggregate(_X, intervals; features, win, uniform, float_type)
-
-            md_feats = if nwindows == 1
-                # single window: apply to whole time series
-                vec([AggregateFeat{float_type}(i, vnames_md[c], f, 1, miss_md[c], nan_md[c])
-                    for (i, (f, c)) in enumerate(Iterators.product(features, axes(_X,2)))])
-            else
-                # multiple windows: apply to each interval
-                vec([AggregateFeat{float_type}(i, vnames_md[c], f, n, miss_md[c], nan_md[c])
-                    for (i, (n, f, c)) in enumerate(Iterators.product(1:nwindows, features, axes(_X,2)))])
-            end
+            Xmd, nwindows = DataTreatments.aggregate(X, win, features, idx_md, float_type)
+            md_feats = vec([AggregateFeat{float_type}(i, vnames_md[c], f, nwindows[c], miss[c], nan[c])
+                    for (i, (f, c)) in enumerate(Iterators.product(features, axes(X,2)))])
 
         elseif aggrtype == :reducesize
-            Xmd = DataTreatments.reducesize(_X, intervals; reducefunc, win, uniform, float_type)
-
-            md_feats = [ReduceFeat{AbstractArray{float_type}}(i, vnames_md[c], reducefunc, miss_md[c], nan_md[c])
-                for (i, c) in enumerate(axes(_X,2))]
+            Xmd = DataTreatments.reducesize(X, intervals; reducefunc, win, float_type)
+            md_feats = [ReduceFeat{AbstractArray{float_type}}(i, vnames_md[c], reducefunc, miss[c], nan[c])
+                for (i, c) in enumerate(axes(X,2))]
 
         else
             error("Unknown treatment type: $treat")

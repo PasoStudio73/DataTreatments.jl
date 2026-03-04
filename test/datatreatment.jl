@@ -1011,8 +1011,9 @@ dt = DataTreatment(df; features=(mean,), float_type=Float32) |> get_X
 dt = DataTreatment(df; features=(mean,), aggrtype=:reducesize) |> get_X
 dt = DataTreatment(df; features=(mean,), aggrtype=:reducesize, float_type=Float32) |> get_X
 
-
-
+# ---------------------------------------------------------------------------- #
+#                    Default Aggregation Tests (Float64)                       #
+# ---------------------------------------------------------------------------- #
 df = DataFrame(
     str_col  = ["red", "blue", "green", "red", "blue"],
     sym_col  = [:circle, :square, :triangle, :square, :circle],
@@ -1038,9 +1039,6 @@ df = DataFrame(
     @test is_multidim_dataset(df) == true
 end
 
-# ---------------------------------------------------------------------------- #
-#                    Default Aggregation Tests (Float64)                       #
-# ---------------------------------------------------------------------------- #
 @testset "Default Aggregation - Float64" begin
     @testset "Basic aggregation" begin
         dt = DataTreatment(df)

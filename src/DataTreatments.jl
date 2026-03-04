@@ -256,11 +256,7 @@ end
 get_y(dt::DataTreatment) = dt.y
 
 function get_datafeature(dt::DataTreatment)
-    feats = []
-    !isnothing(dt.td_feats) && push!(feats, dt.td_feats...)
-    !isnothing(dt.tc_feats) && push!(feats, dt.tc_feats...)
-    !isnothing(dt.md_feats) && push!(feats, dt.md_feats...)
-    return feats
+    vcat(filter(!isnothing, [dt.td_feats, dt.tc_feats, dt.md_feats])...)
 end
 
 get_metadata(dt::DataTreatment) = dt.metadata
@@ -276,16 +272,18 @@ get_norm(dt::DataTreatment, type::Symbol=:all) =
 
 # Convenience methods for common operations
 function get_vnames(dt::DataTreatment, type::Symbol=:all)
-    feats = []
-    type ∈ (:all, :discrete) && !isnothing(dt.td_feats) && push!(feats, dt.td_feats...)
-    type ∈ (:all, :scalar) && !isnothing(dt.tc_feats) && push!(feats, dt.tc_feats...)
-    type ∈ (:all, :multivariate) && !isnothing(dt.md_feats) && push!(feats, dt.md_feats...)
+    feat_sources = [
+        (type ∈ (:all, :discrete)) ? dt.td_feats : nothing,
+        (type ∈ (:all, :scalar)) ? dt.tc_feats : nothing,
+        (type ∈ (:all, :multivariate)) ? dt.md_feats : nothing,
+    ]
+    feats = vcat(filter(!isnothing, feat_sources)...)
     return unique(get_vname.(feats))
 end
 
 function get_features(dt::DataTreatment, type::Symbol=:all)
-    feats = []
-    type ∈ (:all, :multivariate) && !isnothing(dt.md_feats) && push!(feats, dt.md_feats...)
+    feats = (type ∈ (:all, :multivariate)) ? dt.md_feats : nothing
+    isnothing(feats) && return Symbol[]
     return unique(get_feat.(filter(f -> f isa AggregateFeat, feats)))
 end
 
