@@ -42,7 +42,7 @@ end
     )
 
     @test size(dt, 1) == 50
-    @test length(get_datafeature(dt)) == (length(DT.catch9) * nwindows^2 * var)
+    @test size(get_X(dt), 2) == (length(DT.catch9) * nwindows^2 * var)
 
     # Check statistical features
     feature_ids = get_datafeature(dt)
@@ -70,7 +70,7 @@ end
     )
     
     @test size(dt, 1) == 50
-    @test length(get_datafeature(dt)) == (length(DT.catch22_set) * nwindows^2 * var)
+    @test size(get_X(dt), 2) == (length(DT.catch22_set) * nwindows^2 * var)
 
     # Check a sample of Catch22 features
     feature_ids = get_datafeature(dt)
@@ -93,7 +93,7 @@ end
     )
 
     @test size(dt, 1) == 50
-    @test length(get_datafeature(dt)) == (length(DT.complete_set) * nwindows^2 * var)
+    @test size(get_X(dt), 2) == (length(DT.complete_set) * nwindows^2 * var)
 
     # Check basic statistics
     feature_ids = get_datafeature(dt)

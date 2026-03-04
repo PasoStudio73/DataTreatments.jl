@@ -100,29 +100,38 @@ end
 # ---------------------------------------------------------------------------- #
 #                             aggregate functions                              #
 # ---------------------------------------------------------------------------- #
-# Flatten nested arrays by applying multiple feature functions to windowed regions.
+"""
+    aggregate(
+        X::AbstractArray,
+        win::Tuple{Vararg{Base.Callable}},
+        features::Tuple{Vararg{Base.Callable}},
+        idx::AbstractVector{Vector{Int}},
+        float_type::Type
+    ) -> (Xa, nwindows)
 
-# This function takes a matrix of arrays (e.g., `Matrix{Matrix{Float64}}`) and produces a single
-# flat matrix where each row corresponds to a row in `X`, and columns contain flattened features
-# computed from windowed aggregations.
+Transform a multivariate dataset into a tabular dataset through windowing and feature aggregation.
 
-# # Use Case
-# This function enables the analysis of datasets containing n-dimensional elements (such as images, 
-# time series, or spectrograms) with machine learning models that require tabular input. It transforms 
-# complex multi-dimensional data into a flat feature matrix suitable for standard ML algorithms.
+Most machine learning algorithms work exclusively with tabular data, so transforming multivariate 
+datasets is necessary. This internal function accomplishes this transformation by:
 
-# # Arguments
-# - `X::AbstractArray`: Input array where each element is an array (e.g., `Matrix{Matrix{Float64}}`)
-# - `intervals::Tuple{Vararg{Vector{UnitRange{Int}}}}`: Window definitions for aggregation
-# - `features::Tuple{Vararg{Base.Callable}}=(mean,)`: Tuple of functions to compute on each window
+1. Separating multivariate data into windows, preserving portions of the original data rather 
+   than completely flattening it (each window corresponds to a column)
+2. Applying aggregation functions (e.g., mean, maximum, minimum) to the windowed data to convert 
+   it into scalar values
+3. Creating a tabular dataset where, for each aggregation function applied, there is a designated 
+   number of window columns
 
-# # Returns
-# - `AbstractArray`: Flattened array with dimensions `(nrows(X), ncols(X) × n_features × n_windows)`
-#   where each element is of type `core_eltype(X)`
+# Arguments
+- `X::AbstractArray`: The multivariate dataset to aggregate
+- `win::Tuple{Vararg{Base.Callable}}`: Window definition functions for each dimension
+- `features::Tuple{Vararg{Base.Callable}}`: Aggregation functions to apply (e.g., mean, maximum)
+- `idx::AbstractVector{Vector{Int}}`: Valid indices for each column (non-missing, non-NaN elements)
+- `float_type::Type`: The output floating-point type
 
-# # Details
-# The output columns are organized as: for each column in `X`, all features are computed for all windows,
-# with results concatenated in the order: `[col1_feat1_win1, col1_feat1_win2, col1_feat2_win1, ...]`
+# Returns
+- `Xa::Matrix`: A tabular matrix where each column represents an aggregated window feature
+- `nwindows::Vector`: Number of windows per column
+"""
 function aggregate(
     X::AbstractArray,
     win::Tuple{Vararg{Base.Callable}},
@@ -170,17 +179,39 @@ end
 # ---------------------------------------------------------------------------- #
 #                             reducesize functions                              #
 # ---------------------------------------------------------------------------- #
-# Apply window-based size-reduction to each element of an array.
+"""
+    reducesize(
+        X::AbstractArray,
+        win::Tuple{Vararg{Base.Callable}},
+        reducefunc::Base.Callable,
+        idx::AbstractVector{Vector{Int}},
+        float_type::DataType
+    ) -> Xr
 
-# This function is designed for arrays where each element is itself an array (e.g., `Matrix{Matrix{Float64}}`).
+Reduce the size of a multivariate dataset through windowing and dimension reduction.
 
-# # Arguments
-# - `X::AbstractArray`: Input array where each element is an array to be size-reduced
-# - `intervals::Tuple{Vararg{Vector{UnitRange{Int}}}}`: Window definitions for aggregation
-# - `reducefunc::Base.Callable=mean`: Function to apply to each window (default: `mean`)
+This internal function is designed to reduce the size of large multivariate datasets (e.g., images, 
+audio files) that may have excessive dimensionality or disproportionate resolution levels, which 
+would hinder effective machine learning. The process consists of:
 
-# # Returns
-# - `AbstractArray`: Array with same outer dimensions as `X`, each element containing size-reduced results
+1. Applying windowing to subdivide the multivariate data
+2. Reducing each window's dimensionality by applying a reduction function (typically mean)
+3. Returning a dataset of the same type but significantly reduced in size
+
+The resulting reduced dataset is suitable for use with modal algorithms available in the Sole 
+framework of Aclai.
+
+# Arguments
+- `X::AbstractArray`: The multivariate dataset to reduce
+- `win::Tuple{Vararg{Base.Callable}}`: Window definition functions for each dimension
+- `reducefunc::Base.Callable`: Reduction function to apply (e.g., mean, median)
+- `idx::AbstractVector{Vector{Int}}`: Valid indices for each column (non-missing, non-NaN elements)
+- `float_type::DataType`: The output floating-point type
+
+# Returns
+- `Xr::Array`: A reduced-size dataset where each element contains the result of applying 
+  the reduction function to its corresponding window
+"""
 function reducesize(
     X::AbstractArray,
     win::Tuple{Vararg{Base.Callable}},

@@ -1,25 +1,29 @@
 # ---------------------------------------------------------------------------- #
-#                           nan/missing handle utils                           #
+#                           dataset structure utils                            #
 # ---------------------------------------------------------------------------- #
 """
-    base_eltype(col::AbstractArray) -> (valtype, idx, hasmissing, hasnan)
+    check_column_structure(col::AbstractArray) -> (valtype, idx, hasmissing, hasnan)
 
-Inspect a column vector and infer its base element type along with the presence
-of `missing` and `NaN` values.
+Analyze the structure of a single column to extract preliminary information.
+
+DataTreatments is designed to import heterogeneous datasets composed of columns 
+with discrete values, continuous values, and multivariate values. Additionally, 
+the presence of possible `NaN` or `missing` values is expected. There are no 
+starting assumptions: we know nothing about how the dataset is structured.
+
+This internal function is used by DataTreatments to scan the column and output 
+preliminary information.
 
 # Arguments
-- `col::AbstractArray`: a column vector or array of any element type.
+- `col::AbstractArray`: a single column to analyze
 
 # Returns
-- `valtype::Union{Type, Nothing}`: the inferred base type of the non-missing elements.
-  Returns the concrete type for the first non-missing value found, or `nothing` if 
-  the column is empty or contains only `missing` values.
-- `idx::Union{Int, Nothing}`: the index of the first element used to determine `valtype`,
-  or `nothing` if no such element exists.
-- `hasmissing::Bool`: `true` if any element is `missing`.
-- `hasnan::Bool`: `true` if any element is `NaN` (scalar or inside a vector).
+- `valtype::Type`: the predominant type of values in the column
+- `idx::Vector{Int}`: indices of valid (non-missing, non-NaN) elements
+- `hasmissing::Bool`: whether the column contains `missing` values
+- `hasnan::Bool`: whether the column contains `NaN` values
 """
-function base_eltype(col::AbstractArray)
+function check_column_structure(col::AbstractArray)
     valtype, idx, hasmissing, hasnan = nothing, Int[], false, false
 
     for i in eachindex(col)
@@ -46,21 +50,32 @@ function base_eltype(col::AbstractArray)
 end
 
 """
-    check_integrity(X::Matrix) -> (valtype, idx, hasmissing, hasnan)
+    check_dataset_structure(X::Matrix) -> (valtype, idx, hasmissing, hasnan)
 
-Check the integrity of each column of a matrix, inferring element types and
-detecting `missing` and `NaN` values.
+Analyze the structure of an entire dataset to extract preliminary information.
+
+DataTreatments is designed to import heterogeneous datasets composed of columns 
+with discrete values, continuous values, and multivariate values. Additionally, 
+the presence of possible `NaN` or `missing` values is expected. There are no 
+starting assumptions: we know nothing about how the dataset is structured.
+
+This internal function is used by DataTreatments to scan the dataset and output 
+preliminary information for each column, processed in parallel.
 
 # Arguments
-- `X::Matrix`: input matrix of any element type.
+- `X::Matrix`: the dataset matrix to analyze
 
 # Returns
-- `valtype::Vector{Type}`: inferred base type for each column (see [`base_eltype`](@ref)).
-- `idx::Vector{Int}`: index of the first element used to determine each column's type (see [`base_eltype`](@ref)).
-- `hasmissing::Vector{Bool}`: `true` for each column that contains `missing` values.
-- `hasnan::Vector{Bool}`: `true` for each column that contains `NaN` values.
+- `valtype::Vector{Type}`: vector where `valtype[i]` is the predominant type of 
+  column `i`, distinguishing between discrete, continuous, and multivariate columns
+- `idx::Vector{Vector{Int}}`: vector of vectors where `idx[i]` contains the indices 
+  of valid (non-missing, non-NaN) elements in column `i`
+- `hasmissing::Vector{Bool}`: boolean vector indicating whether column `i` contains 
+  `missing` values (useful for future developments)
+- `hasnan::Vector{Bool}`: boolean vector indicating whether column `i` contains 
+  `NaN` values (useful for future developments)
 """
-function check_integrity(X::Matrix)
+function check_dataset_structure(X::Matrix)
     dim = size(X, 2)
     valtype = Vector{Type}(undef, dim)
     idx = Vector{Vector{Int}}(undef, dim)
@@ -68,7 +83,7 @@ function check_integrity(X::Matrix)
     hasnan = Vector{Bool}(undef, dim)
 
     Threads.@threads for i in axes(X, 2)
-        valtype[i], idx[i], hasmissing[i], hasnan[i] = base_eltype(@view(X[:, i]))
+        valtype[i], idx[i], hasmissing[i], hasnan[i] = check_column_structure(@view(X[:, i]))
     end
     return valtype, idx, hasmissing, hasnan
 end
@@ -115,7 +130,7 @@ function build_datasets(
     kwargs...
 )
     Xtd = Xtc = Xmd = td_feats = tc_feats = md_feats = nothing
-    valtype, idx, hasmissing, hasnan = check_integrity(X)
+    valtype, idx, hasmissing, hasnan = check_dataset_structure(X)
 
     td_cols = findall(T -> !isnothing(T) && !(T <: AbstractFloat) && !(T <: AbstractArray), valtype)
     tc_cols = findall(T -> !isnothing(T) && T <: AbstractFloat, valtype)
