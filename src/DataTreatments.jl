@@ -18,6 +18,19 @@ abstract type AbstractDataFeature end
 abstract type AbstractMetaData end
 
 # ---------------------------------------------------------------------------- #
+#                               internal utils                                 #
+# ---------------------------------------------------------------------------- #
+include("errors.jl")
+
+# ---------------------------------------------------------------------------- #
+#                                  structs                                     #
+# ---------------------------------------------------------------------------- #
+export DatasetStructure
+export get_datatype, get_valididxs, get_missingidxs, get_nanidxs
+export get_hasmissing, get_hasnans, get_structure
+include("structs/dataset_structure.jl")
+
+# ---------------------------------------------------------------------------- #
 #                                   files                                      #
 # ---------------------------------------------------------------------------- #
 # feature extraction via Catch22

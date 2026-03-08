@@ -2,7 +2,7 @@
 #                           DatasetStructure struct                            #
 # ---------------------------------------------------------------------------- #
 struct DatasetStructure
-    datatype::Vector{Type}
+    datatype::Vector{<:Type}
     valididxs::Vector{Vector{Int}}
     missingidxs::Vector{Vector{Int}}
     nanidxs::Vector{Vector{Int}}
@@ -10,7 +10,7 @@ struct DatasetStructure
     hasnans::Vector{Vector{Int}}
 
     function DatasetStructure(
-        datatype::Vector{Type},
+        datatype::Vector{<:Type},
         valididxs::Vector{Vector{Int}},
         missingidxs::Vector{Vector{Int}},
         nanidxs::Vector{Vector{Int}},
