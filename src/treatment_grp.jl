@@ -69,25 +69,27 @@ struct ContinuousDataset{T}
     end
 end
 
-struct AggregatedMultidimDataset
+struct AggregatedMultidimDataset{T}
     dataset::Matrix
     info::Vector{AggregateFeat}
 
     function AggregatedMultidimDataset(
-        dataset::Matrix
-    )
-        new(dataset, info)
+        dataset::Matrix,
+        info::Vector{AggregateFeat{T}}
+    ) where T
+        new{T}(dataset, info)
     end
 end
 
-struct ReducedMultidimDataset
+struct ReducedMultidimDataset{T}
     dataset::Matrix
     info::Vector{ReduceFeat}
 
     function ReducedMultidimDataset(
-        dataset::Matrix
-    )
-        new(dataset, info)
+        dataset::Matrix,
+        info::Vector{ReduceFeat{T}}
+    ) where T
+        new{T}(dataset, info)
     end
 end
 
@@ -207,6 +209,9 @@ get_ncols(dt::DataTreatment) = size(dt.dataset, 2)
 # ---------------------------------------------------------------------------- #
 #                               dataset builder                                #
 # ---------------------------------------------------------------------------- #
+get_features(a::Base.Callable) = a.features
+get_reducefunc(r::Base.Callable) = r.reducefunc
+
 function build_datasets(
     id::Vector,
     dataset::Matrix,
@@ -245,7 +250,7 @@ function build_datasets(
         
     end
 
-    # scalar
+    # continue
     if !isempty(tc_cols)
         vnames_tc = get_vnames(ds_struct, tc_cols)
         idx = get_valididxs(ds_struct, tc_cols)
@@ -259,30 +264,31 @@ function build_datasets(
         )
     end
 
-    # # multivariate
-    # if !isempty(md_cols)
-    #     X = @view X[:, md_cols]
-    #     vnames_md = @views vnames[md_cols]
-    #     idx_md = @views idx[md_cols]
-    #     miss, nan = hasmissing[md_cols], hasnan[md_cols]
-    #     win isa Base.Callable && (win = (win,))
+    # multidimensional
+    if !isempty(md_cols)
+        dataset = @view dataset[:, md_cols]
+        vnames_md = get_vnames(ds_struct, md_cols)
+        idx = get_valididxs(ds_struct, md_cols)
+        miss_md = get_missingidxs(ds_struct, md_cols)
+        nan_md = get_nanidxs(ds_struct, md_cols)
+        hasmiss_md = get_hasmissing(ds_struct, md_cols)
+        hasnan_md = get_hasnans(ds_struct, md_cols)
 
-    #     if aggrtype == :aggregate
-    #         Xmd, nwindows = DataTreatments.aggregate(X, idx_md, float_type; win, features)
-    #         md_feats = vec([AggregateFeat{float_type}(i, vnames_md[c], f, nwindows[c], miss[c], nan[c])
-    #                 for (i, (f, c)) in enumerate(Iterators.product(features, axes(X,2)))])
+        md, nwindows = aggrfunc(dataset, idx, float_type)
 
-    #     elseif aggrtype == :reducesize
-    #         Xmd = DataTreatments.reducesize(X, idx_md, float_type; win, reducefunc)
-    #         md_feats = [ReduceFeat{AbstractArray{float_type}}(i, vnames_md[c], reducefunc, miss[c], nan[c])
-    #             for (i, c) in enumerate(axes(X,2))]
+        if eltype(md) <: Union{Missing,float_type}
+            md_feats = vec([AggregateFeat{float_type}(push!(id, i), vnames_md[c], f, nwindows[c], idx[c], miss_md[c], nan_md[c], hasmiss_md[c], hasnan_md[c])
+                    for (i, (f, c)) in enumerate(Iterators.product(get_features(aggrfunc), axes(dataset,2)))])
+            ds_md = AggregatedMultidimDataset(md, md_feats)
+        else
+            md_feats = [ReduceFeat{AbstractArray{float_type}}(push!(id, i), vnames_md[c], get_reducefunc(aggrfunc), idx[c], miss_md[c], nan_md[c], hasmiss_md[c], hasnan_md[c])
+                for (i, c) in enumerate(axes(dataset,2))]
+        end
+    end
 
-    #     else
-    #         error("Unknown treatment type: $treat")
-    #     end
-    # end
+    @show ds_md
 
-    # return Xtd, Xtc, Xmd, td_feats, tc_feats, md_feats
+    return ds_td, ds_tc, ds_md
 end
 
 # ---------------------------------------------------------------------------- #
@@ -322,7 +328,7 @@ test = DataTreatment(
     df,
     TreatmentGroup(dims=0),
     TreatmentGroup(name_expr=r"^V"),
-    TreatmentGroup(dims=2)
+    TreatmentGroup(dims=2, aggrfunc=reducesize())
 )
 
 get_datasets(test)

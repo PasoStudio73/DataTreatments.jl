@@ -45,8 +45,8 @@ struct AggregateFeat{T} <: AbstractDataFeature
     valididxs::Vector{Int}
     missingidxs::Vector{Int}
     nanidxs::Vector{Int}
-    hasmissing::Vector{Bool}
-    hasnans::Vector{Bool}
+    hasmissing::Vector{Int}
+    hasnans::Vector{Int}
 
     function AggregateFeat{T}(
         id::Vector,
@@ -56,8 +56,8 @@ struct AggregateFeat{T} <: AbstractDataFeature
         valididxs::Vector{Int},
         missingidxs::Vector{Int},
         nanidxs::Vector{Int},
-        hasmissing::Vector{Bool},
-        hasnans::Vector{Bool}
+        hasmissing::Vector{Int},
+        hasnans::Vector{Int}
     ) where T
         new{T}(id, vname, feat, nwin, valididxs, missingidxs, nanidxs, hasmissing, hasnans)
     end

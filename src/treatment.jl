@@ -178,7 +178,10 @@ function aggregate(
     return Xa, nwindows
 end
 
-aggregate(; kwargs...) = (x, i, ft) -> aggregate(x, i, ft; kwargs...)
+aggregate(;
+    win::Tuple{Vararg{Base.Callable}}=(wholewindow(),),
+    features::Tuple{Vararg{Base.Callable}}=(maximum, minimum, mean)
+) = (x, i, ft) -> aggregate(x, i, ft; win, features)
 
 # ---------------------------------------------------------------------------- #
 #                             reducesize functions                              #
@@ -250,4 +253,7 @@ function reducesize(
     return Xr
 end
 
-reducesize(; kwargs...) = (x, i, ft) -> reducesize(x, i, ft; kwargs...)
+reducesize(;
+    win::Tuple{Vararg{Base.Callable}}=(wholewindow(),),
+    reducefunc::Base.Callable=mean
+) = (x, i, ft) -> reducesize(x, i, ft; win, reducefunc)
