@@ -103,60 +103,14 @@ struct ReduceFeat{T} <: AbstractDataFeature
     # hasnans::Vector{Bool}}
 end
 
-######################################################################
-
-function aggregate(
-    X::AbstractArray,
-    idx::AbstractVector{Vector{Int}},
-    float_type::Type;
-    win::Tuple{Vararg{Base.Callable}},
-    features::Tuple{Vararg{Base.Callable}},
-)
-    colwin = [[n > length(win) ? last(win) : win[n] for n in 1:ndims(X[first(idx[i]), i])] for i in axes(X, 2)]
-    nwindows = [prod(hasfield(typeof(w), :nwindows) ? w.nwindows : 1 for w in c) for c in colwin]
-    nfeats = length(features)
-# vettore di indici
-    Xa = Matrix{Union{Missing,float_type}}(undef, size(X, 1), sum(nwindows) * nfeats)
-    outtmp = 1
-
-    @inbounds for colidx in axes(X, 2)
-        outidx = outtmp
-
-        for rowidx in axes(X, 1)
-            x = X[rowidx, colidx]
-            outidx = outtmp
-
-            if rowidx in idx[colidx]
-                intervals = @evalwindow X[rowidx, colidx] colwin[colidx]...
-                for feat in features
-                    for cartidx in CartesianIndices(length.(intervals))
-                        ranges = get_window_ranges(intervals, cartidx)
-                        window_view = @views x[ranges...]
-                        Xa[rowidx, outidx] = safe_feat(reshape(window_view, :), feat)
-                        outidx += 1
-                    end
-                end
-            else
-                intervals = nwindows[colidx] * nfeats
-                Xa[rowidx, outidx:outidx+intervals-1] .= ismissing(x) ? x : float_type(x)
-                outidx += intervals
-            end
-        end
-
-        outtmp = outidx
-    end
-
-    return Xa, nwindows
-end
-
-aggregate(; kwargs...) = (x, i, ft) -> aggregate(x, i, ft; kwargs...)
-
-######################################################################
-
+# ---------------------------------------------------------------------------- #
+#                             DataTreatment struct                             #
+# ---------------------------------------------------------------------------- #
 struct DataTreatment
     dataset::Matrix
     ds_struct::DatasetStructure
     t_groups::Vector{TreatmentGroup}
+    float_type::Type
 
     function DataTreatment(
         dataset::Matrix,
@@ -169,11 +123,103 @@ struct DataTreatment
         ds_struct = get_dataset_structure(dataset, vnames)
         t_groups = [treat(ds_struct) for treat in treatments]
         # build_datasets(dataset, ds_struct, vnames, float_type)
-        new(dataset, ds_struct, t_groups)
+        new(dataset, ds_struct, t_groups, float_type)
     end
 
     DataTreatment(df::DataFrame, args...; kwargs...) =
         DataTreatment(Matrix(df), names(df), args...; kwargs...)
+end
+
+# ---------------------------------------------------------------------------- #
+#                                Base methods                                  #
+# ---------------------------------------------------------------------------- #
+"""
+    Base.size(dt::DataTreatment)
+
+Returns the size of the dataset as a tuple `(nrows, ncols)`.
+"""
+Base.size(dt::DataTreatment) = size(dt.dataset)
+
+"""
+    Base.length(dt::DataTreatment)
+
+Returns the number of treatment groups.
+"""
+Base.length(dt::DataTreatment) = length(dt.t_groups)
+
+"""
+    Base.ndims(dt::DataTreatment)
+
+Returns the number of dimensions in the dataset (always 2 for a matrix).
+"""
+Base.ndims(dt::DataTreatment) = 2
+
+"""
+    Base.iterate(dt::DataTreatment, state=1)
+
+Iterates over the treatment groups.
+"""
+Base.iterate(dt::DataTreatment, state=1) = state > length(dt) ? nothing : (dt.t_groups[state], state + 1)
+
+"""
+    Base.eachindex(dt::DataTreatment)
+
+Returns the indices of the treatment groups.
+"""
+Base.eachindex(dt::DataTreatment) = eachindex(dt.t_groups)
+
+# ---------------------------------------------------------------------------- #
+#                               getter methods                                 #
+# ---------------------------------------------------------------------------- #
+"""
+    get_dataset(dt::DataTreatment)
+
+Returns the raw dataset matrix.
+"""
+get_dataset(dt::DataTreatment) = dt.dataset
+
+"""
+    get_dataset_structure(dt::DataTreatment)
+
+Returns the dataset structure containing metadata about the dataset.
+"""
+get_dataset_structure(dt::DataTreatment) = dt.ds_struct
+
+"""
+    get_treatment_groups(dt::DataTreatment)
+    get_treatment_groups(dt::DataTreatment, i::Int)
+
+Returns the treatment groups. If `i` is provided, returns the `i`-th treatment group.
+"""
+get_treatment_groups(dt::DataTreatment) = dt.t_groups
+get_treatment_groups(dt::DataTreatment, i::Int) = dt.t_groups[i]
+
+"""
+    get_float_type(dt::DataTreatment)
+
+Returns the floating-point type used for processing.
+"""
+get_float_type(dt::DataTreatment) = dt.float_type
+
+"""
+    get_nrows(dt::DataTreatment)
+
+Returns the number of rows in the dataset.
+"""
+get_nrows(dt::DataTreatment) = size(dt.dataset, 1)
+
+"""
+    get_ncols(dt::DataTreatment)
+
+Returns the number of columns in the dataset.
+"""
+get_ncols(dt::DataTreatment) = size(dt.dataset, 2)
+
+# ---------------------------------------------------------------------------- #
+#                             custom lazy methods                              #
+# ---------------------------------------------------------------------------- #
+function get_dataset(dt::DataTreatment; split=true, dataframe=false)
+
 end
 
 ########################################################################

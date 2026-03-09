@@ -166,7 +166,7 @@ Returns the `groupby` tuple of symbols used to partition output features.
 get_groupby(tg::TreatmentGroup) = tg.groupby
 
 # ---------------------------------------------------------------------------- #
-#                               custom methods                                 #
+#                             custom lazy methods                              #
 # ---------------------------------------------------------------------------- #
 """
     get_idxs(tgs::Vector{<:TreatmentGroup})
