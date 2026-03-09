@@ -30,11 +30,8 @@ df = DataFrame(
 
 abstract type AbstractDataFeature end
 
-function aggregate end
-function reducesize end
-
 include("../src/errors.jl")
-using DataTreatments: aggregate, reducesize, wholewindow
+using DataTreatments: reducesize, wholewindow, @evalwindow
 include("../src/structs/dataset_structure.jl")
 
 function discrete_encode(X::Matrix)
@@ -107,70 +104,115 @@ end
 
 ######################################################################
 
-function build_datasets(
-    dataset::Matrix,
-    ds_struct::DatasetStructure,
-    vnames::Vector{String},
-    float_type::Type
+# function build_datasets(
+#     dataset::Matrix,
+#     ds_struct::DatasetStructure,
+#     vnames::Vector{String},
+#     float_type::Type
+# )
+#     dstd, dstc, dsmd = nothing, nothing, nothing
+#     valtype = get_datatype(ds_struct)
+
+#     td_cols = findall(T -> !isnothing(T) && !(T <: AbstractFloat) && !(T <: AbstractArray), valtype)
+#     tc_cols = findall(T -> !isnothing(T) && T <: AbstractFloat, valtype)
+#     md_cols = findall(T -> !isnothing(T) && T <: AbstractArray, valtype)
+
+#     # discrete
+#     if !isempty(td_cols)
+#         vnames_td = @views vnames[td_cols]
+#         types_td = get_datatype(ds_struct, td_cols)
+#         valid_td = get_valididxs(ds_struct, td_cols)
+#         miss_td = get_missingidxs(ds_struct, td_cols)
+#         codes, levels = discrete_encode(dataset[:, td_cols])
+
+#         dstd = stack(codes)
+#         td_feats = [DiscreteFeat{types_td[i]}(i, vnames_td[i], levels[i], valid_td[i], miss_td[i])
+#             for i in eachindex(vnames_td)]
+#     end
+
+#     # continue
+#     if !isempty(tc_cols)
+#         vnames_tc = @views vnames[tc_cols]
+#         valid_td = get_valididxs(ds_struct, td_cols)
+#         miss_tc = get_missingidxs(ds_struct, tc_cols)
+#         nan_tc = get_nanidxs(ds_struct, tc_cols)
+
+#         dstc = reduce(hcat, [map(x -> ismissing(x) ? missing : float_type(x), @view dataset[:, col])
+#             for col in tc_cols])
+#         tc_feats = [ContinuousFeat{float_type}(i, vnames_tc[i], valid_td[i], miss_tc[i], nan_tc[i])
+#             for i in eachindex(vnames_tc)]
+#     end
+
+#     @show tc_feats
+
+#     # multidimensional
+#     if !isempty(md_cols)
+#         X = @view X[:, md_cols]
+#         vnames_md = @views vnames[md_cols]
+#         idx_md = @views idx[md_cols]
+#         miss, nan = hasmissing[md_cols], hasnan[md_cols]
+#         win isa Base.Callable && (win = (win,))
+
+#         if aggrfunc == :aggregate
+#             dsmd, nwindows = DataTreatments.aggregate(X, win, features, idx_md, float_type)
+#             md_feats = vec([AggregateFeat{float_type}(i, vnames_md[c], f, nwindows[c], miss[c], nan[c])
+#                     for (i, (f, c)) in enumerate(Iterators.product(features, axes(X,2)))])
+
+#         elseif aggrfunc == :reducesize
+#             dsmd = DataTreatments.reducesize(X, win, reducefunc, idx_md, float_type)
+#             md_feats = [ReduceFeat{AbstractArray{float_type}}(i, vnames_md[c], reducefunc, miss[c], nan[c])
+#                 for (i, c) in enumerate(axes(X,2))]
+
+#         else
+#             error("Unknown treatment type: $treat")
+#         end
+#     end
+# end
+function aggregate(
+    X::AbstractArray,
+    idx::AbstractVector{Vector{Int}},
+    float_type::Type;
+    win::Tuple{Vararg{Base.Callable}},
+    features::Tuple{Vararg{Base.Callable}},
 )
-    dstd, dstc, dsmd = nothing, nothing, nothing
-    valtype = get_datatype(ds_struct)
+    colwin = [[n > length(win) ? last(win) : win[n] for n in 1:ndims(X[first(idx[i]), i])] for i in axes(X, 2)]
+    nwindows = [prod(hasfield(typeof(w), :nwindows) ? w.nwindows : 1 for w in c) for c in colwin]
+    nfeats = length(features)
+# vettore di indici
+    Xa = Matrix{Union{Missing,float_type}}(undef, size(X, 1), sum(nwindows) * nfeats)
+    outtmp = 1
 
-    td_cols = findall(T -> !isnothing(T) && !(T <: AbstractFloat) && !(T <: AbstractArray), valtype)
-    tc_cols = findall(T -> !isnothing(T) && T <: AbstractFloat, valtype)
-    md_cols = findall(T -> !isnothing(T) && T <: AbstractArray, valtype)
+    @inbounds for colidx in axes(X, 2)
+        outidx = outtmp
 
-    # discrete
-    if !isempty(td_cols)
-        vnames_td = @views vnames[td_cols]
-        types_td = get_datatype(ds_struct, td_cols)
-        valid_td = get_valididxs(ds_struct, td_cols)
-        miss_td = get_missingidxs(ds_struct, td_cols)
-        codes, levels = discrete_encode(dataset[:, td_cols])
+        for rowidx in axes(X, 1)
+            x = X[rowidx, colidx]
+            outidx = outtmp
 
-        dstd = stack(codes)
-        td_feats = [DiscreteFeat{types_td[i]}(i, vnames_td[i], levels[i], valid_td[i], miss_td[i])
-            for i in eachindex(vnames_td)]
-    end
-
-    # continue
-    if !isempty(tc_cols)
-        vnames_tc = @views vnames[tc_cols]
-        valid_td = get_valididxs(ds_struct, td_cols)
-        miss_tc = get_missingidxs(ds_struct, tc_cols)
-        nan_tc = get_nanidxs(ds_struct, tc_cols)
-
-        dstc = reduce(hcat, [map(x -> ismissing(x) ? missing : float_type(x), @view dataset[:, col])
-            for col in tc_cols])
-        tc_feats = [ContinuousFeat{float_type}(i, vnames_tc[i], valid_td[i], miss_tc[i], nan_tc[i])
-            for i in eachindex(vnames_tc)]
-    end
-
-    @show tc_feats
-
-    # multidimensional
-    if !isempty(md_cols)
-        X = @view X[:, md_cols]
-        vnames_md = @views vnames[md_cols]
-        idx_md = @views idx[md_cols]
-        miss, nan = hasmissing[md_cols], hasnan[md_cols]
-        win isa Base.Callable && (win = (win,))
-
-        if aggrtype == :aggregate
-            dsmd, nwindows = DataTreatments.aggregate(X, win, features, idx_md, float_type)
-            md_feats = vec([AggregateFeat{float_type}(i, vnames_md[c], f, nwindows[c], miss[c], nan[c])
-                    for (i, (f, c)) in enumerate(Iterators.product(features, axes(X,2)))])
-
-        elseif aggrtype == :reducesize
-            dsmd = DataTreatments.reducesize(X, win, reducefunc, idx_md, float_type)
-            md_feats = [ReduceFeat{AbstractArray{float_type}}(i, vnames_md[c], reducefunc, miss[c], nan[c])
-                for (i, c) in enumerate(axes(X,2))]
-
-        else
-            error("Unknown treatment type: $treat")
+            if rowidx in idx[colidx]
+                intervals = @evalwindow X[rowidx, colidx] colwin[colidx]...
+                for feat in features
+                    for cartidx in CartesianIndices(length.(intervals))
+                        ranges = get_window_ranges(intervals, cartidx)
+                        window_view = @views x[ranges...]
+                        Xa[rowidx, outidx] = safe_feat(reshape(window_view, :), feat)
+                        outidx += 1
+                    end
+                end
+            else
+                intervals = nwindows[colidx] * nfeats
+                Xa[rowidx, outidx:outidx+intervals-1] .= ismissing(x) ? x : float_type(x)
+                outidx += intervals
+            end
         end
+
+        outtmp = outidx
     end
+
+    return Xa, nwindows
 end
+
+aggregate(; kwargs...) = (x, i, ft) -> aggregate(x, i, ft; kwargs...)
 
 # ---------------------------------------------------------------------------- #
 #                            TreatmentGroup struct                             #
@@ -178,22 +220,17 @@ end
 struct TreatmentGroup{T}
     idxs::Vector{Int}
     dims::Int
-    vnames::Vector{Symbol}
-    aggrtype::Base.Callable
-    win::Tuple{Base.Callable...}
-    features::Tuple{Base.Callable...}
-    reducefunc::Base.Callable
+    vnames::Vector{String}
+    aggrfunc::Base.Callable
+    groupby::Tuple{Vararg{Symbol}}
 
     function TreatmentGroup(
-        ds_struct::DatasetStructure,
-        vnames::Vector{String};
+        ds_struct::DatasetStructure;
         dims::Int=-1,
         name_expr::Union{Regex,Base.Callable}=r".*",
         datatype::Type=Any,
-        aggrtype::Base.Callable=aggregate,
-        win::Tuple{Base.Callable...}=wholewindow(),
-        features::Tuple{Base.Callable...}=(maximum, minimum, mean),
-        reducefunc::Base.Callable=mean,
+        aggrfunc::Base.Callable=aggregate(win=(wholewindow(),), features=(maximum, minimum, mean)),
+        groupby::Tuple{Vararg{Symbol}}=(:vname,)
     )
         # filter by dims
         idxs = dims == -1 ?
@@ -201,19 +238,93 @@ struct TreatmentGroup{T}
             findall(get_dims(ds_struct) .== dims)
 
         # filter by names
+        vnames = get_vnames(ds_struct)
         valid_names = name_expr isa Regex ?
             filter(item -> match(name_expr, item) !== nothing, vnames) :
             filter(name_expr, vnames)
+        idxs = idxs ∩ findall(n -> n in valid_names, vnames)
 
-        new{datatype}(dims, Symbol.(valid_names), aggrtype, win, features, reducefunc)
+        # filter by datatype
+        datatype != Any && (idxs= idxs ∩ findall(get_datatype(ds_struct) .== datatype))
+
+        new{datatype}(idxs, dims, valid_names, aggrfunc, groupby)
     end
 
-    TreatmentGroup(vnames::Vector{Symbol}; kwargs...) = TreatmentGroup(String.(vnames); kwargs...)
+    # TreatmentGroup(vnames::Vector{Symbol}; kwargs...) = TreatmentGroup(String.(vnames); kwargs...)
 
-    TreatmentGroup(df::DataFrame; kwargs...) = TreatmentGroup(names(df); kwargs...)
+    # TreatmentGroup(df::DataFrame; kwargs...) = TreatmentGroup(get_dataset_structure(df); kwargs...)
 end
 
 TreatmentGroup(; kwargs...) = x -> TreatmentGroup(x; kwargs...)
+
+# ---------------------------------------------------------------------------- #
+#                                Base methods                                  #
+# ---------------------------------------------------------------------------- #
+"""
+    Base.length(tg::TreatmentGroup)
+
+Returns the number of columns selected by this group.
+"""
+Base.length(tg::TreatmentGroup) = length(tg.idxs)
+
+"""
+    Base.iterate(tg::TreatmentGroup, state=1)
+
+Iterates over the selected column indices.
+"""
+Base.iterate(tg::TreatmentGroup, state=1) = state > length(tg) ? nothing : (tg.idxs[state], state + 1)
+
+"""
+    Base.eachindex(tg::TreatmentGroup)
+
+Returns the indices of the selected columns vector.
+"""
+Base.eachindex(tg::TreatmentGroup) = eachindex(tg.idxs)
+
+# ---------------------------------------------------------------------------- #
+#                               getter methods                                 #
+# ---------------------------------------------------------------------------- #
+"""
+    get_idxs(tg::TreatmentGroup)
+    get_idxs(tg::TreatmentGroup, i::Int)
+
+Returns the column indices selected by this group. If `i` is provided, returns the `i`-th index.
+"""
+get_idxs(tg::TreatmentGroup) = tg.idxs
+get_idxs(tg::TreatmentGroup, i::Int) = tg.idxs[i]
+
+"""
+    get_dims(tg::TreatmentGroup)
+
+Returns the dimensionality filter used to select columns (`-1` means no filter).
+"""
+get_dims(tg::TreatmentGroup) = tg.dims
+
+"""
+    get_vnames(tg::TreatmentGroup)
+    get_vnames(tg::TreatmentGroup, i::Int)
+    get_vnames(tg::TreatmentGroup, idxs::Vector{Int})
+
+Returns the column names selected by this group. If `i` is provided, returns the `i`-th name.
+If a vector of indices is provided, returns a view of the names for those positions.
+"""
+get_vnames(tg::TreatmentGroup) = tg.vnames
+get_vnames(tg::TreatmentGroup, i::Int) = tg.vnames[i]
+get_vnames(tg::TreatmentGroup, idxs::Vector{Int}) = @views tg.vnames[idxs]
+
+"""
+    get_aggrfunc(tg::TreatmentGroup)
+
+Returns the aggregation function used by this group.
+"""
+get_aggrfunc(tg::TreatmentGroup) = tg.aggrfunc
+
+"""
+    get_groupby(tg::TreatmentGroup)
+
+Returns the `groupby` tuple of symbols used to partition output features.
+"""
+get_groupby(tg::TreatmentGroup) = tg.groupby
 
 ######################################################################
 
@@ -221,18 +332,14 @@ function DataTreatment(
     dataset::Matrix,
     vnames::Vector{String},
     treatments::Base.Callable...=TreatmentGroup(
-        aggrtype=:aggregate,
-        win=wholewindow(),
-        features=(maximum, minimum, mean)
+        aggrfunc=aggregate(win=(wholewindow(),), features=(maximum, minimum, mean)),
     );
     float_type::Type=Float64
 )
-    ds_struct = get_dataset_structure(dataset)
+    ds_struct = get_dataset_structure(dataset, vnames)
+    tgroups = [treat(ds_struct) for treat in treatments]
     # build_datasets(dataset, ds_struct, vnames, float_type)
 
-    for treat in treatments
-        treat(ds_struct, vnames)
-    end
 end
 
 DataTreatment(df::DataFrame, args...; kwargs...) =
@@ -242,9 +349,9 @@ DataTreatment(df::DataFrame, args...; kwargs...) =
 
 # test = DataTreatment(df, TreatmentGroup(dims=1, name_expr=r"^V"))
 
-# test = DataTreatment(df, TreatmentGroup(dims=1, name_expr=r"^V"), TreatmentGroup(dims=2))
+test = DataTreatment(df, TreatmentGroup(dims=1, name_expr=r"^V"), TreatmentGroup(dims=2))
 
-test = DataTreatment(df)
+# test = DataTreatment(df)
 
 # TreatmentGroup(win=wholewindow(), features=(maximum, minimum, mean))
 

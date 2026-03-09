@@ -136,10 +136,10 @@ datasets is necessary. This internal function accomplishes this transformation b
 """
 function aggregate(
     X::AbstractArray,
+    idx::AbstractVector{Vector{Int}},
+    float_type::Type;
     win::Tuple{Vararg{Base.Callable}},
     features::Tuple{Vararg{Base.Callable}},
-    idx::AbstractVector{Vector{Int}},
-    float_type::Type
 )
     colwin = [[n > length(win) ? last(win) : win[n] for n in 1:ndims(X[first(idx[i]), i])] for i in axes(X, 2)]
     nwindows = [prod(hasfield(typeof(w), :nwindows) ? w.nwindows : 1 for w in c) for c in colwin]
@@ -216,10 +216,10 @@ framework of Aclai.
 """
 function reducesize(
     X::AbstractArray,
+    idx::AbstractVector{Vector{Int}},
+    float_type::DataType;
     win::Tuple{Vararg{Base.Callable}},
     reducefunc::Base.Callable,
-    idx::AbstractVector{Vector{Int}},
-    float_type::DataType
 )
     Xr = Array{Union{Missing,float_type,Array{float_type}}}(undef, size(X))
 
