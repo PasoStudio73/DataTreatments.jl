@@ -17,9 +17,10 @@ end
 println("Julia version: ", VERSION)
 
 test_suites = [
-    ("Windowing",  ["windowing.jl",]),
-    ("FeatureSet", ["featureset.jl",]),
-    ("DataTreatment",  ["datatreatment.jl",]),
+    ("Dataset Structure", ["dataset_structure.jl"]),
+    # ("Windowing",  ["windowing.jl",]),
+    # ("FeatureSet", ["featureset.jl",]),
+    # ("DataTreatment",  ["datatreatment.jl",]),
     # ("Groupby", ["groupby.jl"]),
     # ("Normalize",  ["normalize.jl",]),
     # ("Grouped Norm", ["grouped_norm.jl"]),

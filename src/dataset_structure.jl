@@ -1,27 +1,8 @@
 # ---------------------------------------------------------------------------- #
-#                              errors handling                                 #
+#                                    utils                                     #
 # ---------------------------------------------------------------------------- #
-"""
-Validate that all vectors have the same length.
-
-Args:
-    vectors: AbstractVector...
-    
-Throws:
-    DimensionMismatch: If vectors have different lengths
-"""
-function validate_vector_lengths(vectors::AbstractVector...)
-    isempty(vectors) && return
-    
-    reference_length = length(first(vectors))
-    
-    for (i, vec) in enumerate(vectors)
-        length(vec) != reference_length &&
-            throw(DimensionMismatch(
-                "Vector $i has length $(length(vec)), expected $reference_length"
-            ))
-    end
-end
+_isnanval(v) = v isa AbstractFloat && isnan(v)
+_isarray(v) = v isa AbstractArray
 
 # ---------------------------------------------------------------------------- #
 #                           DatasetStructure struct                            #
@@ -64,15 +45,16 @@ the dataset.
 Scans the dataset column by column (in parallel via `Threads.@threads`) and builds
 a `DatasetStructure` containing all metadata needed by `DataTreatment`.
 
-For each column, [`_get_column_structure`](@ref) is called to extract:
-- the element type
-- the dimensionality
+For each column, a single pass over the elements extracts:
+- the element type (computed incrementally via `typejoin`)
+- the dimensionality (tracked as the maximum `ndims` across array elements)
 - the indices of valid, missing, NaN, and internally-corrupt elements
 
 ## Arguments
 - `dataset::Matrix`: A matrix where each column is a feature. Elements may be scalars,
   arrays, or matrices, and may contain `missing` or `NaN` values.
-- `vnames::Vector{String}`: Column names associated with each column of `dataset`.
+- `vnames::Union{Vector{String},Nothing}`: Column names associated with each column of `dataset`.
+  Defaults to `["V1", "V2", ...]` if not provided.
 - `df::DataFrame`: Converted to `Matrix` before processing. Column names are
   automatically extracted via `names(df)` and stored in the resulting `DatasetStructure`.
 
@@ -100,32 +82,9 @@ struct DatasetStructure
     hasnans::Vector{Vector{Int}}
 
     function DatasetStructure(
-        vnames::Vector{String},
-        datatype::Vector{<:Type},
-        dims::Vector{Int},
-        valididxs::Vector{Vector{Int}},
-        missingidxs::Vector{Vector{Int}},
-        nanidxs::Vector{Vector{Int}},
-        hasmissing::Vector{Vector{Int}},
-        hasnans::Vector{Vector{Int}}
-    )
-        validate_vector_lengths(
-            vnames,
-            datatype,
-            dims,
-            valididxs,
-            missingidxs,
-            nanidxs,
-            hasmissing,
-            hasnans
-        )
-
-        new(vnames, datatype, dims, valididxs, missingidxs, nanidxs, hasmissing, hasnans)
-    end
-
-    function DatasetStructure(
         dataset::Matrix,
-        vnames::Union{Vector{String},Nothing}=["V$i" for i in 1:size(dataset, 2)],)
+        vnames::Union{Vector{String},Nothing}=["V$i" for i in 1:size(dataset, 2)]
+    )
         ncols = size(dataset, 2)
 
         datatype = Vector{Type}(undef, ncols)
@@ -137,11 +96,45 @@ struct DatasetStructure
         hasnans = Vector{Vector{Int}}(undef, ncols)
 
         Threads.@threads for i in axes(dataset, 2)
-            datatype[i], dims[i], valididxs[i], missingidxs[i], nanidxs[i], hasmissing[i], hasnans[i] =
-                _get_column_structure(@view(dataset[:, i]))
+            col = @view(dataset[:, i])
+
+            _valid = Int[]
+            _missing = Int[]
+            _nan = Int[]
+            _hasmissing = Int[]
+            _hasnans = Int[]
+
+            dt = Any
+            maxdims = 0
+
+            @inbounds for j in eachindex(col)
+                v = col[j]
+                if ismissing(v)
+                    push!(_missing, j)
+                elseif _isnanval(v)
+                    push!(_nan, j)
+                else
+                    push!(_valid, j)
+                    dt = dt === Any ? typeof(v) : typejoin(dt, typeof(v))
+                    if _isarray(v)
+                        d = ndims(v)
+                        d > maxdims && (maxdims = d)
+                        any(ismissing, v) && push!(_hasmissing, j)
+                        any(_isnanval, v) && push!(_hasnans, j)
+                    end
+                end
+            end
+
+            datatype[i] = dt
+            dims[i] = maxdims
+            valididxs[i] = _valid
+            missingidxs[i] = _missing
+            nanidxs[i] = _nan
+            hasmissing[i] = _hasmissing
+            hasnans[i] = _hasnans
         end
 
-        return DatasetStructure(vnames, datatype, dims, valididxs, missingidxs, nanidxs, hasmissing, hasnans)
+        return new(vnames, datatype, dims, valididxs, missingidxs, nanidxs, hasmissing, hasnans)
     end
 
     DatasetStructure(df::DataFrame; kwargs...) = DatasetStructure(Matrix(df), names(df))
@@ -163,27 +156,6 @@ Base.size(ds::DatasetStructure) = (length(ds.datatype),)
 Returns the number of columns in the structure.
 """
 Base.length(ds::DatasetStructure) = length(ds.datatype)
-
-"""
-    Base.ndims(ds::DatasetStructure)
-
-Returns the number of dimensions (always 1).
-"""
-Base.ndims(ds::DatasetStructure) = 1
-
-"""
-    Base.iterate(ds::DatasetStructure, state=1)
-
-Supports iteration over the structure. Iterates over the data types of each column.
-"""
-Base.iterate(ds::DatasetStructure, state=1) = state > length(ds) ? nothing : (ds.datatype[state], state + 1)
-
-"""
-    Base.eachindex(ds::DatasetStructure)
-
-Returns the indices of the columns.
-"""
-Base.eachindex(ds::DatasetStructure) = eachindex(ds.datatype)
 
 # ---------------------------------------------------------------------------- #
 #                               getter methods                                 #
@@ -286,56 +258,12 @@ get_hasnans(ds::DatasetStructure, i::Int) = ds.hasnans[i]
 get_hasnans(ds::DatasetStructure, idxs::Vector{Int}) = @views ds.hasnans[idxs]
 
 # ---------------------------------------------------------------------------- #
-#                              structure method                                #
-# ---------------------------------------------------------------------------- #
-_isnanval(v) = v isa AbstractFloat && isnan(v)
-_isarray(v) = v isa AbstractArray
-
-"""
-    _get_column_structure(col::AbstractVector) -> NTuple{7}
-
-Analyzes a single column and returns a tuple of metadata:
-
-- `datatype::Type`: The common supertype of all valid values (`typejoin` over valid elements).
-  Returns `Any` if the column has no valid values.
-- `dims::Int`: The maximum dimensionality of array-valued elements (`ndims`).
-  Returns `0` for scalar columns or empty columns.
-- `valididxs::Vector{Int}`: Indices of elements that are neither `missing` nor `NaN`.
-- `missingidxs::Vector{Int}`: Indices of `missing` elements.
-- `nanidxs::Vector{Int}`: Indices of top-level `NaN` elements (scalar floats that are `NaN`).
-- `hasmissing::Vector{Int}`: Among `valididxs`, indices of array elements that contain
-  at least one `missing` internally.
-- `hasnans::Vector{Int}`: Among `valididxs`, indices of array elements that contain
-  at least one `NaN` internally.
-
-!!! note
-    `hasmissing` and `hasnans` are indices into `valididxs`, not global row indices.
-"""
-function _get_column_structure(col::AbstractVector)
-    valididxs = findall(i -> !ismissing(col[i]) && !_isnanval(col[i]), eachindex(col))
-    missingidxs = findall(i -> ismissing(col[i]), eachindex(col))
-    nanidxs = findall(i -> !ismissing(col[i]) && _isnanval(col[i]), eachindex(col))
-
-    valid_vals = @view col[valididxs]
-
-    hasmissing = findall(i -> _isarray(col[i]) && any(ismissing, col[i]), eachindex(col))
-    hasnans = findall(i -> _isarray(col[i]) && any(_isnanval, col[i]), eachindex(col))
-
-    datatype = isempty(valid_vals) ? Any : mapreduce(typeof, typejoin, valid_vals)
-    dims = isempty(valid_vals) ? 0 : maximum(v -> _isarray(v) ? ndims(v) : 0, valid_vals)
-
-    @show hasmissing, hasnans
-
-    return datatype, dims, valididxs, missingidxs, nanidxs, hasmissing, hasnans
-end
-
-# ---------------------------------------------------------------------------- #
 #                                 show method                                  #
 # ---------------------------------------------------------------------------- #
 function get_structure(ds::DatasetStructure)
     ncols = length(ds.datatype)
     
-    # Group columns by datatype
+    # group columns by datatype
     type_to_cols = Dict{Type, Vector{Int}}()
     foreach(i -> begin
         dtype = ds.datatype[i]
@@ -343,10 +271,10 @@ function get_structure(ds::DatasetStructure)
         push!(type_to_cols[dtype], i)
     end, 1:ncols)
     
-    # Find columns with missing values
+    # find columns with missing values
     cols_with_missing = filter(i -> !isempty(ds.missingidxs[i]) || !isempty(ds.hasmissing[i]), 1:ncols)
     
-    # Find columns with NaN values
+    # find columns with NaN values
     cols_with_nans = filter(i -> !isempty(ds.nanidxs[i]) || !isempty(ds.hasnans[i]), 1:ncols)
     
     return (
