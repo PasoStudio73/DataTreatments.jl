@@ -162,11 +162,23 @@ using DataFrames
         @test get_datatype(ds, 1) == Int64
         @test get_datatype(ds, 2) == Float64
         @test get_datatype(ds, 3) == String
+        @test get_datatype(ds, [1, 2]) == [Int64, Float64]
 
         @test get_dims(ds, 1) == 0
+        @test get_dims(ds, [1, 2, 3]) == [0, 0, 0]
+
         @test get_missingidxs(ds, 1) == [3]
+        @test get_missingidxs(ds, [1, 2]) == [get_missingidxs(ds, 1), get_missingidxs(ds, 2)]
+
         @test get_nanidxs(ds, 2) == [2]
+        @test get_nanidxs(ds, [1, 3]) == [get_nanidxs(ds, 1), get_nanidxs(ds, 3)]
+
         @test get_valididxs(ds, 3) == [1, 2, 3, 4]
+        @test get_valididxs(ds, [1, 3]) == [get_valididxs(ds, 1), get_valididxs(ds, 3)]
+
+        @test get_hasmissing(ds, [1, 2, 3]) == [get_hasmissing(ds, 1), get_hasmissing(ds, 2), get_hasmissing(ds, 3)]
+
+        @test get_hasnans(ds, [1, 2, 3]) == [get_hasnans(ds, 1), get_hasnans(ds, 2), get_hasnans(ds, 3)]
     end
 
     @testset "All clean dataset" begin
