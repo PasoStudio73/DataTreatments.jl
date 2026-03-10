@@ -56,6 +56,38 @@ struct TreatmentGroup{T}
     aggrfunc::Base.Callable
     groupby::Tuple{Vararg{Symbol}}
 
+    # function TreatmentGroup(
+    #     ds_struct::DatasetStructure;
+    #     dims::Int=-1,
+    #     name_expr::Union{Regex,Base.Callable,Vector{String}}=r".*",
+    #     datatype::Type=Any,
+    #     aggrfunc::Base.Callable=aggregate(win=(wholewindow(),), features=(maximum, minimum, mean)),
+    #     groupby::Tuple{Vararg{Symbol}}=(:vname,)
+    # )
+    #     # filter by dims
+    #     idxs = dims == -1 ?
+    #         collect(1:length(ds_struct)) :
+    #         findall(get_dims(ds_struct) .== dims)
+
+    #     # filter by datatype
+    #     datatype != Any && (idxs= idxs ∩ findall(get_datatype(ds_struct) .== datatype))
+
+    #     vnames = get_vnames(ds_struct)
+    #     valid_names = name_expr isa Regex ?
+    #         filter(item -> match(name_expr, item) !== nothing, vnames) :
+    #         name_expr isa Vector{String} ?
+    #             name_expr :
+    #             filter(name_expr, vnames)
+
+    #     idxs = idxs ∩ findall(n -> n in valid_names, vnames)
+
+    #     # get types
+    #     col_types = get_datatype(ds_struct, idxs)
+    #     T = isempty(col_types) ? Any : mapreduce(identity, typejoin, col_types)
+
+    #     new{T}(idxs, dims, vnames[idxs], aggrfunc, groupby)
+    # end
+
     function TreatmentGroup(
         ds_struct::DatasetStructure;
         dims::Int=-1,
@@ -64,24 +96,29 @@ struct TreatmentGroup{T}
         aggrfunc::Base.Callable=aggregate(win=(wholewindow(),), features=(maximum, minimum, mean)),
         groupby::Tuple{Vararg{Symbol}}=(:vname,)
     )
-        # filter by dims
-        idxs = dims == -1 ?
-            collect(1:length(ds_struct)) :
-            findall(get_dims(ds_struct) .== dims)
-
-        # filter by datatype
-        datatype != Any && (idxs= idxs ∩ findall(get_datatype(ds_struct) .== datatype))
-
         vnames = get_vnames(ds_struct)
-        valid_names = name_expr isa Regex ?
-            filter(item -> match(name_expr, item) !== nothing, vnames) :
-            name_expr isa Vector{String} ?
-                name_expr :
-                filter(name_expr, vnames)
+        all_dims = get_dims(ds_struct)
+        all_types = get_datatype(ds_struct)
 
-        idxs = idxs ∩ findall(n -> n in valid_names, vnames)
+        # build name matcher once
+        name_match = if name_expr isa Regex
+            n -> match(name_expr, n) !== nothing
+        elseif name_expr isa Vector{String}
+            name_set = Set(name_expr)
+            n -> n in name_set
+        else
+            name_expr
+        end
 
-        # get types
+        # single pass: collect indices matching all filters
+        idxs = Int[]
+        for i in eachindex(ds_struct)
+            (dims != -1 && all_dims[i] != dims) && continue
+            (datatype != Any && all_types[i] != datatype) && continue
+            name_match(vnames[i]) || continue
+            push!(idxs, i)
+        end
+
         col_types = get_datatype(ds_struct, idxs)
         T = isempty(col_types) ? Any : mapreduce(identity, typejoin, col_types)
 

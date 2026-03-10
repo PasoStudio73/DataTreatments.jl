@@ -143,19 +143,9 @@ end
 # ---------------------------------------------------------------------------- #
 #                                Base methods                                  #
 # ---------------------------------------------------------------------------- #
-"""
-    Base.size(ds::DatasetStructure)
-
-Returns the size of the structure as a tuple `(ncols,)`.
-"""
 Base.size(ds::DatasetStructure) = (length(ds.datatype),)
-
-"""
-    Base.length(ds::DatasetStructure)
-
-Returns the number of columns in the structure.
-"""
 Base.length(ds::DatasetStructure) = length(ds.datatype)
+Base.eachindex(ds::DatasetStructure) = Base.OneTo(length(ds))
 
 # ---------------------------------------------------------------------------- #
 #                               getter methods                                 #

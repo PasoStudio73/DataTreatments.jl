@@ -51,6 +51,8 @@ using DataFrames
 
         @test size(ds) == (3,)
         @test length(ds) == 3
+        @test eachindex(ds) == Base.OneTo(3)
+        @test collect(eachindex(ds)) == [1, 2, 3]
     end
 
     @testset "Scalar columns - missing and NaN" begin
