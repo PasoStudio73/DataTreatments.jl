@@ -182,11 +182,17 @@ from left to right, giving priority to groups with higher position in `tgs`.
 """
 function get_idxs(tgs::Vector{<:TreatmentGroup})
     seen = Set{Int}()
-    return reverse(map(reverse(tgs)) do tg
+    no_intersect_groups = reverse(map(reverse(tgs)) do tg
         unique_idxs = filter(∉(seen), get_idxs(tg))
         union!(seen, unique_idxs)
         unique_idxs
     end)
+
+    any(isempty.(no_intersect_groups)) &&
+        @warn "One or more TreatmentGroups have no columns after resolving overlaps" *
+        "(all their indices were claimed by later groups)"
+
+    return no_intersect_groups
 end
 
 # ---------------------------------------------------------------------------- #

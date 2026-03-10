@@ -195,7 +195,7 @@ ds_struct = DatasetStructure(df)
         @testset "Disjoint partitioning - no overlap" begin
             tg1 = TreatmentGroup(ds_struct; name_expr=r"^V")
             tg2 = TreatmentGroup(ds_struct; name_expr=r"^X")
-            idxs_vec = get_idxs([tg1, tg2])
+            idxs_vec = @test_logs get_idxs([tg1, tg2])
             combined = union(idxs_vec...)
             @test length(combined) == length(tg1) + length(tg2)
             @test isdisjoint(idxs_vec[1], idxs_vec[2])
@@ -204,7 +204,7 @@ ds_struct = DatasetStructure(df)
         @testset "Disjoint partitioning - with overlap, later group takes precedence" begin
             tg1 = TreatmentGroup(ds_struct; name_expr=r"^V")
             tg2 = TreatmentGroup(ds_struct; name_expr=r"V|X")
-            idxs_vec = get_idxs([tg1, tg2])
+            idxs_vec = @test_logs (:warn,) get_idxs([tg1, tg2])
 
             # results must be disjoint
             @test isdisjoint(idxs_vec[1], idxs_vec[2])
@@ -221,7 +221,7 @@ ds_struct = DatasetStructure(df)
             tg1 = TreatmentGroup(ds_struct; name_expr=r"^V")
             tg2 = TreatmentGroup(ds_struct; name_expr=r"V|X")
             tg3 = TreatmentGroup(ds_struct)
-            idxs_vec = get_idxs([tg1, tg2, tg3])
+            idxs_vec = @test_logs (:warn,) get_idxs([tg1, tg2, tg3])
 
             # all pairwise disjoint
             for i in 1:3, j in i+1:3
