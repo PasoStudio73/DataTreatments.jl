@@ -426,6 +426,52 @@ using Statistics
             valid_vals = filter(!ismissing, get_dataset(cd32)[:, 1])
             @test all(v -> v isa Float32, valid_vals)
         end
+
+        @testset "MultidimDataset lazy constructor - aggregate" begin
+            # Build a raw dataset with array-valued cells (e.g., time series)
+            raw = Matrix{Any}(undef, 3, 2)
+            raw[:, 1] = [collect(1.0:4.0), collect(5.0:8.0), collect(9.0:12.0)]
+            raw[:, 2] = [collect(10.0:13.0), collect(14.0:17.0), collect(18.0:21.0)]
+
+            ds_struct = DatasetStructure(raw, ["ts1", "ts2"])
+
+            # aggregate() uses keyword arguments: win and features
+            aggrfunc = aggregate(; win=(splitwindow(nwindows=2),), features=(maximum, minimum))
+
+            md = MultidimDataset([4], raw, ds_struct, [1, 2], aggrfunc, Float64)
+
+            @test md isa MultidimDataset{Float64}
+            @test all(f -> f isa AggregateFeat, md.info)
+            # 2 features × 2 columns = 4 output columns (times number of windows)
+            @test get_ncols(md) >= 4
+            @test get_nrows(md) == 3
+            # vnames trace back to original columns
+            vn = get_vnames(md)
+            @test count(==("ts1"), vn) >= 2
+            @test count(==("ts2"), vn) >= 2
+            # each AggregateFeat stores the window count
+            @test all(f -> get_nwin(f) > 0, md.info)
+        end
+
+        @testset "MultidimDataset lazy constructor - reducesize" begin
+            raw = Matrix{Any}(undef, 3, 1)
+            raw[:, 1] = [collect(1.0:10.0), collect(11.0:20.0), collect(21.0:30.0)]
+
+            ds_struct = DatasetStructure(raw, ["signal"])
+
+            # reducesize() uses keyword arguments: win and reducefunc
+            reducefn = reducesize(; reducefunc=mean)
+
+            md = MultidimDataset([5], raw, ds_struct, [1], reducefn, Float64)
+
+            @test md isa MultidimDataset
+            @test all(f -> f isa ReduceFeat, md.info)
+            @test get_ncols(md) == 1
+            @test get_nrows(md) == 1
+            @test get_vnames(md) == ["signal"]
+            # Each cell should be a reduced-size array (5 elements from 10)
+            @test length(get_dataset(md)[1, 1]) == 1
+        end
     end
 
     @testset "Subtyping" begin

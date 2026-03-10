@@ -234,12 +234,12 @@ See also: [`DiscreteDataset`](@ref), [`ContinuousDataset`](@ref),
 [`AggregateFeat`](@ref), [`ReduceFeat`](@ref), [`aggregate`](@ref), [`reducesize`](@ref)
 """
 struct MultidimDataset{T} <: AbstractDataset
-    dataset::Matrix
+    dataset::AbstractArray
     info::Vector{Union{AggregateFeat,ReduceFeat}}
 
-    MultidimDataset(dataset::Matrix, info::Vector{AggregateFeat{T}}) where T =
+    MultidimDataset(dataset::AbstractArray, info::Vector{AggregateFeat{T}}) where T =
         new{T}(dataset, info)
-    MultidimDataset(dataset::Matrix, info::Vector{ReduceFeat{T}}) where T =
+    MultidimDataset(dataset::AbstractArray, info::Vector{ReduceFeat{T}}) where T =
         new{T}(dataset, info)
 
     function MultidimDataset(
@@ -393,24 +393,28 @@ get_idxs(ds::AbstractDataset, idxs::Vector{Int}) = [get_id(ds.info[i]) for i in 
 # ---------------------------------------------------------------------------- #
 # one-line
 function Base.show(io::IO, ds::DiscreteDataset)
-    nrows, ncols = size(ds)
+    nrows = size(ds, 1)
+    ncols = size(ds, 2)
     print(io, "DiscreteDataset($(nrows)×$(ncols))")
 end
 
 function Base.show(io::IO, ds::ContinuousDataset{T}) where T
-    nrows, ncols = size(ds)
+    nrows = size(ds, 1)
+    ncols = size(ds, 2)
     print(io, "ContinuousDataset{$T}($(nrows)×$(ncols))")
 end
 
 function Base.show(io::IO, ds::MultidimDataset{T}) where T
-    nrows, ncols = size(ds)
+    nrows = size(ds, 1)
+    ncols = ndims(ds.dataset) >= 2 ? size(ds, 2) : length(ds.info)
     mode = all(f -> f isa AggregateFeat, ds.info) ? "aggregate" : "reducesize"
     print(io, "MultidimDataset{$T}($(nrows)×$(ncols), $mode)")
 end
 
 # multi-line
 function Base.show(io::IO, ::MIME"text/plain", ds::DiscreteDataset)
-    nrows, ncols = size(ds)
+    nrows = size(ds, 1)
+    ncols = size(ds, 2)
     println(io, "DiscreteDataset($(nrows) rows × $(ncols) columns)")
     println(io, "├─ vnames: $(get_vnames(ds))")
 
@@ -423,7 +427,8 @@ function Base.show(io::IO, ::MIME"text/plain", ds::DiscreteDataset)
 end
 
 function Base.show(io::IO, ::MIME"text/plain", ds::ContinuousDataset{T}) where T
-    nrows, ncols = size(ds)
+    nrows = size(ds, 1)
+    ncols = size(ds, 2)
     println(io, "ContinuousDataset{$T}($(nrows) rows × $(ncols) columns)")
     println(io, "├─ vnames: $(get_vnames(ds))")
 
@@ -441,7 +446,8 @@ function Base.show(io::IO, ::MIME"text/plain", ds::ContinuousDataset{T}) where T
 end
 
 function Base.show(io::IO, ::MIME"text/plain", ds::MultidimDataset{T}) where T
-    nrows, ncols = size(ds)
+    nrows = size(ds, 1)
+    ncols = ndims(ds.dataset) >= 2 ? size(ds, 2) : length(ds.info)
     mode = all(f -> f isa AggregateFeat, ds.info) ? "aggregate" : "reducesize"
 
     println(io, "MultidimDataset{$T}($(nrows) rows × $(ncols) columns)")

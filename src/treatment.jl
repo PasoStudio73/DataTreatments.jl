@@ -94,8 +94,6 @@ operations on windowed data.
 - If all values are missing/NaN, `f` receives an empty iterator
 """
 @inline function safe_feat(v, f)
-    # warning
-    # indica riga e colonna
     f(collect(x for x in skipmissing(v) if !(x isa AbstractFloat && isnan(x))))
 end
 
