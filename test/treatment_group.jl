@@ -288,5 +288,24 @@ ds_struct = DatasetStructure(df)
             output = String(take!(io))
             @test contains(output, "dims=0")
         end
+
+        @testset "multi-line show with dims > 0 (aggregation branch)" begin
+            # Dataset with 1D vector columns to trigger dims > 0
+            df_vectors = DataFrame(
+                ts1 = [collect(1.0:5.0), collect(2.0:6.0), collect(3.0:7.0)],
+                ts2 = [collect(4.0:8.0), collect(5.0:9.0), collect(6.0:10.0)],
+            )
+            ds_vec = DatasetStructure(df_vectors)
+            tg_vec = TreatmentGroup(ds_vec; dims=1)
+
+            io = IOBuffer()
+            show(io, MIME"text/plain"(), tg_vec)
+            output = String(take!(io))
+            @test contains(output, "TreatmentGroup")
+            @test contains(output, "dims filter:")
+            @test contains(output, "selected indices:")
+            @test contains(output, "aggregation function:")
+            @test contains(output, "groupby:")
+        end
     end
 end
