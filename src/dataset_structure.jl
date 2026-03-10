@@ -288,19 +288,8 @@ get_hasnans(ds::DatasetStructure, idxs::Vector{Int}) = @views ds.hasnans[idxs]
 # ---------------------------------------------------------------------------- #
 #                              structure method                                #
 # ---------------------------------------------------------------------------- #
-"""
-    _isnanval(v) -> Bool
-
-Returns `true` if `v` is an `AbstractFloat` and is `NaN`, `false` otherwise.
-"""
 _isnanval(v) = v isa AbstractFloat && isnan(v)
-
-"""
-    _isarray(v) -> Bool
-
-Returns `true` if `v` is an `AbstractArray` with `AbstractFloat` elements, `false` otherwise.
-"""
-_isarray(v) = v isa AbstractArray{<:AbstractFloat}
+_isarray(v) = v isa AbstractArray
 
 """
     _get_column_structure(col::AbstractVector) -> NTuple{7}
@@ -329,11 +318,13 @@ function _get_column_structure(col::AbstractVector)
 
     valid_vals = @view col[valididxs]
 
-    hasmissing = findall(i -> _isarray(col[i]) && any(ismissing, col[i]), valididxs)
-    hasnans = findall(i -> _isarray(col[i]) && any(_isnanval, col[i]), valididxs)
+    hasmissing = findall(i -> _isarray(col[i]) && any(ismissing, col[i]), eachindex(col))
+    hasnans = findall(i -> _isarray(col[i]) && any(_isnanval, col[i]), eachindex(col))
 
     datatype = isempty(valid_vals) ? Any : mapreduce(typeof, typejoin, valid_vals)
     dims = isempty(valid_vals) ? 0 : maximum(v -> _isarray(v) ? ndims(v) : 0, valid_vals)
+
+    @show hasmissing, hasnans
 
     return datatype, dims, valididxs, missingidxs, nanidxs, hasmissing, hasnans
 end
