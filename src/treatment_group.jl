@@ -6,6 +6,8 @@
 
 A configuration object for selecting and processing columns in a dataset passed to `DataTreatment`.
 
+The type parameter `T` is the `typejoin` of the data types of all selected columns.
+
 ## Selection Parameters
 
 Columns are selected based on:
@@ -33,20 +35,30 @@ Columns are selected based on:
 - `aggrfunc::Base.Callable`: Aggregation function for multidimensional columns
 - `groupby::Tuple{Vararg{Symbol}}`: Grouping specification for output features
 
+## Constructors
+
+    TreatmentGroup(ds_struct::DatasetStructure; kwargs...)
+    TreatmentGroup(ds::Matrix, vnames::Vector{String}; kwargs...)
+    TreatmentGroup(df::DataFrame; kwargs...)
+    TreatmentGroup(; kwargs...)  # curried form, returns a callable
+
+The curried form `TreatmentGroup(; kwargs...)` returns a function that accepts a
+`DatasetStructure` and forwards `kwargs`, useful for passing to `DataTreatment`.
+
 ## Examples
 
 ```julia
-# Select all columns with dimensionality 0 (scalars)
+# Select all columns with dimensionality 0 (scalars) — curried form
 TreatmentGroup(dims=0)
 
 # Select columns matching a regex pattern
-TreatmentGroup(name_expr=r"^V")
+TreatmentGroup(ds_struct, name_expr=r"^V")
 
 # Select specific columns by name
-TreatmentGroup(name_expr=["col1", "col2"])
+TreatmentGroup(ds_struct, name_expr=["col1", "col2"])
 
 # Select continuous columns with custom aggregation
-TreatmentGroup(datatype=Float64, aggrfunc=aggregate(...))
+TreatmentGroup(ds_struct, datatype=Float64, aggrfunc=aggregate(...))
 ```
 """
 struct TreatmentGroup{T}
@@ -55,38 +67,6 @@ struct TreatmentGroup{T}
     vnames::Vector{String}
     aggrfunc::Base.Callable
     groupby::Tuple{Vararg{Symbol}}
-
-    # function TreatmentGroup(
-    #     ds_struct::DatasetStructure;
-    #     dims::Int=-1,
-    #     name_expr::Union{Regex,Base.Callable,Vector{String}}=r".*",
-    #     datatype::Type=Any,
-    #     aggrfunc::Base.Callable=aggregate(win=(wholewindow(),), features=(maximum, minimum, mean)),
-    #     groupby::Tuple{Vararg{Symbol}}=(:vname,)
-    # )
-    #     # filter by dims
-    #     idxs = dims == -1 ?
-    #         collect(1:length(ds_struct)) :
-    #         findall(get_dims(ds_struct) .== dims)
-
-    #     # filter by datatype
-    #     datatype != Any && (idxs= idxs ∩ findall(get_datatype(ds_struct) .== datatype))
-
-    #     vnames = get_vnames(ds_struct)
-    #     valid_names = name_expr isa Regex ?
-    #         filter(item -> match(name_expr, item) !== nothing, vnames) :
-    #         name_expr isa Vector{String} ?
-    #             name_expr :
-    #             filter(name_expr, vnames)
-
-    #     idxs = idxs ∩ findall(n -> n in valid_names, vnames)
-
-    #     # get types
-    #     col_types = get_datatype(ds_struct, idxs)
-    #     T = isempty(col_types) ? Any : mapreduce(identity, typejoin, col_types)
-
-    #     new{T}(idxs, dims, vnames[idxs], aggrfunc, groupby)
-    # end
 
     function TreatmentGroup(
         ds_struct::DatasetStructure;
@@ -126,9 +106,9 @@ struct TreatmentGroup{T}
     end
 
     TreatmentGroup(ds::Matrix, vnames::Vector{String}; kwargs...) =
-        TreatmentGroup(get_dataset_structure(ds, vnames); kwargs...)
+        TreatmentGroup(DatasetStructure(ds, vnames); kwargs...)
     TreatmentGroup(df::DataFrame; kwargs...) =
-        TreatmentGroup(get_dataset_structure(df); kwargs...)
+        TreatmentGroup(DatasetStructure(df); kwargs...)
 end
 
 TreatmentGroup(; kwargs...) = x -> TreatmentGroup(x; kwargs...)
@@ -136,25 +116,8 @@ TreatmentGroup(; kwargs...) = x -> TreatmentGroup(x; kwargs...)
 # ---------------------------------------------------------------------------- #
 #                                Base methods                                  #
 # ---------------------------------------------------------------------------- #
-"""
-    Base.length(tg::TreatmentGroup)
-
-Returns the number of columns selected by this group.
-"""
 Base.length(tg::TreatmentGroup) = length(tg.idxs)
-
-"""
-    Base.iterate(tg::TreatmentGroup, state=1)
-
-Iterates over the selected column indices.
-"""
 Base.iterate(tg::TreatmentGroup, state=1) = state > length(tg) ? nothing : (tg.idxs[state], state + 1)
-
-"""
-    Base.eachindex(tg::TreatmentGroup)
-
-Returns the indices of the selected columns vector.
-"""
 Base.eachindex(tg::TreatmentGroup) = eachindex(tg.idxs)
 
 # ---------------------------------------------------------------------------- #

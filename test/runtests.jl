@@ -20,7 +20,7 @@ test_suites = [
     ("Windowing",  ["windowing.jl",]),
     ("FeatureSet", ["featureset.jl",]),
     ("Dataset Structure", ["dataset_structure.jl"]),
-    # ("DataTreatment",  ["datatreatment.jl",]),
+    ("Treatment Groups",  ["treatment_group.jl",]),
     # ("Groupby", ["groupby.jl"]),
     # ("Normalize",  ["normalize.jl",]),
     # ("Grouped Norm", ["grouped_norm.jl"]),
