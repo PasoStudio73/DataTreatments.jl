@@ -73,9 +73,9 @@ See also: [`ContinuousDataset`](@ref), [`MultidimDataset`](@ref), [`DiscreteFeat
 """
 struct DiscreteDataset <: AbstractDataset
     dataset::Matrix
-    info::Vector{DiscreteFeat}
+    info::Vector{<:DiscreteFeat}
 
-    DiscreteDataset(dataset::Matrix, info::Vector{DiscreteFeat}) = new(dataset, info)
+    DiscreteDataset(dataset::Matrix, info::Vector{<:DiscreteFeat}) = new(dataset, info)
     
     function DiscreteDataset(
         id::Vector,
@@ -89,7 +89,7 @@ struct DiscreteDataset <: AbstractDataset
         miss = get_missingidxs(ds_struct, cols)
         codes, levels = discrete_encode(dataset[:, cols])
 
-        return DiscreteDataset(
+        return new(
             stack(codes),
             [DiscreteFeat{T[i]}(push!(id, i), vnames[i], levels[i], idx[i], miss[i])
                 for i in eachindex(vnames)]
@@ -140,9 +140,9 @@ See also: [`DiscreteDataset`](@ref), [`MultidimDataset`](@ref), [`ContinuousFeat
 """
 struct ContinuousDataset{T} <: AbstractDataset
     dataset::Matrix
-    info::Vector{ContinuousFeat}
+    info::Vector{<:ContinuousFeat}
 
-    ContinuousDataset(dataset::Matrix, info::Vector{ContinuousFeat{T}}) where T =
+    ContinuousDataset(dataset::Matrix, info::Vector{<:ContinuousFeat{T}}) where T =
         new{T}(dataset, info)
 
     function ContinuousDataset(
@@ -157,7 +157,7 @@ struct ContinuousDataset{T} <: AbstractDataset
         miss = get_missingidxs(ds_struct, cols)
         nan = get_nanidxs(ds_struct, cols)
 
-        return ContinuousDataset(
+        return new{float_type}(
             reduce(hcat, [map(x -> ismissing(x) ? missing : float_type(x), @view dataset[:, col])
                 for col in cols]),
             [ContinuousFeat{float_type}(push!(id, i), vnames[i], idx[i], miss[i], nan[i])
@@ -235,11 +235,11 @@ See also: [`DiscreteDataset`](@ref), [`ContinuousDataset`](@ref),
 """
 struct MultidimDataset{T} <: AbstractDataset
     dataset::AbstractArray
-    info::Vector{Union{AggregateFeat,ReduceFeat}}
+    info::Vector{<:Union{AggregateFeat,ReduceFeat}}
 
-    MultidimDataset(dataset::AbstractArray, info::Vector{AggregateFeat{T}}) where T =
+    MultidimDataset(dataset::AbstractArray, info::Vector{<:AggregateFeat{T}}) where T =
         new{T}(dataset, info)
-    MultidimDataset(dataset::AbstractArray, info::Vector{ReduceFeat{T}}) where T =
+    MultidimDataset(dataset::AbstractArray, info::Vector{<:ReduceFeat{T}}) where T =
         new{T}(dataset, info)
 
     function MultidimDataset(
@@ -284,7 +284,7 @@ struct MultidimDataset{T} <: AbstractDataset
                 for (i, c) in enumerate(axes(dataset,2))]
         end
 
-        return MultidimDataset(md, md_feats)
+        return new{float_type}(md, md_feats)
     end
 end
 
@@ -449,10 +449,14 @@ function Base.show(io::IO, ::MIME"text/plain", ds::MultidimDataset{T}) where T
     nrows = size(ds, 1)
     ncols = ndims(ds.dataset) >= 2 ? size(ds, 2) : length(ds.info)
     mode = all(f -> f isa AggregateFeat, ds.info) ? "aggregate" : "reducesize"
-
-    println(io, "MultidimDataset{$T}($(nrows) rows × $(ncols) columns)")
+    println(io, "MultidimDataset{$T}($nrows rows × $ncols columns)")
     println(io, "├─ mode: $mode")
-    println(io, "├─ vnames: $(get_vnames(ds))")
+    vnames = get_vnames(ds)
+    if mode == "aggregate"
+        println(io, "├─ vnames: $(unique(vnames))")
+    else
+        println(io, "├─ vnames: $vnames")
+    end
 
     n_miss = count(f -> !isempty(get_missingidxs(f)), ds.info)
     n_nan = count(f -> !isempty(get_nanidxs(f)), ds.info)

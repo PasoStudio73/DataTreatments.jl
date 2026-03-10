@@ -47,6 +47,7 @@ include("output_dataset.jl")
 export DataTreatment
 export get_dataset, get_ds_struct, get_t_groups, get_float_type
 export get_nrows, get_ncols
+export get_treatments_datasets, get_leftover_datasets
 export get_datasets
 include("datatreatment.jl")
 

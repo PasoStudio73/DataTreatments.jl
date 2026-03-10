@@ -41,8 +41,13 @@ test = DataTreatment(
     TreatmentGroup(dims=2, aggrfunc=reducesize())
 )
 
-a=get_datasets(test)
-# test = DataTreatment(df)
+a=get_treatments_datasets(test)
 
-# TreatmentGroup(win=wholewindow(), features=(maximum, minimum, mean))
+test = DataTreatment(
+    df,
+    TreatmentGroup(dims=0),
+    TreatmentGroup(name_expr=["sym_col"]),
+)
+
+a=get_treatments_datasets(test)
 
