@@ -1,4 +1,9 @@
 # ---------------------------------------------------------------------------- #
+#                                     types                                    #
+# ---------------------------------------------------------------------------- #
+const DefaultAggrFunc = aggregate(win=(wholewindow(),), features=(maximum, minimum, mean))
+
+# ---------------------------------------------------------------------------- #
 #                             DataTreatment struct                             #
 # ---------------------------------------------------------------------------- #
 """
@@ -97,7 +102,7 @@ struct DataTreatment
         dataset::Matrix,
         vnames::Vector{String},
         treatments::Base.Callable...=TreatmentGroup(
-            aggrfunc=aggregate(win=(wholewindow(),), features=(maximum, minimum, mean)),
+            aggrfunc=DefaultAggrFunc,
         );
         float_type::Type=Float64
     )
@@ -115,10 +120,10 @@ end
 #                                Base methods                                  #
 # ---------------------------------------------------------------------------- #
 Base.size(dt::DataTreatment) = size(dt.dataset)
-Base.length(dt::DataTreatment) = length(dt.t_groups)
-Base.ndims(dt::DataTreatment) = 2
-Base.iterate(dt::DataTreatment, state=1) = state > length(dt) ? nothing : (dt.t_groups[state], state + 1)
-Base.eachindex(dt::DataTreatment) = eachindex(dt.t_groups)
+Base.length(dt::DataTreatment) = size(dt.dataset, 2)
+Base.eachindex(dt::DataTreatment) = Base.OneTo(length(dt))
+Base.iterate(dt::DataTreatment, state=1) =
+    state > length(dt) ? nothing : (@view(dt.dataset[:, state]), state + 1)
 
 # ---------------------------------------------------------------------------- #
 #                               getter methods                                 #
@@ -253,12 +258,12 @@ end
 #                             custom lazy methods                              #
 # ---------------------------------------------------------------------------- #
 function get_treatments_datasets(dt::DataTreatment; split=true, dataframe=false)
+    treats = get_t_groups(dt)
+    idxs = get_idxs(treats)
+
     dataset = get_dataset(dt)
     ds_struct = get_ds_struct(dt)
     float_type = get_float_type(dt)
-
-    treats = get_t_groups(dt)
-    idxs = get_idxs(treats)
 
     ntreats = length(treats)
     ds_td = Vector{Union{Nothing,DiscreteDataset}}(undef, ntreats)
@@ -284,30 +289,27 @@ function get_treatments_datasets(dt::DataTreatment; split=true, dataframe=false)
 end
 
 function get_leftover_datasets(dt::DataTreatment; split=true, dataframe=false)
-    # dataset = get_dataset(dt)
-    # ds_struct = get_ds_struct(dt)
-    # float_type = get_float_type(dt)
+    treats = get_t_groups(dt)
+    idxs = setdiff(collect(eachindex(dt)), reduce(vcat, get_idxs(treats)))
 
-    # treats = get_t_groups(dt)
-    # idxs = get_idxs(treats)
+    dataset = get_dataset(dt)
+    ds_struct = get_ds_struct(dt)
+    float_type = get_float_type(dt)
 
-    # ntreats = length(treats)
-    # ds_td = Vector{DiscreteDataset}(undef, ntreats)
-    # ds_tc = Vector{ContinuousDataset}(undef, ntreats)
-    # ds_md = Vector{MultidimDataset}(undef, ntreats)
+    ds_td, ds_tc, ds_md = _build_datasets(
+        [:leftover, 1],
+        dataset,
+        ds_struct,
+        idxs,
+        DefaultAggrFunc,
+        float_type
+    )
 
-    # Threads.@threads for i in eachindex(treats)
-    #     ds_td[i], ds_tc[i], ds_md[i] = _build_datasets(
-    #         [:treatment_group, i],
-    #         dataset,
-    #         ds_struct,
-    #         idxs[i],
-    #         get_aggrfunc(treats[i]),
-    #         float_type
-    #     )
-    # end
-
-
+    return (
+        isnothing(ds_td) ? nothing : [ds_td],
+        isnothing(ds_tc) ? nothing : [ds_tc],
+        isnothing(ds_md) ? nothing : [ds_md],
+    )
 end
 
 function get_datasets(dt::DataTreatment; split=true, dataframe=false)
