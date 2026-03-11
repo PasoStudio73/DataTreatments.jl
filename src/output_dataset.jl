@@ -438,8 +438,9 @@ end
 function Base.show(io::IO, ds::MultidimDataset{T}) where T
     nrows = size(ds, 1)
     ncols = ndims(ds.dataset) >= 2 ? size(ds, 2) : length(ds.info)
+    dims = reduce(vcat, unique(get_dims(ds)))
     mode = all(f -> f isa AggregateFeat, ds.info) ? "aggregate" : "reducesize"
-    print(io, "MultidimDataset{$T}($(nrows)×$(ncols), $mode)")
+    print(io, "MultidimDataset{$T}($(nrows)×$(ncols), dims=$dims, $mode)")
 end
 
 # multi-line

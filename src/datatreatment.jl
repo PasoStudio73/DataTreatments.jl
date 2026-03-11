@@ -267,7 +267,7 @@ end
 # ---------------------------------------------------------------------------- #
 #                             custom lazy methods                              #
 # ---------------------------------------------------------------------------- #
-function get_treatments_datasets(dt::DataTreatment; split=true, dataframe=false)
+function get_treatments_datasets(dt::DataTreatment)
     treats = get_t_groups(dt)
     idxs = get_idxs(treats)
 
@@ -299,7 +299,7 @@ function get_treatments_datasets(dt::DataTreatment; split=true, dataframe=false)
     return AbstractDataset[td_filtered; tc_filtered; md_split]
 end
 
-function get_leftover_datasets(dt::DataTreatment; split=true, dataframe=false)
+function get_leftover_datasets(dt::DataTreatment)
     treats = get_t_groups(dt)
     idxs = setdiff(collect(eachindex(dt)), reduce(vcat, get_idxs(treats)))
 
@@ -325,11 +325,7 @@ end
 
 function get_datasets(dt::DataTreatment; dataframe=false)
     return AbstractDataset[
-        get_treatments_datasets(dt; dataframe=false);
-        get_leftover_datasets(dt; dataframe=false)
+        get_treatments_datasets(dt);
+        get_leftover_datasets(dt)
     ]
-end
-
-function get_datasets(dt::DataTreatment, grp::TreatmentGroup; dataframe=false)
-
 end

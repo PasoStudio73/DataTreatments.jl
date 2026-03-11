@@ -43,12 +43,15 @@ test = DataTreatment(
 
 a=get_treatments_datasets(test)
 
-test = DataTreatment(
-    df,
-    TreatmentGroup(aggrfunc=reducesize()),
-    TreatmentGroup(dims=0),
-    TreatmentGroup(name_expr=["sym_col"]),
-)
+@btime begin
+    test = DataTreatment(
+        df,
+        TreatmentGroup(aggrfunc=reducesize()),
+        TreatmentGroup(dims=0),
+        TreatmentGroup(name_expr=["sym_col"]),
+    )
+    a=get_datasets(test)
+end
 
 a=get_treatments_datasets(test)
 a=get_leftover_datasets(test)
