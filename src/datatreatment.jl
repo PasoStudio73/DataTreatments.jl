@@ -291,11 +291,12 @@ function get_treatments_datasets(dt::DataTreatment; split=true, dataframe=false)
         )
     end
 
-    return(
-        all(isnothing, ds_td) ? nothing : filter(!isnothing, ds_td),
-        all(isnothing, ds_tc) ? nothing : filter(!isnothing, ds_tc),
-        all(isnothing, ds_md) ? nothing : reduce(vcat, _split_md_by_dims.(filter(!isnothing, ds_md)))
-    )
+    td_filtered = filter(!isnothing, ds_td)
+    tc_filtered = filter(!isnothing, ds_tc)
+    md_filtered = filter(!isnothing, ds_md)
+    md_split = isempty(md_filtered) ? AbstractDataset[] : reduce(vcat, _split_md_by_dims.(md_filtered))
+
+    return AbstractDataset[td_filtered; tc_filtered; md_split]
 end
 
 function get_leftover_datasets(dt::DataTreatment; split=true, dataframe=false)
@@ -315,34 +316,18 @@ function get_leftover_datasets(dt::DataTreatment; split=true, dataframe=false)
         float_type
     )
 
-    return (
-        isnothing(ds_td) ? nothing : [ds_td],
-        isnothing(ds_tc) ? nothing : [ds_tc],
-        isnothing(ds_md) ? nothing : reduce(vcat, _split_md_by_dims(ds_md))
-    )
+    td_filtered = isnothing(ds_td) ? AbstractDataset[] : AbstractDataset[ds_td]
+    tc_filtered = isnothing(ds_tc) ? AbstractDataset[] : AbstractDataset[ds_tc]
+    md_split = isnothing(ds_md) ? AbstractDataset[] : _split_md_by_dims(ds_md)
+
+    return AbstractDataset[td_filtered; tc_filtered; md_split]
 end
 
-function get_datasets(dt::DataTreatment; split=true, dataframe=false)
-    dataset = get_dataset(dt)
-    ds_struct = get_ds_struct(dt)
-    float_type = get_float_type(dt)
-
-    # first step: defines datasets based on treatment groups
-    treats = get_t_groups(dt)
-    idxs = get_idxs(treats)
-
-    for i in eachindex(treats)
-        _build_datasets(
-            [:treatment_group, i],
-            dataset,
-            ds_struct,
-            idxs[i],
-            get_aggrfunc(treats[i]),
-            float_type
-        )
-    end
-
-    # second step: defines datasets on leftover indicies
+function get_datasets(dt::DataTreatment; dataframe=false)
+    return AbstractDataset[
+        get_treatments_datasets(dt; dataframe=false);
+        get_leftover_datasets(dt; dataframe=false)
+    ]
 end
 
 function get_datasets(dt::DataTreatment, grp::TreatmentGroup; dataframe=false)
