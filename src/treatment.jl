@@ -248,7 +248,7 @@ function reducesize(
         end
     end
 
-    return Xr
+    return Xr, 0 # not used
 end
 
 reducesize(;

@@ -530,7 +530,7 @@ using Statistics
             @test md isa MultidimDataset
             @test all(f -> f isa ReduceFeat, md.info)
             @test get_ncols(md) == 1
-            @test get_nrows(md) == 1
+            @test get_nrows(md) == 3
             @test get_vnames(md) == ["signal"]
             @test length(get_dataset(md)[1, 1]) == 1
             # dims should reflect 1D source (vectors)

@@ -264,7 +264,7 @@ using Statistics
             idx = [collect(1:2), collect(1:2)]
             win = (wholewindow(),)
 
-            Xr = reducesize(X, idx, Float64; win=win, reducefunc=mean)
+            Xr, _ = reducesize(X, idx, Float64; win=win, reducefunc=mean)
 
             @test size(Xr) == size(X)
             # wholewindow reduces each vector to a single-element array
@@ -283,7 +283,7 @@ using Statistics
             idx = [[1, 3]]
             win = (wholewindow(),)
 
-            Xr = reducesize(X, idx, Float64; win=win, reducefunc=mean)
+            Xr, _ = reducesize(X, idx, Float64; win=win, reducefunc=mean)
 
             @test size(Xr) == (3, 1)
             @test Xr[1, 1] ≈ [2.0]
@@ -308,7 +308,7 @@ using Statistics
             idx = [collect(1:2)]
             win = (wholewindow(), wholewindow())
 
-            Xr = reducesize(X, idx, Float64; win=win, reducefunc=mean)
+            Xr, _ = reducesize(X, idx, Float64; win=win, reducefunc=mean)
 
             @test size(Xr) == (2, 1)
             # wholewindow on both dims -> single element output
@@ -367,7 +367,7 @@ using Statistics
             idx = [collect(1:2)]
             win = (splitwindow(nwindows=2,),)
 
-            Xr = reducesize(X, idx, Float64; win=win, reducefunc=mean)
+            Xr, _ = reducesize(X, idx, Float64; win=win, reducefunc=mean)
 
             @test size(Xr) == (2, 1)
             @test length(Xr[1, 1]) == 2
