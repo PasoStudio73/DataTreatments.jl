@@ -936,4 +936,35 @@ end
     # iterate yields column views
     collected = collect(dt)
     @test length(collected) == 3
+
+    # getter methods
+    @test get_nrows(dt) == 3
+    @test get_ncols(dt) == 3
+
+    @testset "get_t_groups" begin
+        tgroups = get_t_groups(dt)
+        @test tgroups isa Vector{TreatmentGroup}
+        @test length(tgroups) >= 1
+
+        # single index access
+        tg1 = get_t_groups(dt, 1)
+        @test tg1 isa TreatmentGroup
+        @test tg1 === tgroups[1]
+    end
+
+    @testset "get_t_groups with multiple treatment groups" begin
+        dt2 = DataTreatment(df,
+            TreatmentGroup(dims=0),
+            TreatmentGroup(dims=1),
+        )
+
+        tgroups = get_t_groups(dt2)
+        @test length(tgroups) == 2
+
+        @test get_t_groups(dt2, 1) === tgroups[1]
+        @test get_t_groups(dt2, 2) === tgroups[2]
+
+        # out of bounds
+        @test_throws BoundsError get_t_groups(dt2, 3)
+    end
 end
