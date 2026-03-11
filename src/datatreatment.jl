@@ -294,7 +294,7 @@ function get_treatments_datasets(dt::DataTreatment; split=true, dataframe=false)
     return(
         all(isnothing, ds_td) ? nothing : filter(!isnothing, ds_td),
         all(isnothing, ds_tc) ? nothing : filter(!isnothing, ds_tc),
-        all(isnothing, ds_md) ? nothing : _split_md_by_dims.(filter(!isnothing, ds_md))
+        all(isnothing, ds_md) ? nothing : reduce(vcat, _split_md_by_dims.(filter(!isnothing, ds_md)))
     )
 end
 
@@ -318,7 +318,7 @@ function get_leftover_datasets(dt::DataTreatment; split=true, dataframe=false)
     return (
         isnothing(ds_td) ? nothing : [ds_td],
         isnothing(ds_tc) ? nothing : [ds_tc],
-        isnothing(ds_md) ? nothing : _split_md_by_dims(ds_md)
+        isnothing(ds_md) ? nothing : reduce(vcat, _split_md_by_dims(ds_md))
     )
 end
 

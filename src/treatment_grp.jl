@@ -52,4 +52,6 @@ test = DataTreatment(
 a=get_treatments_datasets(test)
 a=get_leftover_datasets(test)
 
-test = DataTreatment(df, TreatmentGroup(dims=2, aggrfunc=reducesize(win=(splitwindow(nwindows=2),))))
+test = DataTreatment(df, TreatmentGroup(aggrfunc=reducesize(win=(splitwindow(nwindows=2),))))
+
+a=get_treatments_datasets(test)
