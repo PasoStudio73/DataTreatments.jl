@@ -5,244 +5,88 @@ const DT = DataTreatments
 using DataFrames
 using CategoricalArrays
 using Random
+using Statistics
+
+# ---------------------------------------------------------------------------- #
+#                               helper functions                               #
+# ---------------------------------------------------------------------------- #
+function create_image(seed::Int; n=6)
+    Random.seed!(seed)
+    rand(Float64, n, n)
+end
+
+# helper: find datasets of a given type in a Vector{AbstractDataset}
+find_discrete(ds::Vector{<:DT.AbstractDataset}) = filter(d -> d isa DiscreteDataset, ds)
+find_continuous(ds::Vector{<:DT.AbstractDataset}) = filter(d -> d isa ContinuousDataset, ds)
+find_multidim(ds::Vector{<:DT.AbstractDataset}) = filter(d -> d isa MultidimDataset, ds)
 
 # ---------------------------------------------------------------------------- #
 #                     dataset with only discrete features                      #
 # ---------------------------------------------------------------------------- #
-df = DataFrame(
-    str_col  = ["red", "blue", "green", "red", "blue"],                        # AbstractString
-    sym_col  = [:circle, :square, :triangle, :square, :circle],                # Symbol
-    cat_col  = categorical(["small", "medium", "large", "small", "large"]),    # CategoricalValue
-    uint_col = UInt32[1, 2, 3, 4, 5],                                          # UInt32
-    int_col  = Int[10, 20, 30, 40, 50]                                         # Int
-)
-
-dt = DataTreatment(df) |> get_X
-
-# missing
-df = DataFrame(
-    str_col  = [missing, missing, "green", "red", "blue"],                     # AbstractString
-    sym_col  = [missing, :square, :triangle, :square, :circle],                # Symbol
-    cat_col  = categorical([missing, "medium", "large", "small", missing]),    # CategoricalValue
-    uint_col = Union{Missing, UInt32}[missing, 2, 3, 4, 5],                    # UInt32
-    int_col  = Union{Missing, Int}[missing, 20, 30, 40, 50]                    # Int
-)
-
-dt = DataTreatment(df) |> get_X
-
-# ---------------------------------------------------------------------------- #
-#                      test with only discrete features                        #
-# ---------------------------------------------------------------------------- #
-@testset "DataTreatment Initialization and Structure" begin
-    # Clean dataset: all discrete types
-    df_clean = DataFrame(
-        str_col  = ["red", "blue", "green", "red", "blue"],
-        sym_col  = [:circle, :square, :triangle, :square, :circle],
-        cat_col  = categorical(["small", "medium", "large", "small", "large"]),
-        uint_col = UInt32[1, 2, 3, 4, 5],
-        int_col  = Int[10, 20, 30, 40, 50]
-    )
-    
+@testset "Discrete-only datasets" begin
     @testset "Clean discrete dataset" begin
-        dt = DataTreatment(df_clean)
-        
-        # Verify structure
-        @test !isnothing(dt.Xtd)
-        @test isnothing(dt.Xtc)
-        @test isnothing(dt.Xmd)
-        @test !isnothing(dt.td_feats)
-        @test isnothing(dt.tc_feats)
-        @test isnothing(dt.md_feats)
-        
-        # Verify dimensions
-        @test size(dt.Xtd, 1) == 5  # 5 rows
-        @test size(dt.Xtd, 2) == 5  # 5 columns
-        
-        # Verify feature count and types
-        @test length(dt.td_feats) == 5
-        @test all(f isa DT.DiscreteFeat for f in dt.td_feats)
-        
-        # Verify feature properties
-        for (i, feat) in enumerate(dt.td_feats)
-            @test get_id(feat) == i
-            @test !get_hasmissing(feat)
-        end
-        
-        # Verify variable names
-        @test get_vname(dt.td_feats[1]) == :str_col
-        @test get_vname(dt.td_feats[2]) == :sym_col
-        @test get_vname(dt.td_feats[3]) == :cat_col
-        @test get_vname(dt.td_feats[4]) == :uint_col
-        @test get_vname(dt.td_feats[5]) == :int_col
-    end
-end
+        df = DataFrame(
+            str_col  = ["red", "blue", "green", "red", "blue"],
+            sym_col  = [:circle, :square, :triangle, :square, :circle],
+            cat_col  = categorical(["small", "medium", "large", "small", "large"]),
+            uint_col = UInt32[1, 2, 3, 4, 5],
+            int_col  = Int[10, 20, 30, 40, 50]
+        )
 
-@testset "Missing Values Handling" begin
-    # Dataset with missing values
-    df_missing = DataFrame(
-        str_col  = [missing, missing, "green", "red", "blue"],
-        sym_col  = [missing, :square, :triangle, :square, :circle],
-        cat_col  = categorical([missing, "medium", "large", "small", missing]),
-        uint_col = Union{Missing, UInt32}[missing, 2, 3, 4, 5],
-        int_col  = Union{Missing, Int}[missing, 20, 30, 40, 50]
-    )
-    
-    @testset "Missing data detection" begin
-        dt = DataTreatment(df_missing)
-        
-        # Verify structure
-        @test !isnothing(dt.Xtd)
-        @test size(dt.Xtd, 1) == 5
-        @test size(dt.Xtd, 2) == 5
-        
-        # Verify all features report hasmissing=true
-        @test all(get_hasmissing(f) for f in dt.td_feats)
-        
-        # Verify feature level strings don't include missing
-        @test "missing" ∉ dt.td_feats[1].values
-        @test "missing" ∉ dt.td_feats[2].values
-    end
-end
-
-@testset "Feature Encoding and Levels" begin
-    df = DataFrame(
-        color = ["red", "blue", "green", "red", "blue"],
-        size  = ["small", "large", "small", "large", "small"]
-    )
-    
-    @testset "Discrete encoding" begin
         dt = DataTreatment(df)
-        
-        # Check color feature
-        color_feat = dt.td_feats[1]
-        @test get_vname(color_feat) == :color
-        @test length(color_feat.values) == 3  # red, blue, green
-        @test "red" ∈ color_feat.values
-        @test "blue" ∈ color_feat.values
-        @test "green" ∈ color_feat.values
-        
-        # Check size feature
-        size_feat = dt.td_feats[2]
-        @test get_vname(size_feat) == :size
-        @test length(size_feat.values) == 2  # small, large
-        @test "small" ∈ size_feat.values
-        @test "large" ∈ size_feat.values
-    end
-end
+        datasets = get_datasets(dt)
 
-@testset "Metadata Structure" begin
-    df = DataFrame(
-        str_col = ["a", "b", "c", "d", "e"],
-        int_col = [1, 2, 3, 4, 5]
-    )
-    
-    @testset "Default metadata" begin
-        dt = DataTreatment(df)
-        
-        @test !isnothing(dt.metadata)
-        @test isnothing(dt.metadata.norm_tc)
-        @test isnothing(dt.metadata.norm_md)
-        @test dt.metadata.group_td == :vname
-        @test dt.metadata.group_tc == :vname
-        @test dt.metadata.group_md == :vname
-    end
-end
+        @test !isempty(datasets)
 
-@testset "Display and IO" begin
-    df = DataFrame(
-        str_col = ["x", "y", "z", "x", "y"],
-        sym_col = [:a, :b, :c, :a, :b]
-    )
-    
-    @testset "Show methods" begin
-        dt = DataTreatment(df)
-        
-        # Test compact show (should not error)
-        io = IOBuffer()
-        show(io, dt)
-        output = String(take!(io))
-        @test !isempty(output)
-        @test contains(output, "DataTreatment")
-        
-        # Test plain text show (should not error)
-        io = IOBuffer()
-        show(io, MIME"text/plain"(), dt)
-        output = String(take!(io))
-        @test !isempty(output)
-        @test contains(output, "Xtd")
-    end
-end
+        dds = find_discrete(datasets)
+        cds = find_continuous(datasets)
+        mds = find_multidim(datasets)
 
-@testset "Indexing and Size Operations" begin
-    df = DataFrame(
-        col1 = ["a", "b", "c"],
-        col2 = ["x", "y", "z"]
-    )
-    
-    @testset "Basic indexing" begin
+        @test length(dds) >= 1
+        @test isempty(cds)
+        @test isempty(mds)
+
+        dd = first(dds)
+        @test dd isa DiscreteDataset
+        @test size(dd, 1) == 5
+        @test size(dd, 2) == 5
+        @test length(dd) == 5
+        @test all(f -> f isa DiscreteFeat, dd)
+
+        # variable names
+        vnames = get_vnames(dd)
+        @test "str_col" in vnames
+        @test "sym_col" in vnames
+        @test "cat_col" in vnames
+        @test "uint_col" in vnames
+        @test "int_col" in vnames
+    end
+
+    @testset "Discrete dataset with missing values" begin
+        df = DataFrame(
+            str_col  = [missing, missing, "green", "red", "blue"],
+            sym_col  = [missing, :square, :triangle, :square, :circle],
+            cat_col  = categorical([missing, "medium", "large", "small", missing]),
+            uint_col = Union{Missing, UInt32}[missing, 2, 3, 4, 5],
+            int_col  = Union{Missing, Int}[missing, 20, 30, 40, 50]
+        )
+
         dt = DataTreatment(df)
-        
-        @test size(dt) == size(dt.Xtd)
-        @test size(dt, 1) == 3
-        @test size(dt, 2) == 2
-        @test length(dt.td_feats) == 2
+        datasets = get_datasets(dt)
+
+        dds = find_discrete(datasets)
+        @test length(dds) >= 1
+
+        dd = first(dds)
+        @test size(dd, 1) == 5
+        @test size(dd, 2) == 5
     end
 end
 
 # ---------------------------------------------------------------------------- #
 #                      dataset with only scalar features                       #
 # ---------------------------------------------------------------------------- #
-df = DataFrame(
-    V1 = [1.0, 2.0, 3.0, 4.0],
-    V2 = [2.5, 3.5, 4.5, 5.5],
-    V3 = [3.2, 4.2, 5.2, 6.2],
-    V4 = [4.1, 5.1, 6.1, 7.1],
-    V5 = [5.0, 6.0, 7.0, 8.0]
-)
-
-dt = DataTreatment(df)
-get_X(dt)
-
-eltype(get_X(dt, :scalar)) == Float64
-
-dt = DataTreatment(df; float_type=Float32)
-eltype(get_X(dt, :scalar)) == Float32
-
-# missing
-df = DataFrame(
-    V1 = [missing, 2.0, 3.0, 4.0],
-    V2 = [2.5, missing, 4.5, 5.5],
-    V3 = [3.2, 4.2, missing, 6.2],
-    V4 = [4.1, 5.1, 6.1, missing],
-    V5 = [5.0, 6.0, 7.0, 8.0]
-)
-
-dt = DataTreatment(df) |> get_X
-
-# nan
-df = DataFrame(
-    V1 = [NaN, 2.0, 3.0, 4.0],
-    V2 = [2.5, NaN, 4.5, 5.5],
-    V3 = [3.2, 4.2, NaN, 6.2],
-    V4 = [4.1, 5.1, 6.1, NaN],
-    V5 = [5.0, 6.0, 7.0, 8.0]
-)
-
-dt = DataTreatment(df) |> get_X
-
-# nan and missing
-df = DataFrame(
-    V1 = [NaN, 2.0, 3.0, missing],
-    V2 = [2.5, NaN, 4.5, 5.5],
-    V3 = [3.2, 4.2, missing, 6.2],
-    V4 = [missing, 5.1, 6.1, NaN],
-    V5 = [5.0, 6.0, 7.0, 8.0]
-)
-
-dt = DataTreatment(df) |> get_X
-
-@testset "Scalar Features DataTreatment" begin
-    
+@testset "Scalar-only datasets" begin
     @testset "Basic scalar dataset (Float64)" begin
         df = DataFrame(
             V1 = [1.0, 2.0, 3.0, 4.0],
@@ -251,32 +95,44 @@ dt = DataTreatment(df) |> get_X
             V4 = [4.1, 5.1, 6.1, 7.1],
             V5 = [5.0, 6.0, 7.0, 8.0]
         )
-        
+
         dt = DataTreatment(df)
-        
-        @test !isnothing(dt.Xtc)
-        @test isnothing(dt.Xtd)
-        @test isnothing(dt.Xmd)
-        @test size(dt.Xtc) == (4, 5)
-        @test eltype(get_X(dt, :scalar)) == Float64
-        @test length(dt.tc_feats) == 5
-        @test all(f isa DT.ScalarFeat for f in dt.tc_feats)
-        @test get_vnames(dt, :scalar) == [:V1, :V2, :V3, :V4, :V5]
+        datasets = get_datasets(dt)
+
+        dds = find_discrete(datasets)
+        cds = find_continuous(datasets)
+        mds = find_multidim(datasets)
+
+        @test isempty(dds)
+        @test length(cds) >= 1
+        @test isempty(mds)
+
+        cd = first(cds)
+        @test cd isa ContinuousDataset{Float64}
+        @test size(cd) == (4, 5)
+        @test length(cd) == 5
+        @test all(f -> f isa ContinuousFeat{Float64}, cd)
+
+        vnames = get_vnames(cd)
+        @test vnames == ["V1", "V2", "V3", "V4", "V5"]
     end
-    
+
     @testset "Scalar dataset with Float32" begin
         df = DataFrame(
             V1 = [1.0, 2.0, 3.0, 4.0],
             V2 = [2.5, 3.5, 4.5, 5.5],
             V3 = [3.2, 4.2, 5.2, 6.2],
-            V4 = [4.1, 5.1, 6.1, 7.1],
-            V5 = [5.0, 6.0, 7.0, 8.0]
         )
-        
+
         dt = DataTreatment(df; float_type=Float32)
-        
-        @test eltype(get_X(dt, :scalar)) == Float32
-        @test size(dt.Xtc) == (4, 5)
+        datasets = get_datasets(dt)
+
+        cds = find_continuous(datasets)
+        @test length(cds) >= 1
+
+        cd = first(cds)
+        @test cd isa ContinuousDataset{Float32}
+        @test size(cd) == (4, 3)
     end
 
     @testset "Scalar dataset with missing values" begin
@@ -289,12 +145,12 @@ dt = DataTreatment(df) |> get_X
         )
 
         dt = DataTreatment(df)
-        X = get_X(dt)
+        datasets = get_datasets(dt)
+        cds = find_continuous(datasets)
+        @test length(cds) >= 1
 
-        @test !isnothing(dt.Xtc)
-        @test size(dt.Xtc) == (4, 5)
-        @test all(get_hasmissing(f) for f in dt.tc_feats[1:4])
-        @test !get_hasmissing(dt.tc_feats[5])
+        cd = first(cds)
+        @test size(cd) == (4, 5)
     end
 
     @testset "Scalar dataset with NaN values" begin
@@ -307,13 +163,14 @@ dt = DataTreatment(df) |> get_X
         )
 
         dt = DataTreatment(df)
-        X = get_X(dt)
+        datasets = get_datasets(dt)
+        cds = find_continuous(datasets)
+        cd = first(cds)
 
-        @test !isnothing(dt.Xtc)
-        @test size(dt.Xtc) == (4, 5)
-        # Check that NaN values are preserved in the matrix
-        @test isnan(dt.Xtc[1, 1])
-        @test isnan(dt.Xtc[2, 2])
+        @test size(cd) == (4, 5)
+        # NaN preserved
+        @test isnan(get_dataset(cd)[1, 1])
+        @test isnan(get_dataset(cd)[2, 2])
     end
 
     @testset "Scalar dataset with both NaN and missing" begin
@@ -326,1290 +183,757 @@ dt = DataTreatment(df) |> get_X
         )
 
         dt = DataTreatment(df)
-        X = get_X(dt)
+        datasets = get_datasets(dt)
+        cds = find_continuous(datasets)
+        cd = first(cds)
 
-        @test !isnothing(dt.Xtc)
-        @test size(dt.Xtc) == (4, 5)
-        @test all(get_hasmissing(f) for f in dt.tc_feats[1:4])
-        @test all(get_hasnan(f) for f in dt.tc_feats[1:4])
-        @test !get_hasmissing(dt.tc_feats[5])
-        @test !get_hasnan(dt.tc_feats[5])
-    end
-
-    @testset "get_X with type parameter" begin
-        df = DataFrame(
-            V1 = [1.0, 2.0, 3.0, 4.0],
-            V2 = [2.5, 3.5, 4.5, 5.5],
-            V3 = [3.2, 4.2, 5.2, 6.2],
-            V4 = [4.1, 5.1, 6.1, 7.1],
-            V5 = [5.0, 6.0, 7.0, 8.0]
-        )
-
-        dt = DataTreatment(df)
-
-        @test size(get_X(dt, :all)) == (4, 5)
-        @test size(get_X(dt, :scalar)) == (4, 5)
-        @test isnothing(get_X(dt, :discrete))
-        @test isnothing(get_X(dt, :multivariate))
-    end
-    
-    @testset "Feature properties" begin
-        df = DataFrame(
-            V1 = [1.0, 2.0, 3.0, 4.0],
-            V2 = [2.5, 3.5, 4.5, 5.5]
-        )
-
-        dt = DataTreatment(df)
-
-        @test get_vname(dt.tc_feats[1]) == :V1
-        @test get_vname(dt.tc_feats[2]) == :V2
-        @test get_id(dt.tc_feats[1]) == 1
-        @test get_id(dt.tc_feats[2]) == 2
+        @test size(cd) == (4, 5)
     end
 end
 
 # ---------------------------------------------------------------------------- #
-#          dataset with only 2D multidimensional features features             #
+#            dataset with only 1D multidimensional features                    #
 # ---------------------------------------------------------------------------- #
-df = DataFrame(
-    ts1 = [collect(1.0:6.0), collect(2.0:7.0), collect(3.0:8.0), collect(4.0:9.0), collect(5.0:10.0)],
-    ts2 = [collect(2.0:0.5:5.5), collect(1.0:0.5:4.5), collect(3.0:0.5:6.5), collect(4.0:0.5:7.5), collect(5.0:0.5:8.5)],
-    ts3 = [collect(1.0:1.2:7.0), collect(2.0:1.2:8.0), collect(0.5:1.2:6.5), collect(1.5:1.2:7.5), collect(3.0:1.2:9.0)],
-    ts4 = [collect(6.0:-0.8:1.0), collect(7.0:-0.8:2.0), collect(5.0:-0.8:0.0), collect(8.0:-0.8:3.0), collect(9.0:-0.8:4.0)]
-)
+@testset "1D Multidimensional datasets" begin
+    test_configs = [
+        (label="default",                  kwargs=(;)),
+        (label="Float32",                  kwargs=(; float_type=Float32)),
+        (label="reducesize",               kwargs=(; ),),
+        (label="reducesize+Float32",       kwargs=(; float_type=Float32)),
+        (label="adaptivewindow",           kwargs=(;)),
+        (label="adaptivewindow+Float32",   kwargs=(; float_type=Float32)),
+    ]
 
-is_multidim_dataset(df) == true
-has_uniform_element_size(df) == false
-
-dt = DataTreatment(df) |> get_X
-dt = DataTreatment(df; float_type=Float32) |> get_X
-dt = DataTreatment(df; aggrtype=:reducesize) |> get_X
-dt = DataTreatment(df; aggrtype=:reducesize, float_type=Float32) |> get_X
-
-dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5)) |> get_X
-dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), float_type=Float32) |> get_X
-dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), aggrtype=:reducesize) |> get_X
-dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), aggrtype=:reducesize, float_type=Float32) |> get_X
-
-dt = DataTreatment(df; features=(mean,)) |> get_X
-dt = DataTreatment(df; features=(mean,), float_type=Float32) |> get_X
-dt = DataTreatment(df; features=(mean,), aggrtype=:reducesize) |> get_X
-dt = DataTreatment(df; features=(mean,), aggrtype=:reducesize, float_type=Float32) |> get_X
-
-# missing
-df = DataFrame(
-    ts1 = [collect(1.0:6.0), collect(2.0:7.0), collect(3.0:8.0), collect(4.0:9.0), collect(5.0:10.0)],
-    ts2 = [missing, collect(1.0:0.5:4.5), collect(3.0:0.5:6.5), collect(4.0:0.5:7.5), collect(5.0:0.5:8.5)],
-    ts3 = [collect(1.0:1.2:7.0), collect(2.0:1.2:8.0), missing, collect(1.5:1.2:7.5), collect(3.0:1.2:9.0)],
-    ts4 = [collect(6.0:-0.8:1.0), missing, collect(5.0:-0.8:0.0), collect(8.0:-0.8:3.0), missing]
-)
-
-is_multidim_dataset(df) == true
-has_uniform_element_size(df) == false
-
-dt = DataTreatment(df) |> get_X
-dt = DataTreatment(df; float_type=Float32) |> get_X
-dt = DataTreatment(df; aggrtype=:reducesize) |> get_X
-dt = DataTreatment(df; aggrtype=:reducesize, float_type=Float32) |> get_X
-
-dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5)) |> get_X
-dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), float_type=Float32) |> get_X
-dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), aggrtype=:reducesize) |> get_X
-dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), aggrtype=:reducesize, float_type=Float32) |> get_X
-
-dt = DataTreatment(df; features=(mean,)) |> get_X
-dt = DataTreatment(df; features=(mean,), float_type=Float32) |> get_X
-dt = DataTreatment(df; features=(mean,), aggrtype=:reducesize) |> get_X
-dt = DataTreatment(df; features=(mean,), aggrtype=:reducesize, float_type=Float32) |> get_X
-
-# nan
-df = DataFrame(
-    ts1 = [collect(1.0:6.0), collect(2.0:7.0), collect(3.0:8.0), collect(4.0:9.0), collect(5.0:10.0)],
-    ts2 = [NaN, collect(1.0:0.5:4.5), collect(3.0:0.5:6.5), collect(4.0:0.5:7.5), collect(5.0:0.5:8.5)],
-    ts3 = [collect(1.0:1.2:7.0), collect(2.0:1.2:8.0), NaN, collect(1.5:1.2:7.5), collect(3.0:1.2:9.0)],
-    ts4 = [collect(6.0:-0.8:1.0), NaN, collect(5.0:-0.8:0.0), collect(8.0:-0.8:3.0), NaN]
-)
-
-is_multidim_dataset(df) == true
-has_uniform_element_size(df) == false
-
-dt = DataTreatment(df) |> get_X
-dt = DataTreatment(df; float_type=Float32) |> get_X
-dt = DataTreatment(df; aggrtype=:reducesize) |> get_X
-dt = DataTreatment(df; aggrtype=:reducesize, float_type=Float32) |> get_X
-
-dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5)) |> get_X
-dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), float_type=Float32) |> get_X
-dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), aggrtype=:reducesize) |> get_X
-dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), aggrtype=:reducesize, float_type=Float32) |> get_X
-
-dt = DataTreatment(df; features=(mean,)) |> get_X
-dt = DataTreatment(df; features=(mean,), float_type=Float32) |> get_X
-dt = DataTreatment(df; features=(mean,), aggrtype=:reducesize) |> get_X
-dt = DataTreatment(df; features=(mean,), aggrtype=:reducesize, float_type=Float32) |> get_X
-
-# nan and missing
-df = DataFrame(
-    ts1 = [collect(1.0:6.0), collect(2.0:7.0), collect(3.0:8.0), collect(4.0:9.0), collect(5.0:10.0)],
-    ts2 = [NaN, collect(1.0:0.5:4.5), collect(3.0:0.5:6.5), missing, collect(5.0:0.5:8.5)],
-    ts3 = [missing, collect(2.0:1.2:8.0), NaN, collect(1.5:1.2:7.5), missing],
-    ts4 = [missing, NaN, collect(5.0:-0.8:0.0), collect(8.0:-0.8:3.0), NaN]
-)
-
-is_multidim_dataset(df) == true
-has_uniform_element_size(df) == false
-
-dt = DataTreatment(df) |> get_X
-dt = DataTreatment(df; float_type=Float32) |> get_X
-dt = DataTreatment(df; aggrtype=:reducesize) |> get_X
-dt = DataTreatment(df; aggrtype=:reducesize, float_type=Float32) |> get_X
-
-dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5)) |> get_X
-dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), float_type=Float32) |> get_X
-dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), aggrtype=:reducesize) |> get_X
-dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), aggrtype=:reducesize, float_type=Float32) |> get_X
-
-dt = DataTreatment(df; features=(mean,)) |> get_X
-dt = DataTreatment(df; features=(mean,), float_type=Float32) |> get_X
-dt = DataTreatment(df; features=(mean,), aggrtype=:reducesize) |> get_X
-dt = DataTreatment(df; features=(mean,), aggrtype=:reducesize, float_type=Float32) |> get_X
-
-# Test configurations
-test_configs = [
-    (;),
-    (; float_type=Float32),
-    (; aggrtype=:reducesize),
-    (; aggrtype=:reducesize, float_type=Float32),
-    (; win=adaptivewindow(nwindows=2, overlap=0.5)),
-    (; win=adaptivewindow(nwindows=2, overlap=0.5), float_type=Float32),
-    (; win=adaptivewindow(nwindows=2, overlap=0.5), aggrtype=:reducesize),
-    (; win=adaptivewindow(nwindows=2, overlap=0.5), aggrtype=:reducesize, float_type=Float32),
-    (; features=(mean,)),
-    (; features=(mean,), float_type=Float32),
-    (; features=(mean,), aggrtype=:reducesize),
-    (; features=(mean,), aggrtype=:reducesize, float_type=Float32),
-]
-
-# Dataset definitions
-test_dfs = Dict(
-    :clean => DataFrame(
-        ts1 = [collect(1.0:6.0), collect(2.0:7.0), collect(3.0:8.0), collect(4.0:9.0), collect(5.0:10.0)],
-        ts2 = [collect(2.0:0.5:5.5), collect(1.0:0.5:4.5), collect(3.0:0.5:6.5), collect(4.0:0.5:7.5), collect(5.0:0.5:8.5)],
-        ts3 = [collect(1.0:1.2:7.0), collect(2.0:1.2:8.0), collect(0.5:1.2:6.5), collect(1.5:1.2:7.5), collect(3.0:1.2:9.0)],
-        ts4 = [collect(6.0:-0.8:1.0), collect(7.0:-0.8:2.0), collect(5.0:-0.8:0.0), collect(8.0:-0.8:3.0), collect(9.0:-0.8:4.0)]
-    ),
-    :missing => DataFrame(
-        ts1 = [collect(1.0:6.0), collect(2.0:7.0), collect(3.0:8.0), collect(4.0:9.0), collect(5.0:10.0)],
-        ts2 = [missing, collect(1.0:0.5:4.5), collect(3.0:0.5:6.5), collect(4.0:0.5:7.5), collect(5.0:0.5:8.5)],
-        ts3 = [collect(1.0:1.2:7.0), collect(2.0:1.2:8.0), missing, collect(1.5:1.2:7.5), collect(3.0:1.2:9.0)],
-        ts4 = [collect(6.0:-0.8:1.0), missing, collect(5.0:-0.8:0.0), collect(8.0:-0.8:3.0), missing]
-    ),
-    :nan => DataFrame(
-        ts1 = [collect(1.0:6.0), collect(2.0:7.0), collect(3.0:8.0), collect(4.0:9.0), collect(5.0:10.0)],
-        ts2 = [NaN, collect(1.0:0.5:4.5), collect(3.0:0.5:6.5), collect(4.0:0.5:7.5), collect(5.0:0.5:8.5)],
-        ts3 = [collect(1.0:1.2:7.0), collect(2.0:1.2:8.0), NaN, collect(1.5:1.2:7.5), collect(3.0:1.2:9.0)],
-        ts4 = [collect(6.0:-0.8:1.0), NaN, collect(5.0:-0.8:0.0), collect(8.0:-0.8:3.0), NaN]
-    ),
-    :mixed => DataFrame(
-        ts1 = [collect(1.0:6.0), collect(2.0:7.0), collect(3.0:8.0), collect(4.0:9.0), collect(5.0:10.0)],
-        ts2 = [NaN, collect(1.0:0.5:4.5), collect(3.0:0.5:6.5), missing, collect(5.0:0.5:8.5)],
-        ts3 = [missing, collect(2.0:1.2:8.0), NaN, collect(1.5:1.2:7.5), missing],
-        ts4 = [missing, NaN, collect(5.0:-0.8:0.0), collect(8.0:-0.8:3.0), NaN]
+    test_dfs = Dict(
+        :clean => DataFrame(
+            ts1 = [collect(1.0:6.0), collect(2.0:7.0), collect(3.0:8.0), collect(4.0:9.0), collect(5.0:10.0)],
+            ts2 = [collect(2.0:0.5:5.5), collect(1.0:0.5:4.5), collect(3.0:0.5:6.5), collect(4.0:0.5:7.5), collect(5.0:0.5:8.5)],
+            ts3 = [collect(1.0:1.2:7.0), collect(2.0:1.2:8.0), collect(0.5:1.2:6.5), collect(1.5:1.2:7.5), collect(3.0:1.2:9.0)],
+            ts4 = [collect(6.0:-0.8:1.0), collect(7.0:-0.8:2.0), collect(5.0:-0.8:0.0), collect(8.0:-0.8:3.0), collect(9.0:-0.8:4.0)]
+        ),
+        :missing => DataFrame(
+            ts1 = [collect(1.0:6.0), collect(2.0:7.0), collect(3.0:8.0), collect(4.0:9.0), collect(5.0:10.0)],
+            ts2 = [missing, collect(1.0:0.5:4.5), collect(3.0:0.5:6.5), collect(4.0:0.5:7.5), collect(5.0:0.5:8.5)],
+            ts3 = [collect(1.0:1.2:7.0), collect(2.0:1.2:8.0), missing, collect(1.5:1.2:7.5), collect(3.0:1.2:9.0)],
+            ts4 = [collect(6.0:-0.8:1.0), missing, collect(5.0:-0.8:0.0), collect(8.0:-0.8:3.0), missing]
+        ),
+        :nan => DataFrame(
+            ts1 = [collect(1.0:6.0), collect(2.0:7.0), collect(3.0:8.0), collect(4.0:9.0), collect(5.0:10.0)],
+            ts2 = [NaN, collect(1.0:0.5:4.5), collect(3.0:0.5:6.5), collect(4.0:0.5:7.5), collect(5.0:0.5:8.5)],
+            ts3 = [collect(1.0:1.2:7.0), collect(2.0:1.2:8.0), NaN, collect(1.5:1.2:7.5), collect(3.0:1.2:9.0)],
+            ts4 = [collect(6.0:-0.8:1.0), NaN, collect(5.0:-0.8:0.0), collect(8.0:-0.8:3.0), NaN]
+        ),
+        :mixed => DataFrame(
+            ts1 = [collect(1.0:6.0), collect(2.0:7.0), collect(3.0:8.0), collect(4.0:9.0), collect(5.0:10.0)],
+            ts2 = [NaN, collect(1.0:0.5:4.5), collect(3.0:0.5:6.5), missing, collect(5.0:0.5:8.5)],
+            ts3 = [missing, collect(2.0:1.2:8.0), NaN, collect(1.5:1.2:7.5), missing],
+            ts4 = [missing, NaN, collect(5.0:-0.8:0.0), collect(8.0:-0.8:3.0), NaN]
+        )
     )
-)
 
-@testset "Multidimensional DataTreatment Tests" begin
     for (df_name, df) in test_dfs
         @testset "DataFrame: $df_name" begin
-            # Verify dataset properties
             @test is_multidim_dataset(df) == true
             @test has_uniform_element_size(df) == false
 
-            @testset "Config $(config_idx)" for (config_idx, config) in enumerate(test_configs)
-                @testset "DataTreatment creation" begin
-                    dt = DataTreatment(df; config...)
-                    X = get_X(dt)
+            @testset "Default aggregate" begin
+                dt = DataTreatment(df)
+                datasets = get_datasets(dt)
 
-                    # Check output dimensions
-                    @test size(X, 1) == 5
-                    @test size(X, 2) > 0
-                    @test ndims(X) == 2
+                @test !isempty(datasets)
+                mds = find_multidim(datasets)
+                @test length(mds) >= 1
+
+                for md in mds
+                    @test size(md, 1) == 5
+                    @test size(md, 2) > 0
+                    @test all(f -> f isa AggregateFeat, md)
                 end
+            end
 
-                @testset "get_X with different types" begin
-                    dt = DataTreatment(df; config...)
+            @testset "Float32 aggregate" begin
+                dt = DataTreatment(df; float_type=Float32)
+                datasets = get_datasets(dt)
+                mds = find_multidim(datasets)
+                @test length(mds) >= 1
 
-                    X_all = get_X(dt, :all)
-                    @test X_all isa Matrix
-                    @test size(X_all, 1) == 5
-
-                    # Multivariate features should be present
-                    X_md = get_X(dt, :multivariate)
-                    @test !isnothing(X_md)
-                    @test size(X_md, 1) == 5
+                for md in mds
+                    @test md isa MultidimDataset{Float32}
+                    @test size(md, 1) == 5
                 end
+            end
 
-                @testset "DataTreatment properties" begin
-                    dt = DataTreatment(df; config...)
+            @testset "Reducesize" begin
+                dt = DataTreatment(df,
+                    TreatmentGroup(aggrfunc=reducesize()))
+                datasets = get_datasets(dt)
+                mds = find_multidim(datasets)
+                @test length(mds) >= 1
 
-                    # Check data feature count
-                    @test length(dt, :multivariate) > 0
-
-                    # Check vnames
-                    vnames = get_vnames(dt, :multivariate)
-                    @test !isempty(vnames)
-                    @test all(v isa Symbol for v in vnames)
+                for md in mds
+                    @test all(f -> f isa ReduceFeat, md)
+                    @test size(md, 1) == 5
                 end
+            end
+            @testset "Reducesize + Float32" begin
+                dt = DataTreatment(df,
+                    TreatmentGroup(aggrfunc=reducesize());
+                    float_type=Float32)
+                datasets = get_datasets(dt)
+                mds = find_multidim(datasets)
+                @test length(mds) >= 1
 
-                @testset "Float type handling" begin
-                    dt = DataTreatment(df; config...)
-                    X = get_X(dt, :multivariate)
+                for md in mds
+                    @test md isa MultidimDataset{<:AbstractArray{Float32}}
+                    @test all(f -> f isa ReduceFeat, md)
+                end
+            end
 
-                    target_type = get(config, :float_type, Float64)
-                    @test X isa Matrix
+            @testset "Custom features (mean only)" begin
+                dt = DataTreatment(df,
+                    TreatmentGroup(aggrfunc=aggregate(features=(mean,))))
+                datasets = get_datasets(dt)
+                mds = find_multidim(datasets)
+                @test length(mds) >= 1
+
+                for md in mds
+                    @test all(f -> f isa AggregateFeat, md)
                 end
             end
         end
     end
 end
 
-@testset "Edge cases and data integrity" begin
-    df = test_dfs[:mixed]
+# ---------------------------------------------------------------------------- #
+#          dataset with only 2D multidimensional features (images)             #
+# ---------------------------------------------------------------------------- #
+@testset "2D Multidimensional datasets (images)" begin
+    test_dfs = Dict(
+        :clean => DataFrame(
+            img1 = [create_image(i) for i in 1:5],
+            img2 = [create_image(i+10) for i in 1:5],
+            img3 = [create_image(i+20) for i in 1:5],
+            img4 = [create_image(i+30) for i in 1:5]
+        ),
+        :missing => DataFrame(
+            img1 = [create_image(i) for i in 1:5],
+            img2 = [i == 1 ? missing : create_image(i+10) for i in 1:5],
+            img3 = [create_image(i+20) for i in 1:5],
+            img4 = [i == 3 ? missing : create_image(i+30) for i in 1:5]
+        ),
+        :nan => DataFrame(
+            img1 = [create_image(i) for i in 1:5],
+            img2 = [i == 1 ? NaN : create_image(i+10) for i in 1:5],
+            img3 = [create_image(i+20) for i in 1:5],
+            img4 = [i == 3 ? NaN : create_image(i+30) for i in 1:5]
+        ),
+        :mixed => DataFrame(
+            img1 = [create_image(i) for i in 1:5],
+            img2 = [i == 1 ? NaN : (i == 4 ? missing : create_image(i+10)) for i in 1:5],
+            img3 = [i == 3 ? missing : create_image(i+20) for i in 1:5],
+            img4 = [i == 2 ? NaN : (i == 5 ? missing : create_image(i+30)) for i in 1:5]
+        )
+    )
 
-    @testset "Handling missing and NaN" begin
-        dt = DataTreatment(df)
-        X = get_X(dt, :multivariate)
+    for (df_name, df) in test_dfs
+        @testset "DataFrame: $df_name" begin
+            @test is_multidim_dataset(df) == true
+            @test has_uniform_element_size(df) == true
 
-        X_clean = skipmissing(X)
-        @test !all(isnan, X_clean)
-        @test !any(isinf, X_clean)
-    end
+            @testset "Default aggregate" begin
+                dt = DataTreatment(df)
+                datasets = get_datasets(dt)
+                mds = find_multidim(datasets)
+                @test length(mds) >= 1
 
-    @testset "Size consistency across configs" begin
-        sizes = []
-        for config in test_configs[1:4]
-            dt = DataTreatment(df; config...)
-            push!(sizes, size(get_X(dt)))
+                for md in mds
+                    @test size(md, 1) == 5
+                    @test size(md, 2) > 0
+                    @test all(f -> f isa AggregateFeat, md)
+                    # all 2D → dims should be 2
+                    @test all(d -> d == 2, get_dims(md))
+                end
+            end
+
+            @testset "Reducesize" begin
+                dt = DataTreatment(df,
+                    TreatmentGroup(aggrfunc=reducesize()))
+                datasets = get_datasets(dt)
+                mds = find_multidim(datasets)
+                @test length(mds) >= 1
+
+                for md in mds
+                    @test all(f -> f isa ReduceFeat, md)
+                    @test size(md, 1) == 5
+                end
+            end
+
+            @testset "Float32" begin
+                dt = DataTreatment(df; float_type=Float32)
+                datasets = get_datasets(dt)
+                mds = find_multidim(datasets)
+                for md in mds
+                    @test md isa MultidimDataset{Float32} || md isa MultidimDataset{<:AbstractArray{Float32}}
+                end
+            end
         end
-
-        @test all(s[1] == 5 for s in sizes)
-        @test all(s[2] > 0 for s in sizes)
-    end
-
-    @testset "Two aggregation types produce different results" begin
-        dt1 = DataTreatment(df; aggrtype=:aggregate)
-        dt2 = DataTreatment(df; aggrtype=:reducesize)
-
-        X1 = get_X(dt1)
-        X2 = get_X(dt2)
-
-        @test (size(X1) != size(X2)) || (size(X1) == size(X2))
     end
 end
 
 # ---------------------------------------------------------------------------- #
-#          dataset with only 3D multidimensional features (6x6 images)         #
+#                        non-homogeneous dataset                               #
 # ---------------------------------------------------------------------------- #
-
-# Helper function to create random 6x6 images with deterministic seed
-function create_image(seed::Int; n=6)
-    Random.seed!(seed)
-    rand(Float64, n, n)
-end
-
-df = DataFrame(
-    img1 = [create_image(i) for i in 1:5],
-    img2 = [create_image(i+10) for i in 1:5],
-    img3 = [create_image(i+20) for i in 1:5],
-    img4 = [create_image(i+30) for i in 1:5]
-)
-
-is_multidim_dataset(df) == true
-has_uniform_element_size(df) == false
-
-dt = DataTreatment(df) |> get_X
-dt = DataTreatment(df; float_type=Float32) |> get_X
-dt = DataTreatment(df; aggrtype=:reducesize) |> get_X
-dt = DataTreatment(df; aggrtype=:reducesize, float_type=Float32) |> get_X
-
-dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5)) |> get_X
-dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), float_type=Float32) |> get_X
-dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), aggrtype=:reducesize) |> get_X
-dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), aggrtype=:reducesize, float_type=Float32) |> get_X
-
-dt = DataTreatment(df; features=(mean,)) |> get_X
-dt = DataTreatment(df; features=(mean,), float_type=Float32) |> get_X
-dt = DataTreatment(df; features=(mean,), aggrtype=:reducesize) |> get_X
-dt = DataTreatment(df; features=(mean,), aggrtype=:reducesize, float_type=Float32) |> get_X
-
-# missing
-df = DataFrame(
-    img1 = [create_image(i) for i in 1:5],
-    img2 = [i == 1 ? missing : create_image(i+10) for i in 1:5],
-    img3 = [create_image(i+20) for i in 1:5],
-    img4 = [i == 3 ? missing : create_image(i+30) for i in 1:5]
-)
-
-is_multidim_dataset(df) == true
-has_uniform_element_size(df) == false
-
-dt = DataTreatment(df) |> get_X
-dt = DataTreatment(df; float_type=Float32) |> get_X
-dt = DataTreatment(df; aggrtype=:reducesize) |> get_X
-dt = DataTreatment(df; aggrtype=:reducesize, float_type=Float32) |> get_X
-
-dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5)) |> get_X
-dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), float_type=Float32) |> get_X
-dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), aggrtype=:reducesize) |> get_X
-dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), aggrtype=:reducesize, float_type=Float32) |> get_X
-
-dt = DataTreatment(df; features=(mean,)) |> get_X
-dt = DataTreatment(df; features=(mean,), float_type=Float32) |> get_X
-dt = DataTreatment(df; features=(mean,), aggrtype=:reducesize) |> get_X
-dt = DataTreatment(df; features=(mean,), aggrtype=:reducesize, float_type=Float32) |> get_X
-
-# nan
-df = DataFrame(
-    img1 = [create_image(i) for i in 1:5],
-    img2 = [i == 1 ? NaN : create_image(i+10) for i in 1:5],
-    img3 = [create_image(i+20) for i in 1:5],
-    img4 = [i == 3 ? NaN : create_image(i+30) for i in 1:5]
-)
-
-is_multidim_dataset(df) == true
-has_uniform_element_size(df) == false
-
-dt = DataTreatment(df) |> get_X
-dt = DataTreatment(df; float_type=Float32) |> get_X
-dt = DataTreatment(df; aggrtype=:reducesize) |> get_X
-dt = DataTreatment(df; aggrtype=:reducesize, float_type=Float32) |> get_X
-
-dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5)) |> get_X
-dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), float_type=Float32) |> get_X
-dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), aggrtype=:reducesize) |> get_X
-dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), aggrtype=:reducesize, float_type=Float32) |> get_X
-
-dt = DataTreatment(df; features=(mean,)) |> get_X
-dt = DataTreatment(df; features=(mean,), float_type=Float32) |> get_X
-dt = DataTreatment(df; features=(mean,), aggrtype=:reducesize) |> get_X
-dt = DataTreatment(df; features=(mean,), aggrtype=:reducesize, float_type=Float32) |> get_X
-
-# nan and missing
-df = DataFrame(
-    img1 = [create_image(i) for i in 1:5],
-    img2 = [i == 1 ? NaN : (i == 4 ? missing : create_image(i+10)) for i in 1:5],
-    img3 = [i == 3 ? missing : create_image(i+20) for i in 1:5],
-    img4 = [i == 2 ? NaN : (i == 5 ? missing : create_image(i+30)) for i in 1:5]
-)
-
-is_multidim_dataset(df) == true
-has_uniform_element_size(df) == false
-
-dt = DataTreatment(df) |> get_X
-dt = DataTreatment(df; float_type=Float32) |> get_X
-dt = DataTreatment(df; aggrtype=:reducesize) |> get_X
-dt = DataTreatment(df; aggrtype=:reducesize, float_type=Float32) |> get_X
-
-dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5)) |> get_X
-dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), float_type=Float32) |> get_X
-dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), aggrtype=:reducesize) |> get_X
-dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), aggrtype=:reducesize, float_type=Float32) |> get_X
-
-dt = DataTreatment(df; features=(mean,)) |> get_X
-dt = DataTreatment(df; features=(mean,), float_type=Float32) |> get_X
-dt = DataTreatment(df; features=(mean,), aggrtype=:reducesize) |> get_X
-dt = DataTreatment(df; features=(mean,), aggrtype=:reducesize, float_type=Float32) |> get_X
-
-# Test configurations
-test_configs = [
-    (;),
-    (; float_type=Float32),
-    (; aggrtype=:reducesize),
-    (; aggrtype=:reducesize, float_type=Float32),
-    (; win=adaptivewindow(nwindows=2, overlap=0.5)),
-    (; win=adaptivewindow(nwindows=2, overlap=0.5), float_type=Float32),
-    (; win=adaptivewindow(nwindows=2, overlap=0.5), aggrtype=:reducesize),
-    (; win=adaptivewindow(nwindows=2, overlap=0.5), aggrtype=:reducesize, float_type=Float32),
-    (; features=(mean,)),
-    (; features=(mean,), float_type=Float32),
-    (; features=(mean,), aggrtype=:reducesize),
-    (; features=(mean,), aggrtype=:reducesize, float_type=Float32),
-]
-
-# Dataset definitions with 6x6 images
-test_dfs = Dict(
-    :clean => DataFrame(
+@testset "Non-homogeneous dataset (discrete + scalar + 1D + 2D)" begin
+    df_clean = DataFrame(
+        str_col  = ["red", "blue", "green", "red", "blue"],
+        sym_col  = [:circle, :square, :triangle, :square, :circle],
+        cat_col  = categorical(["small", "medium", "large", "small", "large"]),
+        uint_col = UInt32[1, 2, 3, 4, 5],
+        int_col  = Int[10, 20, 30, 40, 50],
+        V1 = [1.0, 2.0, 3.0, 4.0, 5.6],
+        V2 = [2.5, 3.5, 4.5, 5.5, 7.8],
+        V3 = [3.2, 4.2, 5.2, 6.2, 2.4],
+        V4 = [4.1, 5.1, 6.1, 7.1, 5.5],
+        V5 = [5.0, 6.0, 7.0, 8.0, 1.8],
+        ts1 = [collect(1.0:6.0), collect(2.0:7.0), collect(3.0:8.0), collect(4.0:9.0), collect(5.0:10.0)],
+        ts2 = [collect(2.0:0.5:5.5), collect(1.0:0.5:4.5), collect(3.0:0.5:6.5), collect(4.0:0.5:7.5), collect(5.0:0.5:8.5)],
+        ts3 = [collect(1.0:1.2:7.0), collect(2.0:1.2:8.0), collect(0.5:1.2:6.5), collect(1.5:1.2:7.5), collect(3.0:1.2:9.0)],
+        ts4 = [collect(6.0:-0.8:1.0), collect(7.0:-0.8:2.0), collect(5.0:-0.8:0.0), collect(8.0:-0.8:3.0), collect(9.0:-0.8:4.0)],
         img1 = [create_image(i) for i in 1:5],
         img2 = [create_image(i+10) for i in 1:5],
         img3 = [create_image(i+20) for i in 1:5],
         img4 = [create_image(i+30) for i in 1:5]
-    ),
-    :missing => DataFrame(
-        img1 = [create_image(i) for i in 1:5],
-        img2 = [i == 1 ? missing : create_image(i+10) for i in 1:5],
-        img3 = [create_image(i+20) for i in 1:5],
-        img4 = [i == 3 ? missing : create_image(i+30) for i in 1:5]
-    ),
-    :nan => DataFrame(
-        img1 = [create_image(i) for i in 1:5],
-        img2 = [i == 1 ? NaN : create_image(i+10) for i in 1:5],
-        img3 = [create_image(i+20) for i in 1:5],
-        img4 = [i == 3 ? NaN : create_image(i+30) for i in 1:5]
-    ),
-    :mixed => DataFrame(
-        img1 = [create_image(i) for i in 1:5],
-        img2 = [i == 1 ? NaN : (i == 4 ? missing : create_image(i+10)) for i in 1:5],
-        img3 = [i == 3 ? missing : create_image(i+20) for i in 1:5],
-        img4 = [i == 2 ? NaN : (i == 5 ? missing : create_image(i+30)) for i in 1:5]
     )
-)
 
-@testset "Multidimensional DataTreatment Tests (6x6 Images)" begin
-    for (df_name, df) in test_dfs
-        @testset "DataFrame: $df_name" begin
-            # Verify dataset properties
-            @test is_multidim_dataset(df) == true
-            @test has_uniform_element_size(df) == true
+    @testset "Detection" begin
+        @test is_multidim_dataset(df_clean) == true
+    end
 
-            @testset "Config $(config_idx)" for (config_idx, config) in enumerate(test_configs)
-                @testset "DataTreatment creation" begin
-                    dt = DataTreatment(df; config...)
-                    X = get_X(dt)
-                    
-                    # Check output dimensions
-                    @test size(X, 1) == 5
-                    @test size(X, 2) > 0
-                    @test ndims(X) == 2
-                end
+    @testset "Default aggregate - all three dataset types present" begin
+        dt = DataTreatment(df_clean)
+        datasets = get_datasets(dt)
 
-                @testset "get_X with different types" begin
-                    dt = DataTreatment(df; config...)
-                    
-                    X_all = get_X(dt, :all)
-                    @test X_all isa Matrix
-                    @test size(X_all, 1) == 5
-                    
-                    # Multivariate features should be present
-                    X_md = get_X(dt, :multivariate)
-                    @test !isnothing(X_md)
-                    @test size(X_md, 1) == 5
-                end
+        dds = find_discrete(datasets)
+        cds = find_continuous(datasets)
+        mds = find_multidim(datasets)
 
-                @testset "DataTreatment properties" begin
-                    dt = DataTreatment(df; config...)
-                    
-                    # Check data feature count
-                    @test length(dt, :multivariate) > 0
-                    
-                    # Check vnames
-                    vnames = get_vnames(dt, :multivariate)
-                    @test !isempty(vnames)
-                    @test all(v isa Symbol for v in vnames)
-                end
+        @test length(dds) >= 1
+        @test length(cds) >= 1
+        @test length(mds) >= 1
 
-                @testset "Float type handling" begin
-                    dt = DataTreatment(df; config...)
-                    X = get_X(dt, :multivariate)
-                    
-                    target_type = get(config, :float_type, Float64)
-                    @test X isa Matrix
-                end
-            end
+        # discrete: 5 columns (str, sym, cat, uint, int)
+        total_discrete_cols = sum(length(d) for d in dds)
+        @test total_discrete_cols == 5
+
+        # continuous: 5 columns (V1..V5)
+        total_continuous_cols = sum(length(d) for d in cds)
+        @test total_continuous_cols == 5
+
+        # multidim: split by dims → should have at least 2 MultidimDatasets (1D and 2D)
+        unique_dims_found = unique(reduce(vcat, [get_dims(md) for md in mds]))
+        @test 1 in unique_dims_found
+        @test 2 in unique_dims_found
+
+        # each should have correct number of rows
+        for md in mds
+            @test size(md, 1) == 5
         end
     end
-end
 
-@testset "Edge cases and data integrity" begin
-    df = test_dfs[:mixed]
-    
-    @testset "Handling missing and NaN" begin
-        dt = DataTreatment(df)
-        X = get_X(dt, :multivariate)
-        
-        X_clean = skipmissing(X)
-        @test !all(isnan, X_clean)
-        @test !any(isinf, X_clean)
-    end
+    @testset "Dimension splitting" begin
+        dt = DataTreatment(df_clean)
+        datasets = get_datasets(dt)
+        mds = find_multidim(datasets)
 
-    @testset "Size consistency across configs" begin
-        sizes = []
-        for config in test_configs[1:4]
-            dt = DataTreatment(df; config...)
-            push!(sizes, size(get_X(dt)))
+        # each MultidimDataset should have homogeneous dims
+        for md in mds
+            dims = get_dims(md)
+            @test length(unique(dims)) == 1
         end
-        
-        @test all(s[1] == 5 for s in sizes)
-        @test all(s[2] > 0 for s in sizes)
     end
 
-    @testset "Two aggregation types produce different results" begin
-        dt1 = DataTreatment(df; aggrtype=:aggregate)
-        dt2 = DataTreatment(df; aggrtype=:reducesize)
-        
-        X1 = get_X(dt1)
-        X2 = get_X(dt2)
-        
-        @test (size(X1) != size(X2)) || (size(X1) == size(X2))
-    end
-end
-
-# ---------------------------------------------------------------------------- #
-#                           non homogeneous dataset                            #
-# ---------------------------------------------------------------------------- #
-df = DataFrame(
-    str_col  = ["red", "blue", "green", "red", "blue"],
-    sym_col  = [:circle, :square, :triangle, :square, :circle],
-    cat_col  = categorical(["small", "medium", "large", "small", "large"]),
-    uint_col = UInt32[1, 2, 3, 4, 5],
-    int_col  = Int[10, 20, 30, 40, 50],
-    V1 = [1.0, 2.0, 3.0, 4.0, 5.6],
-    V2 = [2.5, 3.5, 4.5, 5.5, 7.8],
-    V3 = [3.2, 4.2, 5.2, 6.2, 2.4],
-    V4 = [4.1, 5.1, 6.1, 7.1, 5.5],
-    V5 = [5.0, 6.0, 7.0, 8.0, 1.8],
-    ts1 = [collect(1.0:6.0), collect(2.0:7.0), collect(3.0:8.0), collect(4.0:9.0), collect(5.0:10.0)],
-    ts2 = [collect(2.0:0.5:5.5), collect(1.0:0.5:4.5), collect(3.0:0.5:6.5), collect(4.0:0.5:7.5), collect(5.0:0.5:8.5)],
-    ts3 = [collect(1.0:1.2:7.0), collect(2.0:1.2:8.0), collect(0.5:1.2:6.5), collect(1.5:1.2:7.5), collect(3.0:1.2:9.0)],
-    ts4 = [collect(6.0:-0.8:1.0), collect(7.0:-0.8:2.0), collect(5.0:-0.8:0.0), collect(8.0:-0.8:3.0), collect(9.0:-0.8:4.0)],
-    img1 = [create_image(i) for i in 1:5],
-    img2 = [create_image(i+10) for i in 1:5],
-    img3 = [create_image(i+20) for i in 1:5],
-    img4 = [create_image(i+30) for i in 1:5]
-)
-
-is_multidim_dataset(df) == true
-
-dt = DataTreatment(df) |> get_X
-dt = DataTreatment(df; float_type=Float32) |> get_X
-dt = DataTreatment(df; aggrtype=:reducesize) |> get_X
-dt = DataTreatment(df; aggrtype=:reducesize, float_type=Float32) |> get_X
-
-dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5)) |> get_X
-dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), float_type=Float32) |> get_X
-dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), aggrtype=:reducesize) |> get_X
-dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), aggrtype=:reducesize, float_type=Float32) |> get_X
-
-dt = DataTreatment(df; features=(mean,)) |> get_X
-dt = DataTreatment(df; features=(mean,), float_type=Float32) |> get_X
-dt = DataTreatment(df; features=(mean,), aggrtype=:reducesize) |> get_X
-dt = DataTreatment(df; features=(mean,), aggrtype=:reducesize, float_type=Float32) |> get_X
-
-# missing
-df = DataFrame(
-    str_col  = [missing, "blue", "green", "red", "blue"],
-    sym_col  = [:circle, :square, :triangle, :square, missing],
-    cat_col  = categorical(["small", "medium", missing, "small", "large"]),
-    uint_col = UInt32[1, 2, 3, 4, 5],
-    int_col  = Int[10, 20, 30, 40, 50],
-    V1 = [missing, 2.0, 3.0, 4.0, 5.6],
-    V2 = [2.5, 3.5, 4.5, 5.5, missing],
-    V3 = [3.2, 4.2, 5.2, 6.2, 2.4],
-    V4 = [4.1, missing, missing, 7.1, 5.5],
-    V5 = [5.0, 6.0, 7.0, 8.0, 1.8],
-    ts1 = [missing, collect(2.0:7.0), collect(3.0:8.0), collect(4.0:9.0), collect(5.0:10.0)],
-    ts2 = [collect(2.0:0.5:5.5), collect(1.0:0.5:4.5), collect(3.0:0.5:6.5), collect(4.0:0.5:7.5), missing],
-    ts3 = [collect(1.0:1.2:7.0), missing, missing, collect(1.5:1.2:7.5), collect(3.0:1.2:9.0)],
-    ts4 = [collect(6.0:-0.8:1.0), collect(7.0:-0.8:2.0), collect(5.0:-0.8:0.0), collect(8.0:-0.8:3.0), collect(9.0:-0.8:4.0)],
-    img1 = [create_image(i) for i in 1:5],
-    img2 = [i == 1 ? missing : create_image(i+10) for i in 1:5],
-    img3 = [create_image(i+20) for i in 1:5],
-    img4 = [i == 3 ? missing : create_image(i+30) for i in 1:5]
-)
-
-is_multidim_dataset(df) == true
-
-dt = DataTreatment(df) |> get_X
-dt = DataTreatment(df; float_type=Float32) |> get_X
-dt = DataTreatment(df; aggrtype=:reducesize) |> get_X
-dt = DataTreatment(df; aggrtype=:reducesize, float_type=Float32) |> get_X
-
-dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5)) |> get_X
-dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), float_type=Float32) |> get_X
-dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), aggrtype=:reducesize) |> get_X
-dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), aggrtype=:reducesize, float_type=Float32) |> get_X
-
-dt = DataTreatment(df; features=(mean,)) |> get_X
-dt = DataTreatment(df; features=(mean,), float_type=Float32) |> get_X
-dt = DataTreatment(df; features=(mean,), aggrtype=:reducesize) |> get_X
-dt = DataTreatment(df; features=(mean,), aggrtype=:reducesize, float_type=Float32) |> get_X
-
-# nan
-df = DataFrame(
-    str_col  = [missing, "blue", "green", "red", "blue"],
-    sym_col  = [:circle, :square, :triangle, :square, missing],
-    cat_col  = categorical(["small", "medium", missing, "small", "large"]),
-    uint_col = UInt32[1, 2, 3, 4, 5],
-    int_col  = Int[10, 20, 30, 40, 50],
-    V1 = [NaN, 2.0, 3.0, 4.0, 5.6],
-    V2 = [2.5, 3.5, 4.5, 5.5, NaN],
-    V3 = [3.2, 4.2, 5.2, 6.2, 2.4],
-    V4 = [4.1, NaN, NaN, 7.1, 5.5],
-    V5 = [5.0, 6.0, 7.0, 8.0, 1.8],
-    ts1 = [NaN, collect(2.0:7.0), collect(3.0:8.0), collect(4.0:9.0), collect(5.0:10.0)],
-    ts2 = [collect(2.0:0.5:5.5), collect(1.0:0.5:4.5), collect(3.0:0.5:6.5), collect(4.0:0.5:7.5), NaN],
-    ts3 = [collect(1.0:1.2:7.0), NaN, NaN, collect(1.5:1.2:7.5), collect(3.0:1.2:9.0)],
-    ts4 = [collect(6.0:-0.8:1.0), collect(7.0:-0.8:2.0), collect(5.0:-0.8:0.0), collect(8.0:-0.8:3.0), collect(9.0:-0.8:4.0)],
-    img1 = [create_image(i) for i in 1:5],
-    img2 = [i == 1 ? NaN : create_image(i+10) for i in 1:5],
-    img3 = [create_image(i+20) for i in 1:5],
-    img4 = [i == 3 ? NaN : create_image(i+30) for i in 1:5]
-)
-
-is_multidim_dataset(df) == true
-
-dt = DataTreatment(df) |> get_X
-dt = DataTreatment(df; float_type=Float32) |> get_X
-dt = DataTreatment(df; aggrtype=:reducesize) |> get_X
-dt = DataTreatment(df; aggrtype=:reducesize, float_type=Float32) |> get_X
-
-dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5)) |> get_X
-dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), float_type=Float32) |> get_X
-dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), aggrtype=:reducesize) |> get_X
-dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), aggrtype=:reducesize, float_type=Float32) |> get_X
-
-dt = DataTreatment(df; features=(mean,)) |> get_X
-dt = DataTreatment(df; features=(mean,), float_type=Float32) |> get_X
-dt = DataTreatment(df; features=(mean,), aggrtype=:reducesize) |> get_X
-dt = DataTreatment(df; features=(mean,), aggrtype=:reducesize, float_type=Float32) |> get_X
-
-# nan and missing
-df = DataFrame(
-    str_col  = [missing, "blue", "green", "red", "blue"],
-    sym_col  = [:circle, :square, :triangle, :square, missing],
-    cat_col  = categorical(["small", "medium", missing, "small", "large"]),
-    uint_col = UInt32[1, 2, 3, 4, 5],
-    int_col  = Int[10, 20, 30, 40, 50],
-    V1 = [NaN, missing, 3.0, 4.0, 5.6],
-    V2 = [2.5, missing, 4.5, 5.5, NaN],
-    V3 = [3.2, 4.2, 5.2, missing, 2.4],
-    V4 = [4.1, NaN, NaN, 7.1, 5.5],
-    V5 = [5.0, 6.0, 7.0, 8.0, 1.8],
-    ts1 = [NaN, collect(2.0:7.0), missing, collect(4.0:9.0), collect(5.0:10.0)],
-    ts2 = [collect(2.0:0.5:5.5), collect(1.0:0.5:4.5), collect(3.0:0.5:6.5), collect(4.0:0.5:7.5), NaN],
-    ts3 = [collect(1.0:1.2:7.0), NaN, NaN, missing, collect(3.0:1.2:9.0)],
-    ts4 = [collect(6.0:-0.8:1.0), missing, collect(5.0:-0.8:0.0), collect(8.0:-0.8:3.0), collect(9.0:-0.8:4.0)],
-    img1 = [create_image(i) for i in 1:5],
-    img2 = [i == 1 ? NaN : create_image(i+10) for i in 1:5],
-    img3 = [create_image(i+20) for i in 1:5],
-    img4 = [i == 3 ? NaN : create_image(i+30) for i in 1:5]
-)
-
-is_multidim_dataset(df) == true
-
-dt = DataTreatment(df) |> get_X
-dt = DataTreatment(df; float_type=Float32) |> get_X
-dt = DataTreatment(df; aggrtype=:reducesize) |> get_X
-dt = DataTreatment(df; aggrtype=:reducesize, float_type=Float32) |> get_X
-
-dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5)) |> get_X
-dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), float_type=Float32) |> get_X
-dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), aggrtype=:reducesize) |> get_X
-dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), aggrtype=:reducesize, float_type=Float32) |> get_X
-
-dt = DataTreatment(df; features=(mean,)) |> get_X
-dt = DataTreatment(df; features=(mean,), float_type=Float32) |> get_X
-dt = DataTreatment(df; features=(mean,), aggrtype=:reducesize) |> get_X
-dt = DataTreatment(df; features=(mean,), aggrtype=:reducesize, float_type=Float32) |> get_X
-
-# ---------------------------------------------------------------------------- #
-#                    Default Aggregation Tests (Float64)                       #
-# ---------------------------------------------------------------------------- #
-df = DataFrame(
-    str_col  = ["red", "blue", "green", "red", "blue"],
-    sym_col  = [:circle, :square, :triangle, :square, :circle],
-    cat_col  = categorical(["small", "medium", "large", "small", "large"]),
-    uint_col = UInt32[1, 2, 3, 4, 5],
-    int_col  = Int[10, 20, 30, 40, 50],
-    V1 = [1.0, 2.0, 3.0, 4.0, 5.6],
-    V2 = [2.5, 3.5, 4.5, 5.5, 7.8],
-    V3 = [3.2, 4.2, 5.2, 6.2, 2.4],
-    V4 = [4.1, 5.1, 6.1, 7.1, 5.5],
-    V5 = [5.0, 6.0, 7.0, 8.0, 1.8],
-    ts1 = [collect(1.0:6.0), collect(2.0:7.0), collect(3.0:8.0), collect(4.0:9.0), collect(5.0:10.0)],
-    ts2 = [collect(2.0:0.5:5.5), collect(1.0:0.5:4.5), collect(3.0:0.5:6.5), collect(4.0:0.5:7.5), collect(5.0:0.5:8.5)],
-    ts3 = [collect(1.0:1.2:7.0), collect(2.0:1.2:8.0), collect(0.5:1.2:6.5), collect(1.5:1.2:7.5), collect(3.0:1.2:9.0)],
-    ts4 = [collect(6.0:-0.8:1.0), collect(7.0:-0.8:2.0), collect(5.0:-0.8:0.0), collect(8.0:-0.8:3.0), collect(9.0:-0.8:4.0)],
-    img1 = [create_image(i) for i in 1:5],
-    img2 = [create_image(i+10) for i in 1:5],
-    img3 = [create_image(i+20) for i in 1:5],
-    img4 = [create_image(i+30) for i in 1:5]
-)
-
-@testset "Multidimensional Dataset Detection" begin
-    @test is_multidim_dataset(df) == true
-end
-
-@testset "Default Aggregation - Float64" begin
-    @testset "Basic aggregation" begin
-        dt = DataTreatment(df)
-        X = get_X(dt)
-        
-        @test !isnothing(dt.Xtd)
-        @test !isnothing(dt.Xtc)
-        @test !isnothing(dt.Xmd)
-        @test size(X, 1) == 5
-        @test size(X, 2) > 0
-        @test !(any(ismissing.(X)))
-    end
-    
-    @testset "get_X with pipe" begin
-        dt = DataTreatment(df) |> get_X
-        @test dt isa Matrix
-        @test size(dt, 1) == 5
-    end
-end
-
-# ---------------------------------------------------------------------------- #
-#                    Default Aggregation Tests (Float32)                       #
-# ---------------------------------------------------------------------------- #
-@testset "Default Aggregation - Float32" begin
     @testset "Float32 conversion" begin
-        dt = DataTreatment(df; float_type=Float32)
-        X = get_X(dt)
-        
-        @test !isnothing(dt.Xtc)
-        @test !isnothing(dt.Xmd)
-        @test eltype(dt.Xtc) <: Union{Missing, Float32}
-        @test eltype(dt.Xmd) <: Union{Missing, Float32, Array}
-        @test size(X, 1) == 5
-    end
-    
-    @testset "Float32 with pipe" begin
-        dt = DataTreatment(df; float_type=Float32) |> get_X
-        @test dt isa Matrix
-        @test size(dt, 1) == 5
-    end
-end
+        dt = DataTreatment(df_clean; float_type=Float32)
+        datasets = get_datasets(dt)
 
-# ---------------------------------------------------------------------------- #
-#                   Reducesize Aggregation Tests (Float64)                     #
-# ---------------------------------------------------------------------------- #
-@testset "Reducesize Aggregation - Float64" begin
-    @testset "Reducesize basic" begin
-        dt = DataTreatment(df; aggrtype=:reducesize)
-        X = get_X(dt)
-        
-        @test !isnothing(dt.Xtd)
-        @test !isnothing(dt.Xtc)
-        @test !isnothing(dt.Xmd)
-        @test size(X, 1) == 5
-        @test all(f isa DT.ReduceFeat for f in dt.md_feats)
-    end
-    
-    @testset "Reducesize with pipe" begin
-        dt = DataTreatment(df; aggrtype=:reducesize) |> get_X
-        @test dt isa Matrix
-        @test size(dt, 1) == 5
-    end
-end
+        cds = find_continuous(datasets)
+        for cd in cds
+            @test cd isa ContinuousDataset{Float32}
+        end
 
-# ---------------------------------------------------------------------------- #
-#                   Reducesize Aggregation Tests (Float32)                     #
-# ---------------------------------------------------------------------------- #
-@testset "Reducesize Aggregation - Float32" begin
-    @testset "Reducesize Float32 conversion" begin
-        dt = DataTreatment(df; aggrtype=:reducesize, float_type=Float32)
-        X = get_X(dt)
-        
-        @test !isnothing(dt.Xtc)
-        @test !isnothing(dt.Xmd)
-        @test eltype(dt.Xtc) <: Union{Missing, Float32}
-        @test size(X, 1) == 5
+        mds = find_multidim(datasets)
+        for md in mds
+            @test md isa MultidimDataset{Float32} || md isa MultidimDataset{<:AbstractArray{Float32}}
+        end
     end
-    
-    @testset "Reducesize Float32 with pipe" begin
-        dt = DataTreatment(df; aggrtype=:reducesize, float_type=Float32) |> get_X
-        @test dt isa Matrix
-        @test size(dt, 1) == 5
-    end
-end
 
-# ---------------------------------------------------------------------------- #
-#           Adaptive Window Aggregation Tests - Float64                        #
-# ---------------------------------------------------------------------------- #
-@testset "Adaptive Window Aggregation - Float64" begin
-    @testset "Adaptive window basic" begin
-        dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5))
-        X = get_X(dt)
-        
-        @test !isnothing(dt.Xtd)
-        @test !isnothing(dt.Xtc)
-        @test !isnothing(dt.Xmd)
-        @test size(X, 1) == 5
-        @test size(X, 2) > size(dt.Xtd, 2) + size(dt.Xtc, 2)
-    end
-    
-    @testset "Adaptive window with pipe" begin
-        dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5)) |> get_X
-        @test dt isa Matrix
-        @test size(dt, 1) == 5
-    end
-end
+    @testset "Reducesize mode" begin
+        dt = DataTreatment(df_clean,
+            TreatmentGroup(aggrfunc=reducesize()))
+        datasets = get_datasets(dt)
+        mds = find_multidim(datasets)
+        @test length(mds) >= 1
 
-# ---------------------------------------------------------------------------- #
-#           Adaptive Window Aggregation Tests - Float32                        #
-# ---------------------------------------------------------------------------- #
-@testset "Adaptive Window Aggregation - Float32" begin
-    @testset "Adaptive window Float32 conversion" begin
-        dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), float_type=Float32)
-        X = get_X(dt)
-        
-        @test !isnothing(dt.Xtc)
-        @test !isnothing(dt.Xmd)
-        @test eltype(dt.Xtc) <: Union{Missing, Float32}
-        @test eltype(dt.Xmd) <: Union{Missing, Float32, Array}
-        @test size(X, 1) == 5
+        for md in mds
+            @test all(f -> f isa ReduceFeat, md)
+            @test size(md, 1) == 5
+        end
     end
-    
-    @testset "Adaptive window Float32 with pipe" begin
-        dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), float_type=Float32) |> get_X
-        @test dt isa Matrix
-    end
-end
 
-# ---------------------------------------------------------------------------- #
-#    Adaptive Window + Reducesize Tests - Float64                              #
-# ---------------------------------------------------------------------------- #
-@testset "Adaptive Window + Reducesize - Float64" begin
-    @testset "Combined adaptive window and reducesize" begin
-        dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), aggrtype=:reducesize)
-        X = get_X(dt)
-        
-        @test !isnothing(dt.Xtd)
-        @test !isnothing(dt.Xtc)
-        @test !isnothing(dt.Xmd)
-        @test size(X, 1) == 5
-        @test all(f isa DT.ReduceFeat for f in dt.md_feats)
-    end
-    
-    @testset "Combined with pipe" begin
-        dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), aggrtype=:reducesize) |> get_X
-        @test dt isa Matrix
-        @test size(dt, 1) == 5
-    end
-end
+    @testset "Custom features (mean only)" begin
+        dt = DataTreatment(df_clean,
+            TreatmentGroup(aggrfunc=aggregate(features=(mean,))))
+        datasets = get_datasets(dt)
+        mds = find_multidim(datasets)
 
-# ---------------------------------------------------------------------------- #
-#    Adaptive Window + Reducesize Tests - Float32                              #
-# ---------------------------------------------------------------------------- #
-@testset "Adaptive Window + Reducesize - Float32" begin
-    @testset "Combined Float32 conversion" begin
-        dt = DataTreatment(df; 
-            win=adaptivewindow(nwindows=2, overlap=0.5), 
-            aggrtype=:reducesize, 
-            float_type=Float32
+        for md in mds
+            @test all(f -> f isa AggregateFeat, md)
+        end
+    end
+
+    @testset "With missing values" begin
+        df_miss = DataFrame(
+            str_col  = [missing, "blue", "green", "red", "blue"],
+            sym_col  = [:circle, :square, :triangle, :square, missing],
+            cat_col  = categorical(["small", "medium", missing, "small", "large"]),
+            uint_col = UInt32[1, 2, 3, 4, 5],
+            int_col  = Int[10, 20, 30, 40, 50],
+            V1 = [missing, 2.0, 3.0, 4.0, 5.6],
+            V2 = [2.5, 3.5, 4.5, 5.5, missing],
+            V3 = [3.2, 4.2, 5.2, 6.2, 2.4],
+            V4 = [4.1, missing, missing, 7.1, 5.5],
+            V5 = [5.0, 6.0, 7.0, 8.0, 1.8],
+            ts1 = [missing, collect(2.0:7.0), collect(3.0:8.0), collect(4.0:9.0), collect(5.0:10.0)],
+            ts2 = [collect(2.0:0.5:5.5), collect(1.0:0.5:4.5), collect(3.0:0.5:6.5), collect(4.0:0.5:7.5), missing],
+            ts3 = [collect(1.0:1.2:7.0), missing, missing, collect(1.5:1.2:7.5), collect(3.0:1.2:9.0)],
+            ts4 = [collect(6.0:-0.8:1.0), collect(7.0:-0.8:2.0), collect(5.0:-0.8:0.0), collect(8.0:-0.8:3.0), collect(9.0:-0.8:4.0)],
+            img1 = [create_image(i) for i in 1:5],
+            img2 = [i == 1 ? missing : create_image(i+10) for i in 1:5],
+            img3 = [create_image(i+20) for i in 1:5],
+            img4 = [i == 3 ? missing : create_image(i+30) for i in 1:5]
         )
-        X = get_X(dt)
-        
-        @test !isnothing(dt.Xtc)
-        @test !isnothing(dt.Xmd)
-        @test eltype(dt.Xtc) <: Union{Missing, Float32}
-        @test size(X, 1) == 5
+
+        dt = DataTreatment(df_miss)
+        datasets = get_datasets(dt)
+
+        @test !isempty(datasets)
+        dds = find_discrete(datasets)
+        cds = find_continuous(datasets)
+        mds = find_multidim(datasets)
+
+        @test length(dds) >= 1
+        @test length(cds) >= 1
+        @test length(mds) >= 1
     end
-    
-    @testset "Combined Float32 with pipe" begin
-        dt = DataTreatment(df; 
-            win=adaptivewindow(nwindows=2, overlap=0.5), 
-            aggrtype=:reducesize, 
-            float_type=Float32
-        ) |> get_X
-        @test dt isa Matrix
+
+    @testset "With NaN and missing" begin
+        df_mix = DataFrame(
+            str_col  = [missing, "blue", "green", "red", "blue"],
+            sym_col  = [:circle, :square, :triangle, :square, missing],
+            cat_col  = categorical(["small", "medium", missing, "small", "large"]),
+            uint_col = UInt32[1, 2, 3, 4, 5],
+            int_col  = Int[10, 20, 30, 40, 50],
+            V1 = [NaN, missing, 3.0, 4.0, 5.6],
+            V2 = [2.5, missing, 4.5, 5.5, NaN],
+            V3 = [3.2, 4.2, 5.2, missing, 2.4],
+            V4 = [4.1, NaN, NaN, 7.1, 5.5],
+            V5 = [5.0, 6.0, 7.0, 8.0, 1.8],
+            ts1 = [NaN, collect(2.0:7.0), missing, collect(4.0:9.0), collect(5.0:10.0)],
+            ts2 = [collect(2.0:0.5:5.5), collect(1.0:0.5:4.5), collect(3.0:0.5:6.5), collect(4.0:0.5:7.5), NaN],
+            ts3 = [collect(1.0:1.2:7.0), NaN, NaN, missing, collect(3.0:1.2:9.0)],
+            ts4 = [collect(6.0:-0.8:1.0), missing, collect(5.0:-0.8:0.0), collect(8.0:-0.8:3.0), collect(9.0:-0.8:4.0)],
+            img1 = [create_image(i) for i in 1:5],
+            img2 = [i == 1 ? NaN : create_image(i+10) for i in 1:5],
+            img3 = [create_image(i+20) for i in 1:5],
+            img4 = [i == 3 ? NaN : create_image(i+30) for i in 1:5]
+        )
+
+        dt = DataTreatment(df_mix)
+        datasets = get_datasets(dt)
+
+        @test !isempty(datasets)
+        dds = find_discrete(datasets)
+        cds = find_continuous(datasets)
+        mds = find_multidim(datasets)
+
+        @test length(dds) >= 1
+        @test length(cds) >= 1
+        @test length(mds) >= 1
     end
 end
 
 # ---------------------------------------------------------------------------- #
-#          Custom Features Tests (mean only) - Float64                         #
+#            get_treatments_datasets vs get_leftover_datasets                  #
 # ---------------------------------------------------------------------------- #
-@testset "Custom Features (mean) - Float64" begin
-    @testset "Single feature: mean" begin
-        dt = DataTreatment(df; features=(mean,))
-        X = get_X(dt)
-        
-        @test !isnothing(dt.Xtd)
-        @test !isnothing(dt.Xtc)
-        @test !isnothing(dt.Xmd)
-        @test size(X, 1) == 5
-        @test all(f isa DT.AggregateFeat for f in dt.md_feats)
-        @test all(get_feat(f) == mean for f in dt.md_feats)
-    end
-    
-    @testset "Single feature with pipe" begin
-        dt = DataTreatment(df; features=(mean,)) |> get_X
-        @test dt isa Matrix
-        @test size(dt, 1) == 5
-    end
-end
+@testset "Treatment vs Leftover partitioning" begin
+    df = DataFrame(
+        str_col  = ["red", "blue", "green", "red", "blue"],
+        V1 = [1.0, 2.0, 3.0, 4.0, 5.6],
+        V2 = [2.5, 3.5, 4.5, 5.5, 7.8],
+        ts1 = [collect(1.0:6.0), collect(2.0:7.0), collect(3.0:8.0), collect(4.0:9.0), collect(5.0:10.0)],
+        ts2 = [collect(2.0:0.5:5.5), collect(1.0:0.5:4.5), collect(3.0:0.5:6.5), collect(4.0:0.5:7.5), collect(5.0:0.5:8.5)],
+        img1 = [create_image(i) for i in 1:5],
+        img2 = [create_image(i+10) for i in 1:5],
+    )
 
-# ---------------------------------------------------------------------------- #
-#          Custom Features Tests (mean only) - Float32                         #
-# ---------------------------------------------------------------------------- #
-@testset "Custom Features (mean) - Float32" begin
-    @testset "Single feature Float32 conversion" begin
-        dt = DataTreatment(df; features=(mean,), float_type=Float32)
-        X = get_X(dt)
-        
-        @test !isnothing(dt.Xtc)
-        @test !isnothing(dt.Xmd)
-        @test eltype(dt.Xtc) <: Union{Missing, Float32}
-        @test all(f isa DT.AggregateFeat for f in dt.md_feats)
-    end
-    
-    @testset "Single feature Float32 with pipe" begin
-        dt = DataTreatment(df; features=(mean,), float_type=Float32) |> get_X
-        @test dt isa Matrix
-    end
-end
-
-# ---------------------------------------------------------------------------- #
-#    Custom Features + Reducesize Tests (mean) - Float64                       #
-# ---------------------------------------------------------------------------- #
-@testset "Custom Features + Reducesize (mean) - Float64" begin
-    @testset "Single feature with reducesize" begin
-        dt = DataTreatment(df; features=(mean,), aggrtype=:reducesize)
-        X = get_X(dt)
-        
-        @test !isnothing(dt.Xtd)
-        @test !isnothing(dt.Xtc)
-        @test !isnothing(dt.Xmd)
-        @test size(X, 1) == 5
-        @test all(f isa DT.ReduceFeat for f in dt.md_feats)
-    end
-    
-    @testset "Single feature with reducesize and pipe" begin
-        dt = DataTreatment(df; features=(mean,), aggrtype=:reducesize) |> get_X
-        @test dt isa Matrix
-    end
-end
-
-# ---------------------------------------------------------------------------- #
-#    Custom Features + Reducesize Tests (mean) - Float32                       #
-# ---------------------------------------------------------------------------- #
-@testset "Custom Features + Reducesize (mean) - Float32" begin
-    @testset "Single feature Float32 with reducesize" begin
-        dt = DataTreatment(df; features=(mean,), aggrtype=:reducesize, float_type=Float32)
-        X = get_X(dt)
-        
-        @test !isnothing(dt.Xtc)
-        @test !isnothing(dt.Xmd)
-        @test eltype(dt.Xtc) <: Union{Missing, Float32}
-        @test all(f isa DT.ReduceFeat for f in dt.md_feats)
-    end
-    
-    @testset "Single feature Float32 with reducesize and pipe" begin
-        dt = DataTreatment(df; features=(mean,), aggrtype=:reducesize, float_type=Float32) |> get_X
-        @test dt isa Matrix
-    end
-end
-
-# ---------------------------------------------------------------------------- #
-#                         Data Structure Tests                                 #
-# ---------------------------------------------------------------------------- #
-@testset "Data Structure Validation" begin
-    dt = DataTreatment(df)
-    
-    @testset "Discrete data" begin
-        @test !isnothing(dt.Xtd)
-        @test size(dt.Xtd, 1) == 5
-        @test length(dt.td_feats) == 5  # 3 strings/symbols + 2 ints
-    end
-    
-    @testset "Scalar data" begin
-        @test !isnothing(dt.Xtc)
-        @test size(dt.Xtc, 1) == 5
-        @test length(dt.tc_feats) == 5  # 5 floats
-    end
-    
-    @testset "Multivariate data" begin
-        @test !isnothing(dt.Xmd)
-        @test size(dt.Xmd, 1) == 5
-        @test length(dt.md_feats) > 0
-    end
-    
-    @testset "Combined get_X" begin
-        X_all = get_X(dt, :all)
-        X_discrete = get_X(dt, :discrete)
-        X_scalar = get_X(dt, :scalar)
-        X_multivariate = get_X(dt, :multivariate)
-        
-        @test size(X_all, 1) == 5
-        @test size(X_discrete, 2) + size(X_scalar, 2) + size(X_multivariate, 2) == size(X_all, 2)
-    end
-end
-
-# ---------------------------------------------------------------------------- #
-#                    Feature Specification Tests                               #
-# ---------------------------------------------------------------------------- #
-@testset "Feature Specifications" begin
-    dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5))
-    
-    @testset "Discrete features" begin
-        for f in dt.td_feats
-            @test f isa DT.DiscreteFeat
-            @test f.id > 0
-            @test f.vname ∈ [:str_col, :sym_col, :cat_col, :uint_col, :int_col]
-        end
-    end
-    
-    @testset "Scalar features" begin
-        for f in dt.tc_feats
-            @test f isa DT.ScalarFeat
-            @test f.id > 0
-            @test f.vname ∈ [:V1, :V2, :V3, :V4, :V5]
-        end
-    end
-    
-    @testset "Aggregate features with windows" begin
-        agg_feats = filter(f -> f isa DT.AggregateFeat, dt.md_feats)
-        @test length(agg_feats) > 0
-        for f in agg_feats
-            @test f.nwin ∈ [2,4]
-            @test f.vname ∈ [:ts1, :ts2, :ts3, :ts4, :img1, :img2, :img3, :img4]
-        end
-    end
-end
-
-# ---------------------------------------------------------------------------- #
-#                      COMPUTED VALUES VALIDATION                              #
-# ---------------------------------------------------------------------------- #
-@testset "Computed Values Validation - Time Series (ts1)" begin
-    ts1_data = df.ts1
-    
-    @testset "Mean feature validation" begin
-        dt = DataTreatment(df; features=(mean,))
-        Xmd = dt.Xmd
-        
-        # Find ts1 columns in Xmd
-        ts1_feats = findall(f -> f.vname == :ts1 && isa(f, DT.AggregateFeat), dt.md_feats)
-        
-        for (feat_idx, feat_id) in enumerate(ts1_feats)
-            for rowidx in 1:5
-                ts1_values = ts1_data[rowidx]
-                expected_mean = mean(ts1_values)
-                actual_value = Xmd[rowidx, feat_id]
-                
-                @test isapprox(actual_value, expected_mean, atol=1e-10)
-            end
-        end
-    end
-    
-    @testset "Multiple features (mean, std, max, min) validation" begin
-        dt = DataTreatment(df; features=(mean, std, maximum, minimum))
-        Xmd = dt.Xmd
-        
-        ts1_feats = findall(f -> f.vname == :ts1 && isa(f, DT.AggregateFeat), dt.md_feats)
-        
-        for rowidx in 1:5
-            ts1_values = ts1_data[rowidx]
-            
-            expected_mean = mean(ts1_values)
-            expected_std = std(ts1_values)
-            expected_max = maximum(ts1_values)
-            expected_min = minimum(ts1_values)
-            
-            ts1_row_vals = [Xmd[rowidx, f] for f in ts1_feats]
-            
-            @test isapprox.(ts1_row_vals[1], expected_mean, atol=1e-10)
-            @test isapprox.(ts1_row_vals[2], expected_std, atol=1e-10)
-            @test isapprox.(ts1_row_vals[3], expected_max, atol=1e-10)
-            @test isapprox.(ts1_row_vals[4], expected_min, atol=1e-10)
-        end
-    end
-end
-
-@testset "Computed Values Validation - Scalar Columns" begin
-    @testset "Scalar features unchanged" begin
+    @testset "Default (single treatment group covers everything)" begin
         dt = DataTreatment(df)
-        Xtc = dt.Xtc
-        
-        for col_idx in axes(Xtc, 2)
-            feat = dt.tc_feats[col_idx]
-            for rowidx in 1:5
-                expected_val = df[rowidx, feat.vname]
-                actual_val = Xtc[rowidx, col_idx]
-                
-                @test isapprox(actual_val, expected_val, atol=1e-10)
-            end
-        end
+
+        treat_ds = get_treatments_datasets(dt)
+        left_ds = get_leftover_datasets(dt)
+        all_ds = get_datasets(dt)
+
+        @test !isempty(treat_ds)
+        @test length(all_ds) == length(treat_ds) + length(left_ds)
+    end
+
+    @testset "get_datasets returns all column types" begin
+        dt = DataTreatment(df)
+        all_ds = get_datasets(dt)
+
+        dds = find_discrete(all_ds)
+        cds = find_continuous(all_ds)
+        mds = find_multidim(all_ds)
+
+        total_cols = sum(length(d) for d in dds; init=0) +
+                     sum(length(d) for d in cds; init=0) +
+                     sum(length(d) for d in mds; init=0)
+
+        # should cover all 7 original columns (possibly with aggregate expansion)
+        @test total_cols >= 7
     end
 end
 
-@testset "Computed Values Validation - All Windows" begin
-    @testset "Uniform window aggregation" begin
-        dt = DataTreatment(df; win=wholewindow(), features=(mean, maximum, minimum))
-        Xmd = dt.Xmd
-        
+# ---------------------------------------------------------------------------- #
+#                     getindex on output datasets                              #
+# ---------------------------------------------------------------------------- #
+@testset "AbstractDataset getindex" begin
+    df = DataFrame(
+        V1 = [1.0, 2.0, 3.0, 4.0, 5.0],
+        V2 = [2.5, 3.5, 4.5, 5.5, 6.5],
+        V3 = [3.0, 4.0, 5.0, 6.0, 7.0],
+    )
+
+    dt = DataTreatment(df)
+    datasets = get_datasets(dt)
+    cds = find_continuous(datasets)
+    cd = first(cds)
+
+    @testset "Single index" begin
+        cd1 = cd[1]
+        @test cd1 isa ContinuousDataset
+        @test length(cd1) == 1
+        @test size(cd1) == (5, 1)
+        @test get_info(cd1, 1) === get_info(cd, 1)
+    end
+
+    @testset "Vector index" begin
+        cd12 = cd[[1, 2]]
+        @test cd12 isa ContinuousDataset
+        @test length(cd12) == 2
+        @test size(cd12, 2) == 2
+    end
+
+    @testset "Range index" begin
+        cd_range = cd[1:3]
+        @test cd_range isa ContinuousDataset
+        @test length(cd_range) == 3
+    end
+end
+
+@testset "MultidimDataset getindex" begin
+    df = DataFrame(
+        ts1 = [collect(1.0:6.0), collect(2.0:7.0), collect(3.0:8.0), collect(4.0:9.0), collect(5.0:10.0)],
+        ts2 = [collect(2.0:0.5:5.5), collect(1.0:0.5:4.5), collect(3.0:0.5:6.5), collect(4.0:0.5:7.5), collect(5.0:0.5:8.5)],
+    )
+
+    dt = DataTreatment(df)
+    datasets = get_datasets(dt)
+    mds = find_multidim(datasets)
+    md = first(mds)
+
+    @testset "Single index" begin
+        md1 = md[1]
+        @test md1 isa MultidimDataset
+        @test length(md1) == 1
+        @test size(md1, 1) == 5
+    end
+
+    @testset "Range index" begin
+        md_range = md[1:2]
+        @test md_range isa MultidimDataset
+        @test length(md_range) == 2
+    end
+end
+
+@testset "DiscreteDataset getindex" begin
+    df = DataFrame(
+        str_col = ["red", "blue", "green", "red", "blue"],
+        sym_col = [:circle, :square, :triangle, :square, :circle],
+    )
+
+    dt = DataTreatment(df)
+    datasets = get_datasets(dt)
+    dds = find_discrete(datasets)
+    dd = first(dds)
+
+    @testset "Single index" begin
+        dd1 = dd[1]
+        @test dd1 isa DiscreteDataset
+        @test length(dd1) == 1
+        @test size(dd1) == (5, 1)
+    end
+
+    @testset "Range index" begin
+        dd_range = dd[1:2]
+        @test dd_range isa DiscreteDataset
+        @test length(dd_range) == 2
+    end
+end
+
+# ---------------------------------------------------------------------------- #
+#                     _split_md_by_dims                                        #
+# ---------------------------------------------------------------------------- #
+@testset "_split_md_by_dims" begin
+    df = DataFrame(
+        ts1 = [collect(1.0:6.0), collect(2.0:7.0), collect(3.0:8.0), collect(4.0:9.0), collect(5.0:10.0)],
+        ts2 = [collect(2.0:0.5:5.5), collect(1.0:0.5:4.5), collect(3.0:0.5:6.5), collect(4.0:0.5:7.5), collect(5.0:0.5:8.5)],
+        img1 = [create_image(i) for i in 1:5],
+        img2 = [create_image(i+10) for i in 1:5],
+    )
+
+    dt = DataTreatment(df)
+    datasets = get_datasets(dt)
+    mds = find_multidim(datasets)
+
+    # should have been split into 1D and 2D
+    @test length(mds) >= 2
+
+    dims_per_md = [unique(get_dims(md)) for md in mds]
+    # each MultidimDataset should contain features of a single dimensionality
+    for dims in dims_per_md
+        @test length(dims) == 1
+    end
+
+    all_dims = reduce(vcat, dims_per_md)
+    @test 1 in all_dims
+    @test 2 in all_dims
+end
+
+# ---------------------------------------------------------------------------- #
+#              Computed values validation                                       #
+# ---------------------------------------------------------------------------- #
+@testset "Computed values validation" begin
+    df = DataFrame(
+        ts1 = [collect(1.0:6.0), collect(2.0:7.0), collect(3.0:8.0), collect(4.0:9.0), collect(5.0:10.0)],
+        V1  = [1.0, 2.0, 3.0, 4.0, 5.0],
+    )
+
+    @testset "Scalar features are preserved" begin
+        dt = DataTreatment(df)
+        datasets = get_datasets(dt)
+        cds = find_continuous(datasets)
+        @test length(cds) >= 1
+
+        cd = first(cds)
+        mat = get_dataset(cd)
+        @test mat[1, 1] ≈ 1.0
+        @test mat[2, 1] ≈ 2.0
+        @test mat[5, 1] ≈ 5.0
+    end
+
+    @testset "Aggregate mean correctness" begin
+        dt = DataTreatment(df,
+            TreatmentGroup(aggrfunc=aggregate(features=(mean,))))
+        datasets = get_datasets(dt)
+        mds = find_multidim(datasets)
+        @test length(mds) >= 1
+
+        md = first(mds)
+        mat = get_dataset(md)
+
         for rowidx in 1:5
             ts1_values = df.ts1[rowidx]
-            
             expected_mean = mean(ts1_values)
-            expected_max = maximum(ts1_values)
-            expected_min = minimum(ts1_values)
-            
-            ts1_feats = findall(f -> f.vname == :ts1 && isa(f, DT.AggregateFeat), dt.md_feats)
-            ts1_row_vals = [Xmd[rowidx, f] for f in ts1_feats]
-            
-            @test any(isapprox.(ts1_row_vals, expected_mean, atol=1e-10))
-            @test any(isapprox.(ts1_row_vals, expected_max, atol=1e-10))
-            @test any(isapprox.(ts1_row_vals, expected_min, atol=1e-10))
+            # find the column for ts1 mean
+            ts1_cols = [i for i in eachindex(md.info)
+                        if get_vname(md.info[i]) == "ts1"]
+            @test !isempty(ts1_cols)
+            @test isapprox(mat[rowidx, first(ts1_cols)], expected_mean, atol=1e-10)
         end
     end
-end
 
-@testset "Consistency Across Configurations" begin
-    @testset "Float32 vs Float64 numerical consistency" begin
-        dt_f64 = DataTreatment(df; features=(mean,))
-        dt_f32 = DataTreatment(df; features=(mean,), float_type=Float32)
-        
-        X_f64 = get_X(dt_f64)
-        X_f32 = get_X(dt_f32)
-        
-        @test size(X_f64) == size(X_f32)
-        
-        for i in eachindex(X_f64)
-            if !ismissing(X_f64[i]) && !ismissing(X_f32[i])
-                @test isapprox(X_f32[i], X_f64[i], atol=1e-5)
-            end
-        end
-    end
-    
-    @testset "Window statistics ordering" begin
-        dt = DataTreatment(df; features=(minimum, mean, maximum))
-        Xmd = dt.Xmd
-        
+    @testset "Multiple features (mean, maximum, minimum)" begin
+        dt = DataTreatment(df,
+            TreatmentGroup(aggrfunc=aggregate(features=(mean, maximum, minimum))))
+        datasets = get_datasets(dt)
+        mds = find_multidim(datasets)
+        md = first(mds)
+        mat = get_dataset(md)
+
         for rowidx in 1:5
-            ts1_feats = findall(f -> f.vname == :ts1 && isa(f, DT.AggregateFeat), dt.md_feats)
-            
-            unique_windows = unique(f -> dt.md_feats[f].nwin, ts1_feats)
-            
-            for window_idx in unique_windows
-                window_feats = filter(f -> dt.md_feats[f].nwin == window_idx, ts1_feats)
-                
-                mins = [Xmd[rowidx, f] for f in window_feats if dt.md_feats[f].feat == minimum]
-                means = [Xmd[rowidx, f] for f in window_feats if dt.md_feats[f].feat == mean]
-                maxs = [Xmd[rowidx, f] for f in window_feats if dt.md_feats[f].feat == maximum]
-                
-                if !isempty(mins) && !isempty(means) && !isempty(maxs)
-                    @test mins[1] <= means[1] <= maxs[1]
-                end
+            ts1_values = df.ts1[rowidx]
+            ts1_cols = [i for i in eachindex(md.info) if get_vname(md.info[i]) == "ts1"]
+            ts1_vals = [mat[rowidx, c] for c in ts1_cols]
+
+            @test any(v -> isapprox(v, mean(ts1_values), atol=1e-10), ts1_vals)
+            @test any(v -> isapprox(v, maximum(ts1_values), atol=1e-10), ts1_vals)
+            @test any(v -> isapprox(v, minimum(ts1_values), atol=1e-10), ts1_vals)
+        end
+    end
+
+    @testset "Float32 vs Float64 numerical consistency" begin
+        dt_f64 = DataTreatment(df,
+            TreatmentGroup(aggrfunc=aggregate(features=(mean,))))
+        dt_f32 = DataTreatment(df,
+            TreatmentGroup(aggrfunc=aggregate(features=(mean,)));
+            float_type=Float32)
+
+        mds_f64 = find_multidim(get_datasets(dt_f64))
+        mds_f32 = find_multidim(get_datasets(dt_f32))
+
+        mat_f64 = get_dataset(first(mds_f64))
+        mat_f32 = get_dataset(first(mds_f32))
+
+        @test size(mat_f64) == size(mat_f32)
+        for i in eachindex(mat_f64)
+            if !ismissing(mat_f64[i]) && !ismissing(mat_f32[i])
+                @test isapprox(mat_f32[i], mat_f64[i], atol=1e-4)
             end
         end
     end
 end
 
 # ---------------------------------------------------------------------------- #
-#               multidimensional with non homogeneous elements                 #
+#                  Non-homogeneous element sizes (mixed 1D+2D)                 #
 # ---------------------------------------------------------------------------- #
-df = DataFrame(
-    ts1 = [collect(1.0:6.0), collect(2.0:6.0), collect(3.0:9.0), collect(4.0:11.0), collect(5.0:18.0)],
-    ts2 = [collect(2.0:0.5:4.5), collect(1.0:0.5:8.5), collect(3.0:0.5:6.5), collect(4.0:0.5:13.5), collect(5.0:0.5:5.5)],
-    ts3 = [collect(1.0:1.2:6.0), collect(2.0:1.2:8.0), collect(0.5:1.2:16.5), collect(1.5:1.2:9.5), collect(3.0:1.2:13.0)],
-    ts4 = [collect(6.0:-0.8:1.0), collect(7.0:-0.8:1.0), collect(5.0:-0.8:1.0), collect(8.0:-0.8:1.0), collect(9.0:-0.8:0.0)],
-    img1 = [create_image(i; n=6) for i in 1:5],
-    img2 = [create_image(i+10; n=7) for i in 1:5],
-    img3 = [create_image(i+20; n=5) for i in 1:5],
-    img4 = [create_image(i+30; n=10) for i in 1:5]
-)
+@testset "Non-homogeneous element sizes" begin
+    df = DataFrame(
+        ts1 = [collect(1.0:6.0), collect(2.0:6.0), collect(3.0:9.0), collect(4.0:11.0), collect(5.0:18.0)],
+        ts2 = [collect(2.0:0.5:4.5), collect(1.0:0.5:8.5), collect(3.0:0.5:6.5), collect(4.0:0.5:13.5), collect(5.0:0.5:5.5)],
+        img1 = [create_image(i; n=6) for i in 1:5],
+        img2 = [create_image(i+10; n=7) for i in 1:5],
+        img3 = [create_image(i+20; n=5) for i in 1:5],
+    )
 
-is_multidim_dataset(df) == true
+    @test is_multidim_dataset(df) == true
 
-dt = DataTreatment(df) |> get_X
-dt = DataTreatment(df; float_type=Float32) |> get_X
-dt = DataTreatment(df; aggrtype=:reducesize) |> get_X
-dt = DataTreatment(df; aggrtype=:reducesize, float_type=Float32) |> get_X
+    @testset "Default aggregate" begin
+        dt = DataTreatment(df)
+        datasets = get_datasets(dt)
+        mds = find_multidim(datasets)
 
-dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5)) |> get_X
-dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), float_type=Float32) |> get_X
-dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), aggrtype=:reducesize) |> get_X
-dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), aggrtype=:reducesize, float_type=Float32) |> get_X
+        @test length(mds) >= 2  # split by dims: 1D and 2D
 
-dt = DataTreatment(df; features=(mean,)) |> get_X
-dt = DataTreatment(df; features=(mean,), float_type=Float32) |> get_X
-dt = DataTreatment(df; features=(mean,), aggrtype=:reducesize) |> get_X
-dt = DataTreatment(df; features=(mean,), aggrtype=:reducesize, float_type=Float32) |> get_X
+        for md in mds
+            @test size(md, 1) == 5
+            dims = get_dims(md)
+            @test length(unique(dims)) == 1  # homogeneous within each
+        end
+    end
 
-# missing
-df = DataFrame(
-    ts1 = [missing, collect(2.0:6.0), collect(3.0:9.0), collect(4.0:11.0), collect(5.0:18.0)],
-    ts2 = [collect(2.0:0.5:4.5), collect(1.0:0.5:8.5), missing, collect(4.0:0.5:13.5), collect(5.0:0.5:5.5)],
-    ts3 = [collect(1.0:1.2:6.0), collect(2.0:1.2:8.0), collect(0.5:1.2:16.5), collect(1.5:1.2:9.5), collect(3.0:1.2:13.0)],
-    ts4 = [collect(6.0:-0.8:1.0), missing, missing, collect(8.0:-0.8:1.0), collect(9.0:-0.8:0.0)],
-    img1 = [create_image(i; n=6) for i in 1:5],
-    img2 = [i == 1 ? missing : create_image(i+10; n=7) for i in 1:5],
-    img3 = [create_image(i+20; n=5) for i in 1:5],
-    img4 = [i == 3 ? missing : create_image(i+30; n=10) for i in 1:5]
-)
+    @testset "Reducesize" begin
+        dt = DataTreatment(df,
+            TreatmentGroup(aggrfunc=reducesize()))
+        datasets = get_datasets(dt)
+        mds = find_multidim(datasets)
+        @test length(mds) >= 2
 
-is_multidim_dataset(df) == true
+        for md in mds
+            @test all(f -> f isa ReduceFeat, md)
+        end
+    end
 
-dt = DataTreatment(df) |> get_X
-dt = DataTreatment(df; float_type=Float32) |> get_X
-dt = DataTreatment(df; aggrtype=:reducesize) |> get_X
-dt = DataTreatment(df; aggrtype=:reducesize, float_type=Float32) |> get_X
+    @testset "With missing" begin
+        df_miss = DataFrame(
+            ts1 = [missing, collect(2.0:6.0), collect(3.0:9.0), collect(4.0:11.0), collect(5.0:18.0)],
+            ts2 = [collect(2.0:0.5:4.5), collect(1.0:0.5:8.5), missing, collect(4.0:0.5:13.5), collect(5.0:0.5:5.5)],
+            img1 = [create_image(i; n=6) for i in 1:5],
+            img2 = [i == 1 ? missing : create_image(i+10; n=7) for i in 1:5],
+        )
 
-dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5)) |> get_X
-dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), float_type=Float32) |> get_X
-dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), aggrtype=:reducesize) |> get_X
-dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), aggrtype=:reducesize, float_type=Float32) |> get_X
+        dt = DataTreatment(df_miss)
+        datasets = get_datasets(dt)
+        @test !isempty(datasets)
+    end
 
-dt = DataTreatment(df; features=(mean,)) |> get_X
-dt = DataTreatment(df; features=(mean,), float_type=Float32) |> get_X
-dt = DataTreatment(df; features=(mean,), aggrtype=:reducesize) |> get_X
-dt = DataTreatment(df; features=(mean,), aggrtype=:reducesize, float_type=Float32) |> get_X
+    @testset "With NaN and missing" begin
+        df_mix = DataFrame(
+            ts1 = [NaN, missing, collect(3.0:9.0), collect(4.0:11.0), collect(5.0:18.0)],
+            ts2 = [collect(2.0:0.5:4.5), missing, NaN, collect(4.0:0.5:13.5), collect(5.0:0.5:5.5)],
+            img1 = [create_image(i; n=6) for i in 1:5],
+            img2 = [i == 1 ? NaN : create_image(i+10; n=7) for i in 1:5],
+        )
 
-# nan
-df = DataFrame(
-    ts1 = [NaN, collect(2.0:6.0), collect(3.0:9.0), collect(4.0:11.0), collect(5.0:18.0)],
-    ts2 = [collect(2.0:0.5:4.5), collect(1.0:0.5:8.5), NaN, collect(4.0:0.5:13.5), collect(5.0:0.5:5.5)],
-    ts3 = [collect(1.0:1.2:6.0), collect(2.0:1.2:8.0), collect(0.5:1.2:16.5), collect(1.5:1.2:9.5), collect(3.0:1.2:13.0)],
-    ts4 = [collect(6.0:-0.8:1.0), NaN, NaN, collect(8.0:-0.8:1.0), collect(9.0:-0.8:0.0)],
-    img1 = [create_image(i; n=6) for i in 1:5],
-    img2 = [i == 1 ? NaN : create_image(i+10; n=7) for i in 1:5],
-    img3 = [create_image(i+20; n=5) for i in 1:5],
-    img4 = [i == 3 ? NaN : create_image(i+30; n=10) for i in 1:5]
-)
+        dt = DataTreatment(df_mix)
+        datasets = get_datasets(dt)
+        @test !isempty(datasets)
+    end
+end
 
-is_multidim_dataset(df) == true
+# ---------------------------------------------------------------------------- #
+#                         Display and IO                                       #
+# ---------------------------------------------------------------------------- #
+@testset "Display and IO" begin
+    df = DataFrame(
+        str_col = ["x", "y", "z", "x", "y"],
+        V1 = [1.0, 2.0, 3.0, 4.0, 5.0],
+        ts1 = [collect(1.0:6.0), collect(2.0:7.0), collect(3.0:8.0), collect(4.0:9.0), collect(5.0:10.0)],
+    )
 
-dt = DataTreatment(df) |> get_X
-dt = DataTreatment(df; float_type=Float32) |> get_X
-dt = DataTreatment(df; aggrtype=:reducesize) |> get_X
-dt = DataTreatment(df; aggrtype=:reducesize, float_type=Float32) |> get_X
+    dt = DataTreatment(df)
 
-dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5)) |> get_X
-dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), float_type=Float32) |> get_X
-dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), aggrtype=:reducesize) |> get_X
-dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), aggrtype=:reducesize, float_type=Float32) |> get_X
+    @testset "DataTreatment show" begin
+        io = IOBuffer()
+        show(io, dt)
+        output = String(take!(io))
+        @test !isempty(output)
+        @test contains(output, "DataTreatment")
+    end
 
-dt = DataTreatment(df; features=(mean,)) |> get_X
-dt = DataTreatment(df; features=(mean,), float_type=Float32) |> get_X
-dt = DataTreatment(df; features=(mean,), aggrtype=:reducesize) |> get_X
-dt = DataTreatment(df; features=(mean,), aggrtype=:reducesize, float_type=Float32) |> get_X
+    @testset "DataTreatment show MIME text/plain" begin
+        io = IOBuffer()
+        show(io, MIME"text/plain"(), dt)
+        output = String(take!(io))
+        @test !isempty(output)
+    end
 
-# nan and missing
-df = DataFrame(
-    ts1 = [NaN, missing, collect(3.0:9.0), collect(4.0:11.0), collect(5.0:18.0)],
-    ts2 = [collect(2.0:0.5:4.5), missing, NaN, collect(4.0:0.5:13.5), collect(5.0:0.5:5.5)],
-    ts3 = [collect(1.0:1.2:6.0), collect(2.0:1.2:8.0), collect(0.5:1.2:16.5), collect(1.5:1.2:9.5), collect(3.0:1.2:13.0)],
-    ts4 = [collect(6.0:-0.8:1.0), NaN, NaN, missing, collect(9.0:-0.8:0.0)],
-    img1 = [create_image(i; n=6) for i in 1:5],
-    img2 = [i == 1 ? NaN : create_image(i+10; n=7) for i in 1:5],
-    img3 = [create_image(i+20; n=5) for i in 1:5],
-    img4 = [i == 3 ? missing : create_image(i+30; n=10) for i in 1:5]
-)
+    @testset "AbstractDataset show methods" begin
+        datasets = get_datasets(dt)
 
-is_multidim_dataset(df) == true
+        for ds in datasets
+            io = IOBuffer()
+            show(io, ds)
+            output = String(take!(io))
+            @test !isempty(output)
 
-dt = DataTreatment(df) |> get_X
-dt = DataTreatment(df; float_type=Float32) |> get_X
-dt = DataTreatment(df; aggrtype=:reducesize) |> get_X
-dt = DataTreatment(df; aggrtype=:reducesize, float_type=Float32) |> get_X
+            io = IOBuffer()
+            show(io, MIME"text/plain"(), ds)
+            output = String(take!(io))
+            @test !isempty(output)
+        end
+    end
+end
 
-dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5)) |> get_X
-dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), float_type=Float32) |> get_X
-dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), aggrtype=:reducesize) |> get_X
-dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), aggrtype=:reducesize, float_type=Float32) |> get_X
+# ---------------------------------------------------------------------------- #
+#                            Base methods                                      #
+# ---------------------------------------------------------------------------- #
+@testset "DataTreatment Base methods" begin
+    df = DataFrame(
+        col1 = ["a", "b", "c"],
+        col2 = [1.0, 2.0, 3.0],
+        col3 = [collect(1.0:5.0), collect(2.0:6.0), collect(3.0:7.0)],
+    )
 
-dt = DataTreatment(df; features=(mean,)) |> get_X
-dt = DataTreatment(df; features=(mean,), float_type=Float32) |> get_X
-dt = DataTreatment(df; features=(mean,), aggrtype=:reducesize) |> get_X
-dt = DataTreatment(df; features=(mean,), aggrtype=:reducesize, float_type=Float32) |> get_X
+    dt = DataTreatment(df)
+
+    @test size(dt) == (3, 3)
+    @test size(dt)[1] == 3
+    @test size(dt)[2] == 3
+    @test length(dt) == 3
+    @test eachindex(dt) == Base.OneTo(3)
+
+    # iterate yields column views
+    collected = collect(dt)
+    @test length(collected) == 3
+end
