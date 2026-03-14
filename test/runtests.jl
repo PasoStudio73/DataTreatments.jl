@@ -3,9 +3,6 @@ using DataTreatments
 
 using SoleData.Artifacts
 
-# fill your Artifacts.toml file;
-fillartifacts()
-
 function run_tests(list)
     println("\n" * ("#"^50))
     for test in list
@@ -19,10 +16,12 @@ println("Julia version: ", VERSION)
 test_suites = [
     ("Windowing",  ["windowing.jl",]),
     ("FeatureSet", ["featureset.jl",]),
-    ("Treatment",  ["treatment.jl",]),
-    ("Groupby", ["groupby.jl"]),
-    ("Normalize",  ["normalize.jl",]),
-    ("Grouped Norm", ["grouped_norm.jl"]),
+    ("Dataset Structure", ["dataset_structure.jl"]),
+    ("Treatment Groups",  ["treatment_group.jl",]),
+    ("Metadatas",  ["metadata.jl",]),
+    ("Output Datasets",  ["output_dataset.jl",]),
+    ("Treatments",  ["treatment.jl",]),
+    ("DataTreatment", ["datatreatment.jl"]),
 ]
 
 @testset "DataTreatments.jl" begin

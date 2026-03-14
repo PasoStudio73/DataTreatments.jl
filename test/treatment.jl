@@ -5,626 +5,416 @@ const DT = DataTreatments
 using DataFrames
 using Statistics
 
-@testset "aggregate - Flatten to Tabular" begin
-    X = rand(100, 120)
-    Xmatrix = fill(X, 100, 10)
-    vnames = Symbol.("var", 1:size(Xmatrix, 2))
-    nwindows = 3
-    win = splitwindow(; nwindows)
-    features = (mean, maximum)
-    
-    result = DataTreatment(Xmatrix, :aggregate; vnames, win, features)
-    
-    @test get_aggrtype(result) == :aggregate
-    @test size(get_dataset(result), 1) == size(Xmatrix, 1)  # Same number of rows
-    # features are matrices, multidim windowing is: nwindows * nwindows
-    @test size(get_dataset(result), 2) == size(Xmatrix, 2) * nwindows^2 * length(features)
-    @test length(get_featureid(result)) == 180
-    @test isnothing(get_norm(result))
-    @test eltype(result) == Float64
-end
+@testset "treatment.jl" begin
+    @testset "get_window_ranges" begin
+        @testset "1D intervals" begin
+            intervals = ([1:3, 4:6],)
+            idx = CartesianIndex(1)
+            @test DT.get_window_ranges(intervals, idx) == (1:3,)
+            idx = CartesianIndex(2)
+            @test DT.get_window_ranges(intervals, idx) == (4:6,)
+        end
 
-@testset "reducesize - Reduce elements size" begin
-    X = rand(100, 120)
-    Xmatrix = fill(X, 100, 10)
-    vnames = Symbol.("var", 1:size(Xmatrix, 2))
-    win = splitwindow(nwindows=3)
-    
-    result = DataTreatment(Xmatrix, :reducesize; vnames, win, reducefunc=Statistics.std)
-    
-    @test size(get_dataset(result)) == size(Xmatrix)
-    @test typeof(first(get_dataset(result))) <: eltype(result)
-    @test size(first(get_dataset(result))) == (3, 3)
-    @test get_reducefunc(result) == std
-end
+        @testset "2D intervals" begin
+            intervals = ([1:2, 3:4], [1:5, 6:10])
+            idx = CartesianIndex(1, 1)
+            @test DT.get_window_ranges(intervals, idx) == (1:2, 1:5)
+            idx = CartesianIndex(2, 2)
+            @test DT.get_window_ranges(intervals, idx) == (3:4, 6:10)
+            idx = CartesianIndex(1, 2)
+            @test DT.get_window_ranges(intervals, idx) == (1:2, 6:10)
+        end
 
-@testset "FeatureId" begin
-    @testset "Creation and accessors" begin
-        fid = FeatureId(:temperature, mean, 1)
-        
-        @test get_vname(fid) == :temperature
-        @test get_feat(fid) == mean
-        @test get_nwin(fid) == 1
-    end
-    
-    @testset "Display single window" begin
-        fid = FeatureId(:temperature, mean, 1)
-        str = sprint(show, fid)
-        @test occursin("mean", str)
-        @test occursin("temperature", str)
-        @test occursin("_w1", str)
-    end
-    
-    @testset "Display multi-window" begin
-        fid = FeatureId(:pressure, maximum, 3)
-        str = sprint(show, fid)
-        @test occursin("maximum", str)
-        @test occursin("pressure", str)
-        @test occursin("_w3", str)
-    end
-end
-
-@testset "DataTreatment - Matrix Input" begin
-    Xmatrix = fill(rand(200, 120), 100, 10)
-    win = splitwindow(nwindows=4)
-    features = (mean, std, maximum)
-    
-    @testset ":reducesize mode" begin
-        dt = DataTreatment(Xmatrix, :reducesize; 
-                            vnames=Symbol.("var", 1:10),
-                            win, 
-                            reducefunc=mean)
-        
-        @test size(dt, 1) == 100
-        @test get_aggrtype(dt) == :reducesize
-        @test length(get_vnames(dt)) == 10
-    end
-    
-    @testset ":aggregate mode" begin
-        dt = DataTreatment(Xmatrix, :aggregate;
-                            vnames=Symbol.("var", 1:10),
-                            win,
-                            features=features)
-        
-        @test size(dt) == (100, 10 * length(features) * 16)  # 10 vars × 3 features × 16 windows
-        @test length(get_featureid(dt)) == size(dt, 2)
-        @test get_aggrtype(dt) == :aggregate
-        @test length(get_vnames(dt)) == 10
-        @test length(get_features(dt)) == length(features)
-    end
-end
-
-@testset "FeatureId - Extended Tests" begin
-    @testset "propertynames" begin
-        fid = FeatureId(:temperature, mean, 1)
-        props = propertynames(fid)
-        
-        @test :vname in props
-        @test :feat in props
-        @test :nwin in props
-        @test length(props) == 3
-    end
-    
-    @testset "MIME text/plain display" begin
-        fid = FeatureId(:pressure, std, 5)
-        str = sprint(show, MIME("text/plain"), fid)
-        
-        @test occursin("FeatureId:", str)
-        @test occursin("std", str)
-        @test occursin("pressure", str)
-        @test occursin("_w5", str)
-    end
-    
-    @testset "Single window FeatureId creation" begin
-        vnames = [:var1, :var2, :var3]
-        features = (mean, Statistics.std, maximum)
-        
-        # Simulate single window case
-        feature_ids = [FeatureId(v, f, 1) for f in features, v in vnames] |> vec
-        
-        @test length(feature_ids) == length(vnames) * length(features)
-        @test all(get_nwin(fid) == 1 for fid in feature_ids)
-        
-        # Check ordering: features × variables
-        @test get_feat(feature_ids[1]) == mean
-        @test get_vname(feature_ids[1]) == :var1
-        @test get_feat(feature_ids[2]) == Statistics.std
-        @test get_vname(feature_ids[2]) == :var1
-    end
-
-    @testset "get FeatureId vectors" begin
-        X = fill(rand(10), 8, 3)
-        win = splitwindow(nwindows=2)
-        features = (mean, std)
-
-        dt = DataTreatment(X, :aggregate;
-                            vnames=Symbol.("var", 1:4),
-                            win,
-                            features=features)
-    
-        vnames_vec = get_vecvnames(dt.featureid)
-        @test length(vnames_vec) == 16
-        @test unique(vnames_vec) == [:var1, :var2, :var3, :var4]
-
-        feat_vec = get_vecfeatures(dt.featureid)
-        @test unique(feat_vec) == [mean, std]
-
-        win_vec = get_vecnwins(dt.featureid)
-        @test unique(win_vec) == [1, 2]
-    end
-end
-
-@testset "DataTreatment - DataFrame Constructor" begin
-    @testset "Automatic vnames from DataFrame" begin
-        df = DataFrame(
-            ch1 = [rand(100) for _ in 1:50],
-            ch2 = [rand(100) for _ in 1:50],
-            ch3 = [rand(100) for _ in 1:50]
-        )
-        
-        win = splitwindow(nwindows=3)
-        features = (mean, std)
-        
-        # Test without specifying vnames (should use propertynames)
-        dt = DataTreatment(df, :reducesize; win, features=features)
-        
-        @test Set(get_vnames(dt)) == Set([:ch1, :ch2, :ch3])
-        @test size(dt, 1) == 50
-        @test get_aggrtype(dt) == :reducesize
-    end
-    
-    @testset "Explicit vnames override" begin
-        df = DataFrame(
-            ch1 = [rand(100) for _ in 1:50],
-            ch2 = [rand(100) for _ in 1:50],
-            ch3 = [rand(100) for _ in 1:50]
-        )
-        
-        win = splitwindow(nwindows=3)
-        features = (mean, std)
-        
-        # Override with custom names
-        custom_names = [:custom1, :custom2, :custom3]
-        dt = DataTreatment(df, :reducesize; 
-                          vnames=custom_names, 
-                          win, 
-                          features=features)
-        
-        @test Set(get_vnames(dt)) == Set(custom_names)
-    end
-end
-
-@testset "DataTreatment - propertynames" begin
-    df = DataFrame(
-        var1 = [rand(100) for _ in 1:30],
-        var2 = [rand(100) for _ in 1:30]
-    )
-    
-    win = splitwindow(nwindows=2)
-    dt = DataTreatment(df, :reducesize; win, features=(mean,))
-    
-    props = propertynames(dt)
-    
-    @test :dataset in props
-    @test :featureid in props
-    @test :reducefunc in props
-    @test :aggrtype in props
-    @test length(props) == 6
-end
-
-@testset "DataTreatment - Accessor Functions" begin
-    X = rand(200, 120)
-    Xmatrix = fill(X, 50, 5)
-    win = splitwindow(nwindows=3)
-    features = (mean, std, maximum)
-    
-    dt = DataTreatment(Xmatrix, :aggregate;
-                      vnames=Symbol.("var", 1:5),
-                      win,
-                      features=features)
-    
-    @testset "get_dataset" begin
-        dataset = get_dataset(dt)
-        @test dataset isa AbstractMatrix
-        @test size(dataset) == size(dt.dataset)
-        @test dataset === dt.dataset
-    end
-    
-    @testset "get_reducefunc" begin
-        reducefunc = get_reducefunc(dt)
-        @test reducefunc isa Base.Callable
-        @test reducefunc == mean  # default value
-    end
-    
-    @testset "get_nwindows" begin
-        nwindows = get_nwindows(dt)
-        @test nwindows == 9
-        @test nwindows == maximum(get_nwin.(dt.featureid))
-    end
-end
-
-@testset "DataTreatment - Base Methods" begin
-    X = rand(200, 120)
-    Xmatrix = fill(X, 40, 4)
-    win = splitwindow(nwindows=2)
-    features = (mean, std)
-    
-    dt = DataTreatment(Xmatrix, :aggregate;
-                      vnames=Symbol.("var", 1:4),
-                      win,
-                      features=features)
-    
-    @testset "length" begin
-        @test length(dt) == length(dt.featureid)
-        @test length(dt) == 4 * 2 * 4  # 4 vars × 2 features × 4 windows (2×2)
-    end
-    
-    @testset "eltype" begin
-        @test eltype(dt) == eltype(dt.dataset)
-        @test eltype(dt) == Float64
-    end
-    
-    @testset "Indexing - single column" begin
-        col = dt[:, 1]
-        @test length(col) == size(dt, 1)
-        @test col == dt.dataset[:, 1]
-    end
-    
-    @testset "Indexing - single row" begin
-        row = dt[1, :]
-        @test length(row) == size(dt, 2)
-        @test row == dt.dataset[1, :]
-    end
-    
-    @testset "Indexing - single element" begin
-        elem = dt[1, 1]
-        @test elem == dt.dataset[1, 1]
-        @test elem isa Number
-    end
-    
-    @testset "Indexing - range" begin
-        subset = dt[1:10, :]
-        @test size(subset, 1) == 10
-        @test size(subset, 2) == size(dt, 2)
-    end
-    
-    @testset "Indexing - general" begin
-        subset = dt[1:5, 1:10]
-        @test size(subset) == (5, 10)
-    end
-end
-
-@testset "DataTreatment - Display Methods" begin
-    X = rand(200, 120)
-    Xmatrix = fill(X, 30, 3)
-    win = splitwindow(nwindows=2)
-    features = (mean, std, maximum)
-    
-    dt = DataTreatment(Xmatrix, :aggregate;
-                      vnames=Symbol.("var", 1:3),
-                      win,
-                      features=features)
-    
-    @testset "Compact show" begin
-        str = sprint(show, dt)
-        
-        @test occursin("DataTreatment", str)
-        @test occursin("aggregate", str)
-        @test occursin("30×", str)  # rows
-        @test occursin("features", str)
-    end
-    
-    @testset "MIME text/plain - few features" begin
-        # Create a small case with ≤10 features
-        X_small = rand(100)
-        Xmatrix_small = fill(X_small, 20, 2)
-        win_small = splitwindow(nwindows=2)
-        features_small = (mean, std)
-        
-        dt_small = DataTreatment(Xmatrix_small, :reducesize;
-                                vnames=[:v1, :v2],
-                                win=(win_small,),
-                                features=features_small)
-        
-        str = sprint(show, MIME("text/plain"), dt_small)
-        
-        @test occursin("DataTreatment:", str)
-        @test occursin("Type: reducesize", str)
-        @test occursin("Dimensions:", str)
-        @test occursin("Features:", str)
-        @test occursin("Reduction function:", str)
-        @test occursin("Feature IDs:", str)
-        
-        # Check that all features are listed (≤10)
-        nfeatures = length(dt_small.featureid)
-        @test nfeatures <= 10
-        for i in 1:nfeatures
-            @test occursin("$(i).", str)
+        @testset "3D intervals" begin
+            intervals = ([1:2, 3:4], [1:3], [1:5, 6:10])
+            idx = CartesianIndex(2, 1, 2)
+            @test DT.get_window_ranges(intervals, idx) == (3:4, 1:3, 6:10)
         end
     end
-    
-    @testset "MIME text/plain - many features" begin
-        # Use the original dt with more features
-        str = sprint(show, MIME("text/plain"), dt)
-        
-        @test occursin("DataTreatment:", str)
-        @test occursin("Dimensions:", str)
-        @test occursin("Features:", str)
+
+    @testset "is_multidim_dataset" begin
+        @testset "non-multidimensional data" begin
+            # Simple scalar matrix
+            X = [1.0 2.0; 3.0 4.0]
+            @test DT.is_multidim_dataset(X) == false
+
+            # DataFrame with scalar columns
+            df = DataFrame(a=[1.0, 2.0], b=[3.0, 4.0])
+            @test DT.is_multidim_dataset(df) == false
+        end
+
+        @testset "multidimensional data (array elements)" begin
+            # Matrix with array-valued elements
+            X = Matrix{Any}(undef, 2, 2)
+            X[1,1] = [1.0, 2.0, 3.0]
+            X[2,1] = [4.0, 5.0, 6.0]
+            X[1,2] = [7.0, 8.0, 9.0]
+            X[2,2] = [10.0, 11.0, 12.0]
+            Xtyped = Array{Vector{Float64}}(X)
+            @test DT.is_multidim_dataset(Xtyped) == true
+
+            # DataFrame with array columns
+            df = DataFrame(
+                a=[[1.0, 2.0], [3.0, 4.0]],
+                b=[[5.0, 6.0], [7.0, 8.0]]
+            )
+            @test DT.is_multidim_dataset(df) == true
+        end
+
+        @testset "mixed columns in DataFrame" begin
+            df = DataFrame(
+                scalar=[1.0, 2.0],
+                vector=[[1.0, 2.0], [3.0, 4.0]]
+            )
+            @test DT.is_multidim_dataset(df) == true
+        end
     end
-    
-    @testset "Display with different aggrtype" begin
-        dt_agg = DataTreatment(Xmatrix, :aggregate;
-                              vnames=Symbol.("var", 1:3),
-                              win,
-                              features=features)
-        
-        str = sprint(show, dt_agg)
-        @test occursin("aggregate", str)
-        
-        str_plain = sprint(show, MIME("text/plain"), dt_agg)
-        @test occursin("Type: aggregate", str_plain)
+
+    @testset "has_uniform_element_size" begin
+        @testset "DataFrame" begin
+            @testset "empty DataFrame" begin
+                df = DataFrame()
+                @test DT.has_uniform_element_size(df) == true
+            end
+
+            @testset "uniform sizes" begin
+                df = DataFrame(
+                    a=[[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]],
+                    b=[[7.0, 8.0, 9.0], [10.0, 11.0, 12.0]]
+                )
+                @test DT.has_uniform_element_size(df) == true
+            end
+
+            @testset "non-uniform sizes" begin
+                df = DataFrame(
+                    a=Vector{Vector{Float64}}([[1.0, 2.0], [4.0, 5.0, 6.0]]),
+                )
+                @test DT.has_uniform_element_size(df) == false
+            end
+
+            @testset "with missing values - uniform" begin
+                df = DataFrame(
+                    a=Vector{Union{Missing,Vector{Float64}}}([missing, [4.0, 5.0, 6.0]]),
+                    b=Vector{Union{Missing,Vector{Float64}}}([[7.0, 8.0, 9.0], missing])
+                )
+                @test DT.has_uniform_element_size(df) == true
+            end
+
+            @testset "all missing returns true" begin
+                df = DataFrame(
+                    a=Union{Missing,Vector{Float64}}[missing, missing],
+                )
+                @test DT.has_uniform_element_size(df) == true
+            end
+        end
+
+        @testset "AbstractArray" begin
+            @testset "empty array" begin
+                X = Vector{Float64}()
+                @test DT.has_uniform_element_size(X) == true
+            end
+
+            @testset "uniform sizes" begin
+                X = [[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]]
+                @test DT.has_uniform_element_size(X) == true
+            end
+
+            @testset "non-uniform sizes" begin
+                X = Vector{Vector{Float64}}([[1.0, 2.0], [3.0, 4.0, 5.0]])
+                @test DT.has_uniform_element_size(X) == false
+            end
+
+            @testset "with missing values" begin
+                X = Union{Missing,Vector{Float64}}[missing, [1.0, 2.0], [3.0, 4.0]]
+                @test DT.has_uniform_element_size(X) == true
+            end
+
+            @testset "with NaN floats" begin
+                X = [NaN, 1.0, 2.0]
+                @test DT.has_uniform_element_size(X) == true
+            end
+
+            @testset "all missing returns true" begin
+                X = Union{Missing,Float64}[missing, missing]
+                @test DT.has_uniform_element_size(X) == true
+            end
+
+            @testset "2D arrays uniform" begin
+                X = [ones(3, 3), ones(3, 3)]
+                @test DT.has_uniform_element_size(X) == true
+            end
+
+            @testset "2D arrays non-uniform" begin
+                X = Matrix{Float64}[ones(3, 3), ones(2, 4)]
+                @test DT.has_uniform_element_size(X) == false
+            end
+        end
     end
-end
 
-@testset "DataTreatment - Edge Cases" begin
-    @testset "Single variable" begin
-        X = rand(100)
-        Xmatrix = fill(X, 50, 1)
-        win = splitwindow(nwindows=3)
-        
-        dt = DataTreatment(Xmatrix, :reducesize;
-                          vnames=[:single],
-                          win,
-                          features=(mean,))
-        
-        @test get_vnames(dt) == [:single]
-        @test size(dt, 1) == 50
+    @testset "safe_feat" begin
+        @testset "basic functionality" begin
+            v = [1.0, 2.0, 3.0, 4.0, 5.0]
+            @test DT.safe_feat(v, mean) ≈ 3.0
+            @test DT.safe_feat(v, maximum) ≈ 5.0
+            @test DT.safe_feat(v, minimum) ≈ 1.0
+            @test DT.safe_feat(v, sum) ≈ 15.0
+        end
+
+        @testset "with missing values" begin
+            v = Union{Missing,Float64}[1.0, missing, 3.0, missing, 5.0]
+            @test DT.safe_feat(v, mean) ≈ 3.0
+            @test DT.safe_feat(v, maximum) ≈ 5.0
+            @test DT.safe_feat(v, minimum) ≈ 1.0
+        end
+
+        @testset "with NaN values" begin
+            v = [1.0, NaN, 3.0, NaN, 5.0]
+            @test DT.safe_feat(v, mean) ≈ 3.0
+            @test DT.safe_feat(v, maximum) ≈ 5.0
+            @test DT.safe_feat(v, minimum) ≈ 1.0
+        end
+
+        @testset "with both missing and NaN" begin
+            v = Union{Missing,Float64}[1.0, missing, NaN, 4.0, missing, NaN, 7.0]
+            @test DT.safe_feat(v, mean) ≈ 4.0
+            @test DT.safe_feat(v, maximum) ≈ 7.0
+            @test DT.safe_feat(v, minimum) ≈ 1.0
+        end
+
+        @testset "single element" begin
+            v = [42.0]
+            @test DT.safe_feat(v, mean) ≈ 42.0
+        end
+
+        @testset "integer input" begin
+            v = [1, 2, 3]
+            @test DT.safe_feat(v, mean) ≈ 2.0
+            @test DT.safe_feat(v, sum) == 6
+        end
     end
-    
-    @testset "Single feature" begin
-        X = rand(100)
-        Xmatrix = fill(X, 30, 3)
-        win = splitwindow(nwindows=2)
-        
-        dt = DataTreatment(Xmatrix, :reducesize;
-                          vnames=Symbol.("var", 1:3),
-                          win,
-                          features=(mean,))
-        
-        feature_funcs = get_features(dt)
-        @test length(feature_funcs) == 1
-        @test mean in feature_funcs
+
+    @testset "aggregate" begin
+        @testset "1D vectors with wholewindow" begin
+            # 3 observations, 2 features (columns), each element is a 1D vector
+            X = Matrix{Union{Missing,Vector{Float64}}}(undef, 3, 2)
+            X[1, 1] = [1.0, 2.0, 3.0, 4.0]
+            X[2, 1] = [5.0, 6.0, 7.0, 8.0]
+            X[3, 1] = [9.0, 10.0, 11.0, 12.0]
+            X[1, 2] = [10.0, 20.0]
+            X[2, 2] = [30.0, 40.0]
+            X[3, 2] = [50.0, 60.0]
+
+            idx = [collect(1:3), collect(1:3)]
+            features = (maximum, minimum, mean)
+            win = (wholewindow(),)
+
+            Xa, nwindows = aggregate(X, idx, Float64; win=win, features=features)
+
+            # wholewindow -> 1 window per dimension, 3 features => 3 columns per original col
+            @test nwindows == [1, 1]
+            @test size(Xa) == (3, 6)  # 3 rows, (1*3 + 1*3) = 6 columns
+
+            # Column 1: max of [1,2,3,4] = 4, min = 1, mean = 2.5
+            @test Xa[1, 1] ≈ 4.0   # max col1
+            @test Xa[1, 2] ≈ 1.0   # min col1
+            @test Xa[1, 3] ≈ 2.5   # mean col1
+
+            # Column 2: max of [10,20] = 20, min = 10, mean = 15
+            @test Xa[1, 4] ≈ 20.0  # max col2
+            @test Xa[1, 5] ≈ 10.0  # min col2
+            @test Xa[1, 6] ≈ 15.0  # mean col2
+        end
+
+        @testset "with missing observations" begin
+            X = Matrix{Union{Missing,Vector{Float64},Float64}}(undef, 3, 1)
+            X[1, 1] = [1.0, 2.0, 3.0]
+            X[2, 1] = missing
+            X[3, 1] = [7.0, 8.0, 9.0]
+
+            idx = [[1, 3]]  # row 2 is missing
+            features = (mean,)
+            win = (wholewindow(),)
+
+            Xa, nwindows = aggregate(X, idx, Float64; win=win, features=features)
+
+            @test nwindows == [1]
+            @test size(Xa) == (3, 1)
+            @test Xa[1, 1] ≈ 2.0
+            @test ismissing(Xa[2, 1])
+            @test Xa[3, 1] ≈ 8.0
+        end
+
+        @testset "aggregate closure constructor" begin
+            f = aggregate(
+                win=(wholewindow(),),
+                features=(mean, maximum)
+            )
+            @test f isa Function
+        end
     end
-    
-    @testset "Single window (wholewindow)" begin
-        X = rand(100)
-        Xmatrix = fill(X, 40, 2)
-        win = wholewindow()
-        features = (mean, std)
-        
-        dt = DataTreatment(Xmatrix, :reducesize;
-                          vnames=[:v1, :v2],
-                          win,
-                          features=features)
-        
-        @test get_nwindows(dt) == 1
-        @test all(get_nwin(fid) == 1 for fid in dt.featureid)
+
+    @testset "reducesize" begin
+        @testset "1D vectors with wholewindow" begin
+            X = Matrix{Union{Missing,Vector{Float64}}}(undef, 2, 2)
+            X[1, 1] = [1.0, 2.0, 3.0, 4.0]
+            X[2, 1] = [5.0, 6.0, 7.0, 8.0]
+            X[1, 2] = [10.0, 20.0]
+            X[2, 2] = [30.0, 40.0]
+
+            idx = [collect(1:2), collect(1:2)]
+            win = (wholewindow(),)
+
+            Xr, _ = reducesize(X, idx, Float64; win=win, reducefunc=mean)
+
+            @test size(Xr) == size(X)
+            # wholewindow reduces each vector to a single-element array
+            @test Xr[1, 1] ≈ [2.5]
+            @test Xr[2, 1] ≈ [6.5]
+            @test Xr[1, 2] ≈ [15.0]
+            @test Xr[2, 2] ≈ [35.0]
+        end
+
+        @testset "with missing observations" begin
+            X = Matrix{Union{Missing,Vector{Float64},Float64}}(undef, 3, 1)
+            X[1, 1] = [1.0, 2.0, 3.0]
+            X[2, 1] = missing
+            X[3, 1] = [7.0, 8.0, 9.0]
+
+            idx = [[1, 3]]
+            win = (wholewindow(),)
+
+            Xr, _ = reducesize(X, idx, Float64; win=win, reducefunc=mean)
+
+            @test size(Xr) == (3, 1)
+            @test Xr[1, 1] ≈ [2.0]
+            @test ismissing(Xr[2, 1])
+            @test Xr[3, 1] ≈ [8.0]
+        end
+
+        @testset "reducesize closure constructor" begin
+            f = reducesize(
+                win=(wholewindow(),),
+                reducefunc=mean
+            )
+            @test f isa Function
+        end
+
+        @testset "reduction preserves structure" begin
+            # 2D array elements
+            X = Matrix{Union{Missing,Matrix{Float64}}}(undef, 2, 1)
+            X[1, 1] = [1.0 2.0; 3.0 4.0]
+            X[2, 1] = [5.0 6.0; 7.0 8.0]
+
+            idx = [collect(1:2)]
+            win = (wholewindow(), wholewindow())
+
+            Xr, _ = reducesize(X, idx, Float64; win=win, reducefunc=mean)
+
+            @test size(Xr) == (2, 1)
+            # wholewindow on both dims -> single element output
+            @test Xr[1, 1] ≈ [2.5;;]  # mean of [1,2,3,4]
+            @test Xr[2, 1] ≈ [6.5;;]  # mean of [5,6,7,8]
+        end
     end
-end
 
-@testset "DataTreatment - aggregate" begin
-    Xmatrix = [Float64.(rand(1:100, 10, 10)) for _ in 1:10, _ in 1:5]
+    @testset "aggregate with split windows" begin
+        @testset "splitwindow into 2 parts" begin
+            X = Matrix{Union{Missing,Vector{Float64}}}(undef, 2, 1)
+            X[1, 1] = [1.0, 2.0, 3.0, 4.0]
+            X[2, 1] = [5.0, 6.0, 7.0, 8.0]
 
-    X = rand(200, 120)
-    Xmatrix = fill(X, 50, 5)
-    win = splitwindow(nwindows=3)
-    features = (mean, std, maximum)
-    
-    @testset "element_norm - Z-score" begin
-        dt = DataTreatment(Xmatrix, :aggregate;
-                          vnames=Symbol.("var", 1:5),
-                          win,
-                          features=features,
-                          norm=ZScore)
-        
-        @test abs(mean(dt.dataset)) < 1e-10  # mean ≈ 0
-        @test abs(std(dt.dataset) - 1.0) < 1e-3  # std ≈ 1
+            idx = [collect(1:2)]
+            features = (mean,)
+            win = (splitwindow(nwindows=2,),)
+
+            Xa, nwindows = aggregate(X, idx, Float64; win=win, features=features)
+
+            @test nwindows == [2]
+            @test size(Xa) == (2, 2)  # 2 windows * 1 feature = 2 columns
+            # First window: [1,2] mean=1.5; Second window: [3,4] mean=3.5
+            @test Xa[1, 1] ≈ 1.5
+            @test Xa[1, 2] ≈ 3.5
+            @test Xa[2, 1] ≈ 5.5
+            @test Xa[2, 2] ≈ 7.5
+        end
+
+        @testset "splitwindow with multiple features" begin
+            X = Matrix{Union{Missing,Vector{Float64}}}(undef, 1, 1)
+            X[1, 1] = [1.0, 2.0, 3.0, 4.0]
+
+            idx = [collect(1:1)]
+            features = (maximum, minimum)
+            win = (splitwindow(nwindows=2,),)
+
+            Xa, nwindows = aggregate(X, idx, Float64; win=win, features=features)
+
+            @test nwindows == [2]
+            @test size(Xa) == (1, 4)  # 2 windows * 2 features = 4 columns
+            # max window1: 2.0, max window2: 4.0, min window1: 1.0, min window2: 3.0
+            @test Xa[1, 1] ≈ 2.0  # max [1,2]
+            @test Xa[1, 2] ≈ 4.0  # max [3,4]
+            @test Xa[1, 3] ≈ 1.0  # min [1,2]
+            @test Xa[1, 4] ≈ 3.0  # min [3,4]
+        end
     end
-    
-    @testset "element_norm - MinMax" begin
-        dt = DataTreatment(Xmatrix, :aggregate;
-                          vnames=Symbol.("var", 1:5),
-                          win,
-                          features=features,
-                          norm=MinMax)
-        
-        @test minimum(dt.dataset) ≈ 0.0 atol=1e-10
-        @test maximum(dt.dataset) ≈ 1.0 atol=1e-10
+
+    @testset "reducesize with split windows" begin
+        @testset "splitwindow into 2 parts" begin
+            X = Matrix{Union{Missing,Vector{Float64}}}(undef, 2, 1)
+            X[1, 1] = [1.0, 2.0, 3.0, 4.0]
+            X[2, 1] = [5.0, 6.0, 7.0, 8.0]
+
+            idx = [collect(1:2)]
+            win = (splitwindow(nwindows=2,),)
+
+            Xr, _ = reducesize(X, idx, Float64; win=win, reducefunc=mean)
+
+            @test size(Xr) == (2, 1)
+            @test length(Xr[1, 1]) == 2
+            @test Xr[1, 1][1] ≈ 1.5   # mean of [1,2]
+            @test Xr[1, 1][2] ≈ 3.5   # mean of [3,4]
+            @test Xr[2, 1][1] ≈ 5.5   # mean of [5,6]
+            @test Xr[2, 1][2] ≈ 7.5   # mean of [7,8]
+        end
     end
-    
-    @testset "element_norm - Sigmoid" begin
-        dt = DataTreatment(Xmatrix, :aggregate;
-                          vnames=Symbol.("var", 1:5),
-                          win,
-                          features=features,
-                          norm=Sigmoid)
-        
-        @test all(0 .< dt.dataset .< 1)
+
+    @testset "edge cases" begin
+        @testset "single element vectors" begin
+            X = Matrix{Union{Missing,Vector{Float64}}}(undef, 1, 1)
+            X[1, 1] = [42.0]
+
+            idx = [[1]]
+            Xa, nwindows = aggregate(X, idx, Float64;
+                win=(wholewindow(),), features=(mean,))
+            @test Xa[1, 1] ≈ 42.0
+        end
+
+        @testset "Float32 output type" begin
+            X = Matrix{Union{Missing,Vector{Float64}}}(undef, 1, 1)
+            X[1, 1] = [1.0, 2.0, 3.0]
+
+            idx = [[1]]
+            Xa, _ = aggregate(X, idx, Float32;
+                win=(wholewindow(),), features=(mean,))
+            @test eltype(Xa) == Union{Missing,Float32}
+            @test Xa[1, 1] isa Float32
+        end
+
+        @testset "multiple columns with different dimensions" begin
+            X = Matrix{Union{Missing,Vector{Float64}}}(undef, 2, 2)
+            X[1, 1] = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
+            X[2, 1] = [7.0, 8.0, 9.0, 10.0, 11.0, 12.0]
+            X[1, 2] = [10.0, 20.0]
+            X[2, 2] = [30.0, 40.0]
+
+            idx = [collect(1:2), collect(1:2)]
+            features = (mean,)
+            win = (wholewindow(),)
+
+            Xa, nwindows = aggregate(X, idx, Float64; win=win, features=features)
+            @test nwindows == [1, 1]
+            @test size(Xa, 1) == 2
+        end
     end
-    
-    @testset "element_norm - Center" begin
-        dt = DataTreatment(Xmatrix, :aggregate;
-                          vnames=Symbol.("var", 1:5),
-                          win,
-                          features=features,
-                          norm=Center)
-        
-        @test abs(mean(dt.dataset)) < 1e-10
-    end
-    
-    @testset "element_norm - Unit Power" begin
-        dt = DataTreatment(Xmatrix, :aggregate;
-                          vnames=Symbol.("var", 1:5),
-                          win,
-                          features=features,
-                          norm=UnitPower)
-        
-        rms = sqrt(mean(abs2, dt.dataset))
-        @test rms ≈ 1.0 atol=1e-10
-    end
-    
-    # @testset "element_norm - Outlier Suppress" begin
-    #     # Create data with outliers
-    #     X_outlier = rand(200, 120)
-    #     X_outlier[1, 1] = 1000.0  # Add outlier
-    #     Xmatrix_outlier = fill(X_outlier, 50, 5)
-        
-    #     dt = DataTreatment(Xmatrix_outlier, :aggregate;
-    #                       vnames=Symbol.("var", 1:5),
-    #                       win,
-    #                       features=features,
-    #                       norm=OutlierSuppress)
-        
-    #     @test maximum(dt.dataset) < maximum(X_outlier)
-    # end
-end
 
-@testset "DataTreatment - reducesize" begin
-    # Create nested array structure
-    X_nested = [rand(100) * 100 for _ in 1:30, _ in 1:3]
-    win = splitwindow(nwindows=2)
-    features = (mean, std)
-    
-    @testset "Basic ds_norm" begin
-        dt = DataTreatment(X_nested, :reducesize;
-                          vnames=Symbol.("ch", 1:3),
-                          win,
-                          features=features,
-                          norm=MinMax)
-        
-        @test minimum(minimum.(dt.dataset)) ≈ 0.0 atol=1e-10
-        @test maximum(maximum.(dt.dataset)) ≈ 1.0 atol=1e-10
-    end
-end
-
-@testset "has_uniform_element_size - DataFrame" begin
-    # empty DataFrame
-    @test has_uniform_element_size(DataFrame()) === true
-
-    # uniform element sizes (all 2x3 matrices)
-    df_uniform = DataFrame(
-        a = [rand(2,3) for _ in 1:3],
-        b = [rand(2,3) for _ in 1:3]
-    )
-    @test has_uniform_element_size(df_uniform) === true
-
-    # mismatch in one element
-    df_mismatch = DataFrame(
-        a = [rand(2,3), rand(3,3), rand(2,3)],
-        b = [rand(2,3) for _ in 1:3]
-    )
-    @test has_uniform_element_size(df_mismatch) === false
-end
-
-@testset "has_uniform_element_size - AbstractArray" begin
-    # empty array of arrays
-    empty_arr = Matrix{Vector{Float64}}(undef, 0, 0)
-    @test has_uniform_element_size(empty_arr) === true
-
-    # uniform sizes (all 2x3 matrices)
-    A = [rand(2,3) for _ in 1:4, _ in 1:2]
-    @test has_uniform_element_size(A) === true
-
-    # introduce a mismatch
-    A_bad = copy(A)
-    A_bad[3, 2] = rand(3,3)
-    @test has_uniform_element_size(A_bad) === false
-end
-
-# helper to build independent copies
-function make_uniform_matrix(vec, rows, cols)
-    [copy(vec) for _ in 1:rows, _ in 1:cols]
-end
-
-@testset "aggregate/reducesize - uniform element sizes" begin
-    v10 = collect(1.0:10.0)
-    Xu  = make_uniform_matrix(v10, 2, 3)
-    vnames = Symbol.("var", 1:size(Xu, 2))
-
-    nwindows = 2
-    win = splitwindow(; nwindows)
-    features = (mean, maximum)
-
-    # aggregate with uniform=true
-    Au = DataTreatment(Xu, :aggregate; vnames, features, win)
-    @test size(get_dataset(Au)) == (2, 3 * length(features) * nwindows)
-
-    # reducesize with uniform=true
-    Ru = DataTreatment(Xu, :reducesize; vnames, reducefunc=mean, win)
-    @test size(get_dataset(Ru)) == size(Xu)
-    @test length(get_dataset(Ru)[1,1]) == nwindows
-    intervals_u = first(@evalwindow v10 win)
-    @test get_dataset(Ru)[1,1] ≈ [mean(v10[r]) for r in intervals_u]
-end
-
-@testset "aggregate/reducesize - non-uniform element sizes (adaptivewindow)" begin
-    v8  = collect(1.0:8.0)
-    v10 = collect(1.0:10.0)
-    v12 = collect(1.0:12.0)
-
-    # non-uniform matrix of vectors (avoid hvcat)
-    Xn = Matrix{Vector{Float64}}(undef, 2, 3)
-    Xn[1,1] = copy(v10); Xn[1,2] = copy(v12); Xn[1,3] = copy(v8)
-    Xn[2,1] = copy(v12); Xn[2,2] = copy(v8);  Xn[2,3] = copy(v10)
-    vnames = Symbol.("var", 1:size(Xn, 2))
-
-    nwindows = 2
-    win = adaptivewindow(; nwindows, overlap=0.0)
-    features = (mean, maximum)
-
-    An = DataTreatment(Xn, :aggregate; vnames, win, features)
-    @test size(get_dataset(An)) == (2, 3 * length(features) * nwindows)
-
-    # reducesize with uniform=false and adaptivewindow
-    Rn = DataTreatment(Xn, :reducesize; vnames, win, reducefunc=mean)
-    @test size(get_dataset(Rn)) == size(Xn)
-    intervals_e = first(@evalwindow Xn[1,1] win)
-    @test get_dataset(Rn)[1,1] ≈ [mean(Xn[1,1][r]) for r in intervals_e]
-end
-
-@testset "dataset utilities" begin
-    X = rand(100, 120)
-    Xmatrix = fill(X, 100, 10)
-    @test DT.is_multidim_dataset(Xmatrix) == true
-    
-    intervals = (UnitRange{Int}[1:50, 51:100, 101:150, 151:200],
-            UnitRange{Int}[1:30, 31:60, 61:90, 91:120])
-    @test nvals(intervals) == 16
-    @test nvals(intervals[1]) == 4
-
-    Xconv = DT.convert(Xmatrix; type=Float32)
-    @test eltype(Xmatrix) <: AbstractArray{Float64}
-    @test eltype(Xconv) <: AbstractArray{Float32}
-end
-
-@testset "wholewindow" begin
-    X = rand(100, 120)
-    Xmatrix = fill(X, 100, 10)
-    vnames = Symbol.("var", 1:size(Xmatrix, 2))
-    win = wholewindow()
-    features = (mean, maximum)
-    
-    result = DataTreatment(Xmatrix, :aggregate; vnames, win, features)
-    
-    @test length(get_featureid(result)) == (length(vnames) * length(features))
-end
-
-@testset "DataTreatment getindex (single Int)" begin
-    X = rand(100, 120)
-    Xmatrix = fill(X, 100, 10)
-    vnames = Symbol.("var", 1:size(Xmatrix, 2))
-    dt = DataTreatment(Xmatrix, :aggregate; vnames, win=wholewindow(), features=(mean,))
-
-    i = 1
-    @test dt[i] == get_dataset(dt)[:, i]
 end
