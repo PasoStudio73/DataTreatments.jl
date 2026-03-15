@@ -516,7 +516,7 @@ function get_dataset(
     isempty(ds) && return
 
     matrix && return reduce(vcat, get_data.(ds))
-    dataframe && return DataFrame(reduce(vcat, get_data.(ds)), get_vnames(get_ds_struct(dt)))
+    dataframe && return DataFrame(reduce(vcat, get_data.(ds)), reduce(vcat, get_vnames.(ds)))
     return ds
 end
 

@@ -262,9 +262,9 @@ struct MultidimDataset{T} <: AbstractDataset
     info::Vector{<:Union{AggregateFeat,ReduceFeat}}
 
     MultidimDataset(data::AbstractArray, info::Vector{<:AggregateFeat{T}}) where T =
-        new{T}(data, info)
+        new{AggregateFeat{T}}(data, info)
     MultidimDataset(data::AbstractArray, info::Vector{<:ReduceFeat{T}}) where T =
-        new{T}(data, info)
+        new{ReduceFeat{T}}(data, info)
 
     function MultidimDataset(
         id::Vector,
@@ -400,6 +400,8 @@ get_ncols(ds::AbstractDataset) = size(ds.dataset, 2)
 Returns the variable names of all features in the dataset.
 """
 get_vnames(ds::AbstractDataset) = [get_vname(f) for f in ds.info]
+get_vnames(ds::MultidimDataset{<:AggregateFeat}) =
+    ["$(get_vname(f)),$(get_feat(f)),win:$(get_nwin(f))" for f in ds.info]
 
 """
     get_vnames(ds::AbstractDataset, i::Int) -> String
@@ -460,7 +462,7 @@ end
 
 function Base.show(io::IO, ds::MultidimDataset{T}) where T
     nrows = size(ds, 1)
-    ncols = ndims(ds.dataset) >= 2 ? size(ds, 2) : length(ds.info)
+    ncols = ndims(ds.data) >= 2 ? size(ds, 2) : length(ds.info)
     dims = reduce(vcat, unique(get_dims(ds)))
     mode = all(f -> f isa AggregateFeat, ds.info) ? "aggregate" : "reducesize"
     print(io, "MultidimDataset{$T}($(nrows)×$(ncols), dims=$dims, $mode)")
@@ -502,7 +504,7 @@ end
 
 function Base.show(io::IO, ::MIME"text/plain", ds::MultidimDataset{T}) where T
     nrows = size(ds, 1)
-    ncols = ndims(ds.dataset) >= 2 ? size(ds, 2) : length(ds.info)
+    ncols = ndims(ds.data) >= 2 ? size(ds, 2) : length(ds.info)
     mode = all(f -> f isa AggregateFeat, ds.info) ? "aggregate" : "reducesize"
     println(io, "MultidimDataset{$T}($nrows rows × $ncols columns)")
     println(io, "├─ mode: $mode")
