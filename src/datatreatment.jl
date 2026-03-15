@@ -6,6 +6,81 @@ const DefaultAggrFunc = aggregate(win=(wholewindow(),), features=(maximum, minim
 # ---------------------------------------------------------------------------- #
 #                             DataTreatment struct                             #
 # ---------------------------------------------------------------------------- #
+"""
+    DataTreatment
+
+The core structure of the `DataTreatments` package.
+
+# Purpose
+
+Its purpose is to collect all metadata useful for working with a dataset, while also
+accepting user directives in the form of [`TreatmentGroup`](@ref) structures. Through
+these, the user can customize how the dataset is partitioned and how multidimensional
+data is handled (see [`TreatmentGroup`](@ref) and [`aggregate`](@ref) / [`reducesize`](@ref)).
+
+!!! note
+    TreatmentGroup directives are **not** given at the time of `DataTreatment` creation, 
+    but are instead specified lazily when calling `get_dataset`. 
+    This allows users to flexibly define how the dataset should be filtered, grouped, 
+    and processed only when extraction is needed.
+
+`DataTreatment` stores not only the **static metadata** about the dataset — retrieved
+via [`DatasetStructure`](@ref) — but also all **user-specified preferences** for
+processing.
+
+## Lazy Design
+
+`DataTreatment` is designed to be **lazy** in order to maximize scalability. While it
+provides Base methods, getters, and a set of convenience methods for extracting and
+formatting the dataset contents, it is very likely that users will need to create their
+own custom methods. The lazy approach makes this possible: the raw dataset and all
+metadata are stored and accessible, but expensive computations (such as building the
+final processed datasets) are deferred until explicitly requested.
+
+# Fields
+
+- `data::Matrix`: The raw data matrix (features × samples).
+- `target::Union{Nothing,TargetStructure}`: The target vector or structure, if supervised.
+- `ds_struct::DatasetStructure`: Metadata about the dataset, such as types, dimensions, and missing values.
+- `t_groups::Union{Nothing,Vector{TreatmentGroup}}`: User-defined treatment groups 
+  for feature selection and processing (set lazily).
+- `float_type::Type`: The floating-point type used for numeric processing.
+
+# Usage
+
+This struct is constructed automatically from a matrix or DataFrame and is used as the core object 
+for all further dataset manipulations in the package.
+
+```julia-repl
+using DataTreatments, DataFrames, Statistics
+```
+
+```@example
+# From a DataFrame with default treatment (aggregate with max, min, mean)
+dt = DataTreatment(df)
+
+# From a matrix with explicit column names
+dt = DataTreatment(Matrix(df), names(df))
+
+# With custom treatment groups
+dt = DataTreatment(
+    df,
+    TreatmentGroup(dims=0),                          # scalars: no processing
+    TreatmentGroup(dims=1, aggrfunc=aggregate(       # 1D arrays: custom aggregation
+        win=(splitwindow(4),),
+        features=(mean, std)
+    )),
+)
+
+# With a specific float type
+dt = DataTreatment(df; float_type=Float32)
+
+# Lazy access — build processed datasets only when needed
+datasets = get_datasets(dt)
+```
+
+See also: [`get_dataset`](@ref), [`TreatmentGroup`](@ref), [`DatasetStructure`](@ref)
+"""
 mutable struct DataTreatment
     data::Matrix
     target::Union{Nothing,TargetStructure}
@@ -364,7 +439,66 @@ end
 # ---------------------------------------------------------------------------- #
 #                             custom lazy methods                              #
 # ---------------------------------------------------------------------------- #
+"""
+    get_dataset(
+        dt::DataTreatment,
+        treatments::Base.Callable...;
+        treatment_ds=true,
+        leftover_ds=true,
+        matrix=false,
+        dataframe=false
+    )
 
+The core function of the DataTreatments package.
+Lazily extracts processed datasets from a `DataTreatment` object according to user-specified 
+treatment groups and options.
+
+# Purpose
+
+`get_dataset` enables flexible, on-demand extraction of datasets by applying 
+user-defined filters and grouping logic (via `TreatmentGroup` and related callables). 
+It supports extracting only the columns and transformations the user specifies, 
+while also allowing retrieval of any leftover (unassigned) columns.
+
+This is a convenience method that concatenates the results of
+[`get_treatments_datasets`](@ref) and [`get_leftover_datasets`](@ref). The returned
+vector contains, in order:
+1. All datasets produced by [`get_treatments_datasets`](@ref) (discrete, continuous,
+   and multidimensional columns covered by user-defined [`TreatmentGroup`](@ref)s).
+2. All datasets produced by [`get_leftover_datasets`](@ref) (columns not assigned to
+   any treatment group, processed with the default aggregation function).
+
+Each element is one of:
+- [`DiscreteDataset`](@ref): columns with categorical/discrete data.
+- [`ContinuousDataset`](@ref): columns with scalar numeric data.
+- [`MultidimDataset`](@ref): columns with array-valued data, split by source
+  dimensionality.
+
+# Arguments
+
+- `dt::DataTreatment`: The container holding the raw dataset and all metadata.
+- `treatments::Base.Callable...`: One or more treatment group callables (e.g., from `TreatmentGroup`) 
+  that define how to filter, group, and process columns.
+- `treatment_ds::Bool=true`: If `true`, include datasets defined by the treatment groups.
+- `leftover_ds::Bool=true`: If `true`, include datasets for columns not assigned to any treatment group.
+- `matrix::Bool=false`: If `true`, return the concatenated data as a matrix.
+- `dataframe::Bool=false`: If `true`, return the concatenated data as a DataFrame.
+
+# Returns
+
+- By default, returns a vector of processed datasets (`AbstractDataset`).
+- If `matrix=true`, returns a single matrix of all selected data.
+- If `dataframe=true`, returns a single DataFrame of all selected data.
+
+# Example
+
+```julia
+dt = DataTreatment(df)
+ds = get_dataset(dt, TreatmentGroup(dims=0), TreatmentGroup(dims=1, aggrfunc=aggregate(features=(mean, std))))
+```
+
+See also: [`DataTreatment`](@ref), [`TreatmentGroup`](@ref), [`DatasetStructure`](@ref)
+"""
 function get_dataset(
     dt::DataTreatment,
     treatments::Base.Callable...=TreatmentGroup(aggrfunc=DefaultAggrFunc,);

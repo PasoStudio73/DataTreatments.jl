@@ -1,4 +1,5 @@
 using DataTreatments
+using SoleXplorer
 
 using Downloads
 using CSV, DataFrames
@@ -71,4 +72,15 @@ Threads.@threads for i in eachindex(filepaths)
         float_type=FloatType
     )
 end
+
+# work on Datatreatment objects
+for dt in datatreatments
+    data = get_dataset(dt, TreatmentGroup(dims=0))
+    target = get_target(dt)
+
+    # do stuff with SoleXplorer
+end
+
+# or even better:
+# SoleXplorer.(datatreatments, TreatmentGroup(dims=0))
 
