@@ -227,7 +227,8 @@ function _build_datasets(
     data::Matrix,
     ds_struct::DatasetStructure,
     idxs::Vector{Int},
-    aggrfunc::Base.Callable,
+    aggrfunc::Base.Callable;
+    grps::Union{Nothing,Tuple{Vararg{<:Symbol}}}=nothing,
     float_type::Type=Float64
 )
     valtype = get_datatype(ds_struct)
@@ -246,36 +247,14 @@ function _build_datasets(
         nothing :
         MultidimDataset(id, data, ds_struct, md_cols, aggrfunc, float_type)
 
+    if !isnothing(grps) && aggrfunc isa typeof(aggregate())
+        _groupby(ds_md, grps)
+    end
+
     return ds_td, ds_tc, ds_md
 end
 
-"""
-    _split_md_by_dims(ds_md::MultidimDataset) -> Vector{MultidimDataset}
 
-Split a [`MultidimDataset`](@ref) into multiple `MultidimDataset`s, one for each
-unique source dimensionality of its features.
-
-When a `MultidimDataset` contains features originating from arrays of different
-dimensionalities (e.g., 1D time series and 2D spectrograms), this function groups
-them by dimensionality and returns a separate `MultidimDataset` for each group.
-
-# Arguments
-- `ds_md::MultidimDataset`: A multidimensional dataset potentially containing
-  features with heterogeneous source dimensionalities.
-
-# Returns
-A `Vector{MultidimDataset}` where each element contains only features sharing the
-same dimensionality. The length of the returned vector equals the number of unique
-dimensionalities present in `ds_md`.
-"""
-function _split_md_by_dims(ds_md::MultidimDataset)
-    dims = get_dims(ds_md)
-    unique_dims = unique(get_dims(ds_md))
-
-    idxs = [filter(i -> dims[i] == ud, collect(eachindex(dims))) for ud in unique_dims]
-
-    return [ds_md[idx] for idx in idxs]
-end
 
 """
     _get_treatments_datasets(dt::DataTreatment) -> Vector{AbstractDataset}
@@ -350,7 +329,8 @@ function _get_treatments_datasets(dt::DataTreatment)
             data,
             ds_struct,
             idxs[i],
-            get_aggrfunc(treats[i]),
+            get_aggrfunc(treats[i]);
+            grps=get_groupby(treats[i]),
             float_type
         )
     end
@@ -358,6 +338,13 @@ function _get_treatments_datasets(dt::DataTreatment)
     td_filtered = filter(!isnothing, ds_td)
     tc_filtered = filter(!isnothing, ds_tc)
     md_filtered = filter(!isnothing, ds_md)
+
+    # if !isnothing(grps) && !isnothing(md_filtered)
+    #     @show length(md_filtered)
+    #     @show typeof(md_filtered)
+    # end
+    # grp_idxs = _groupby(md_filtered, grps)
+
     md_split = isempty(md_filtered) ? AbstractDataset[] : reduce(vcat, _split_md_by_dims.(md_filtered))
 
     return AbstractDataset[td_filtered; tc_filtered; md_split]
@@ -425,7 +412,7 @@ function _get_leftover_datasets(dt::DataTreatment)
         data,
         ds_struct,
         idxs,
-        DefaultAggrFunc,
+        DefaultAggrFunc;
         float_type
     )
 
@@ -519,4 +506,3 @@ function get_dataset(
     dataframe && return DataFrame(reduce(vcat, get_data.(ds)), reduce(vcat, get_vnames.(ds)))
     return ds
 end
-

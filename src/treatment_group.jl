@@ -66,7 +66,7 @@ struct TreatmentGroup{T}
     dims::Int
     vnames::Vector{String}
     aggrfunc::Base.Callable
-    groupby::Tuple{Vararg{Symbol}}
+    groupby::Union{Nothing,Tuple{Vararg{Symbol}}}
 
     function TreatmentGroup(
         ds_struct::DatasetStructure;
@@ -74,11 +74,12 @@ struct TreatmentGroup{T}
         name_expr::Union{Regex,Base.Callable,Vector{String}}=r".*",
         datatype::Type=Any,
         aggrfunc::Base.Callable=aggregate(win=(wholewindow(),), features=(maximum, minimum, mean)),
-        groupby::Tuple{Vararg{Symbol}}=(:vname,)
+        groupby::Union{Nothing,Symbol,Tuple{Vararg{Symbol}}}=nothing
     )
         vnames = get_vnames(ds_struct)
         all_dims = get_dims(ds_struct)
         all_types = get_datatype(ds_struct)
+        groupby isa Symbol && (groupby = (groupby,))
 
         # build name matcher once
         name_match = if name_expr isa Regex

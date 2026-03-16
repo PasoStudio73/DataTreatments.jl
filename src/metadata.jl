@@ -232,6 +232,8 @@ Returns the column id of the feature.
 """
 get_id(f::AbstractDataFeature) = f.id
 
+get_idx(f::AbstractDataFeature) = f.id[end]
+
 """
     get_vname(f::AbstractDataFeature) -> String
 

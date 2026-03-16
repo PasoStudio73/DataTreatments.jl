@@ -137,7 +137,7 @@ function aggregate(
     idx::AbstractVector{Vector{Int}},
     float_type::Type;
     win::Tuple{Vararg{Base.Callable}},
-    features::Tuple{Vararg{Base.Callable}},
+    features::Tuple{Vararg{Base.Callable}}
 )
     colwin = [[n > length(win) ? last(win) : win[n] for n in 1:ndims(X[first(idx[i]), i])] for i in axes(X, 2)]
     nwindows = [prod(hasfield(typeof(w), :nwindows) ? w.nwindows : 1 for w in c) for c in colwin]

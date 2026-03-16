@@ -44,10 +44,13 @@ export get_idxs, get_dims, get_vnames, get_aggrfunc, get_groupby
 include("treatment_group.jl")
 
 export DiscreteFeat, ContinuousFeat, AggregateFeat, ReduceFeat
-export get_id, get_vname, get_dims, get_valididxs
+export get_id, get_idx, get_vname, get_dims, get_valididxs
 export get_missingidxs, get_nanidxs, get_hasmissing, get_hasnans
 export get_levels, get_feat, get_nwin, get_reducefunc
 include("metadata.jl")
+
+# export groupby
+include("groupby.jl")
 
 export DiscreteDataset, ContinuousDataset, MultidimDataset
 export discrete_encode
@@ -55,13 +58,11 @@ export get_data, get_info, get_nrows, get_ncols, get_vnames, get_idxs
 include("output_dataset.jl")
 
 export DataTreatment
+export groupby
 export get_data, get_target, get_ds_struct, get_t_groups, get_float_type
 export get_nrows, get_ncols
 export get_dataset
 export get_treatments_datasets, get_leftover_datasets
 include("datatreatment.jl")
-
-export groupby
-include("groupby.jl")
 
 end

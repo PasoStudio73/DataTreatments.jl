@@ -346,6 +346,14 @@ Base.getindex(ds::ContinuousDataset, idxs::AbstractVector{Int}) =
 Base.getindex(ds::MultidimDataset, idxs::AbstractVector{Int}) =
     MultidimDataset(@view(ds.data[:, idxs]), ds.info[idxs])
 
+Base.view(ds::AbstractDataset, i::Integer) = ds[Int(i)]
+Base.view(ds::AbstractDataset, idxs::AbstractVector{<:Integer}) =
+    ds[collect(Int, idxs)]
+Base.view(ds::AbstractDataset, r::AbstractUnitRange{<:Integer}) =
+    ds[collect(Int, r)]
+Base.view(ds::AbstractDataset, ::Colon) =
+    ds[collect(eachindex(ds))]
+
 Base.eltype(::DiscreteDataset) = DiscreteFeat
 Base.eltype(::ContinuousDataset{T}) where T = ContinuousFeat{T}
 Base.eltype(::MultidimDataset{T}) where T = Union{AggregateFeat{T},ReduceFeat{T}}
