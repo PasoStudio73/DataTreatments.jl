@@ -339,12 +339,6 @@ function _get_treatments_datasets(dt::DataTreatment)
     tc_filtered = filter(!isnothing, ds_tc)
     md_filtered = filter(!isnothing, ds_md)
 
-    # if !isnothing(grps) && !isnothing(md_filtered)
-    #     @show length(md_filtered)
-    #     @show typeof(md_filtered)
-    # end
-    # grp_idxs = _groupby(md_filtered, grps)
-
     md_split = isempty(md_filtered) ? AbstractDataset[] : reduce(vcat, _split_md_by_dims.(md_filtered))
 
     return AbstractDataset[td_filtered; tc_filtered; md_split]

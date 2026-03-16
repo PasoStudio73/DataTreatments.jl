@@ -29,7 +29,6 @@ export @evalwindow
 include("windowing.jl")
 
 export aggregate, reducesize
-export is_multidim_dataset, has_uniform_element_size, safe_feat
 include("treatment.jl")
 
 export DatasetStructure
@@ -49,13 +48,11 @@ export get_missingidxs, get_nanidxs, get_hasmissing, get_hasnans
 export get_levels, get_feat, get_nwin, get_reducefunc
 include("metadata.jl")
 
-# export groupby
-include("groupby.jl")
-
 export DiscreteDataset, ContinuousDataset, MultidimDataset
 export discrete_encode
 export get_data, get_info, get_nrows, get_ncols, get_vnames, get_idxs
 include("output_dataset.jl")
+include("groupby.jl")
 
 export DataTreatment
 export groupby
