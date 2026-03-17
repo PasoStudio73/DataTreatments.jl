@@ -484,6 +484,10 @@ function get_dataset(
     treats = [treat(get_ds_struct(dt)) for treat in treatments]
 
     ds = AbstractDataset[]
+
+    for t in treats
+        @show has_groupby(t)
+    end
     treatment_ds && append!(ds, _get_treatments_datasets(dt, treats))
     leftover_ds && append!(ds, _get_leftover_datasets(dt, treats))
 

@@ -96,11 +96,17 @@ test8 = get_dataset(
     TreatmentGroup(
         name_expr=r"^(V|i)"
     ),
+    leftover_ds=false,
     dataframe=true
 )
 
 test9 = get_dataset(
     dt,
+    TreatmentGroup(
+        dims=2,
+        aggrfunc=DT.reducesize(
+            win=(DT.adaptivewindow(nwindows=3, overlap=0.4),)
+        )),
     TreatmentGroup(
         dims=1,
         aggrfunc=DT.aggregate(
@@ -110,5 +116,6 @@ test9 = get_dataset(
         groupby=(:vname, :feat),
     ),
     groupby_split=true,
+    leftover_ds=false,
     dataframe=true
 )

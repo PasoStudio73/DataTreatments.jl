@@ -166,6 +166,9 @@ Returns the `groupby` tuple of symbols used to partition output features.
 """
 get_groupby(tg::TreatmentGroup) = tg.groupby
 
+has_groupby(tg::TreatmentGroup) = isnothing(tg.groupby) ? false : true
+
+
 # ---------------------------------------------------------------------------- #
 #                             custom lazy methods                              #
 # ---------------------------------------------------------------------------- #
