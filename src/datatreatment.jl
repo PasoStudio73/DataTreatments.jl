@@ -20,13 +20,12 @@ data is handled (see [`TreatmentGroup`](@ref) and [`aggregate`](@ref) / [`reduce
 
 !!! note
     TreatmentGroup directives are **not** given at the time of `DataTreatment` creation, 
-    but are instead specified lazily when calling `get_dataset`. 
+    but are instead specified lazily when calling [`get_dataset`](@ref). 
     This allows users to flexibly define how the dataset should be filtered, grouped, 
     and processed only when extraction is needed.
 
-`DataTreatment` stores not only the **static metadata** about the dataset — retrieved
-via [`DatasetStructure`](@ref) — but also all **user-specified preferences** for
-processing.
+`DataTreatment` stores the **static metadata** about the dataset — retrieved
+via [`DatasetStructure`](@ref).
 
 ## Lazy Design
 
@@ -42,8 +41,6 @@ final processed datasets) are deferred until explicitly requested.
 - `data::Matrix`: The raw data matrix (features × samples).
 - `target::Union{Nothing,TargetStructure}`: The target vector or structure, if supervised.
 - `ds_struct::DatasetStructure`: Metadata about the dataset, such as types, dimensions, and missing values.
-- `t_groups::Union{Nothing,Vector{TreatmentGroup}}`: User-defined treatment groups 
-  for feature selection and processing (set lazily).
 - `float_type::Type`: The floating-point type used for numeric processing.
 
 # Usage
@@ -56,27 +53,50 @@ using DataTreatments, DataFrames, Statistics
 ```
 
 ```@example
-# From a DataFrame with default treatment (aggregate with max, min, mean)
-dt = DataTreatment(df)
+dataset = Matrix{Any}([
+    1.0    "hello"   missing
+    2.0    "world"   4.0
+    NaN    "foo"     5.0
+])
+vnames = ["numeric", "text", "with_missing"]
 
 # From a matrix with explicit column names
-dt = DataTreatment(Matrix(df), names(df))
+dt = DataTreatment(dataset, vnames)
+```
 
-# With custom treatment groups
-dt = DataTreatment(
-    df,
+```@example
+df = DataFrame(dataset, vnames)
+
+# From a DataFrame
+dt = DataTreatment(df)
+```
+
+```@example
+# With a specific float type
+dt = DataTreatment(df; float_type=Float32)
+```
+
+```@example
+df = DataFrame(
+    str_col  = [missing, "blue", "green", "red", "blue"],
+    sym_col  = [:circle, :square, :triangle, :square, missing],
+    int_col  = Int[10, 20, 30, 40, 50],
+    V1 = [NaN, missing, 3.0, 4.0, 5.6],
+    V2 = [2.5, missing, 4.5, 5.5, NaN],
+    ts1 = [NaN, collect(2.0:7.0), missing, collect(4.0:9.0), collect(5.0:10.0)],
+    ts2 = [collect(2.0:0.5:5.5), collect(1.0:0.5:4.5), collect(3.0:0.5:6.5), collect(4.0:0.5:7.5), NaN],
+)
+
+dt = DataTreatment(df; float_type=Float32)
+
+# Lazy access — build processed datasets only when needed via get_dataset
+datasets = get_dataset(dt,
     TreatmentGroup(dims=0),                          # scalars: no processing
     TreatmentGroup(dims=1, aggrfunc=aggregate(       # 1D arrays: custom aggregation
-        win=(splitwindow(4),),
+        win=(splitwindow(nwindows=3),),
         features=(mean, std)
     )),
 )
-
-# With a specific float type
-dt = DataTreatment(df; float_type=Float32)
-
-# Lazy access — build processed datasets only when needed
-datasets = get_datasets(dt)
 ```
 
 See also: [`get_dataset`](@ref), [`TreatmentGroup`](@ref), [`DatasetStructure`](@ref)
@@ -137,15 +157,6 @@ Returns the dataset structure containing metadata about the dataset.
 get_ds_struct(dt::DataTreatment) = dt.ds_struct
 
 """
-    get_t_groups(dt::DataTreatment)
-    get_t_groups(dt::DataTreatment, i::Int)
-
-Returns the treatment groups. If `i` is provided, returns the `i`-th treatment group.
-"""
-get_t_groups(dt::DataTreatment) = dt.t_groups
-get_t_groups(dt::DataTreatment, i::Int) = dt.t_groups[i]
-
-"""
     get_float_type(dt::DataTreatment)
 
 Returns the floating-point type used for processing.
@@ -157,14 +168,14 @@ get_float_type(dt::DataTreatment) = dt.float_type
 
 Returns the number of rows in the dataset.
 """
-get_nrows(dt::DataTreatment) = size(dt.dataset, 1)
+get_nrows(dt::DataTreatment) = size(dt.data, 1)
 
 """
     get_ncols(dt::DataTreatment)
 
 Returns the number of columns in the dataset.
 """
-get_ncols(dt::DataTreatment) = size(dt.dataset, 2)
+get_ncols(dt::DataTreatment) = size(dt.data, 2)
 
 # ---------------------------------------------------------------------------- #
 #                             internal functions                               #
@@ -175,7 +186,7 @@ get_ncols(dt::DataTreatment) = size(dt.dataset, 2)
         data::Matrix,
         ds_struct::DatasetStructure,
         idxs::Vector{Int},
-        aggrfunc::Base.Callable,
+        treat::TreatmentGroup;
         float_type::Type=Float64
     ) -> (ds_td, ds_tc, ds_md)
 
@@ -190,31 +201,31 @@ appropriate structure:
   (scalar numeric values). Stored in a [`ContinuousDataset`](@ref).
 - **Multidimensional data**: columns whose element type is a subtype of
   `AbstractArray` (e.g., time series, images, spectrograms). Stored in a
-  [`MultidimDataset`](@ref), processed according to the provided `aggrfunc`.
+  [`MultidimDataset`](@ref), processed according to the provided `treat`'s
+  aggregation function.
 
 Columns whose detected type is `nothing` are silently skipped.
 
 # Arguments
 - `id::Vector`: An identifier tag for the dataset partition (e.g.,
   `[:treatment_group, 1]`), propagated to each sub-dataset for traceability.
-- `DataFrames::Matrix`: The raw DataFrames matrix.
+- `data::Matrix`: The raw data matrix.
 - `ds_struct::DatasetStructure`: Precomputed metadata about the dataset
   (types, dimensions, validity indices). See [`DatasetStructure`](@ref).
 - `idxs::Vector{Int}`: Column indices to consider (typically from a
   [`TreatmentGroup`](@ref)).
-- `aggrfunc::Base.Callable`: The aggregation or reduction function to apply
-  to multidimensional columns (e.g., the result of [`aggregate`](@ref) or
-  [`reducesize`](@ref)).
+- `treat::TreatmentGroup`: The treatment group containing the aggregation or
+  reduction function and optional groupby information.
 - `float_type::Type`: The floating-point type for numeric output
   (default: `Float64`).
 
 # Returns
 A tuple of three elements `(ds_td, ds_tc, ds_md)`:
-- `ds_td`: A [`DiscreteDataset`](@ref) or an empty vector `[]` if no discrete
+- `ds_td`: A [`DiscreteDataset`](@ref) or `nothing` if no discrete
   columns are present.
-- `ds_tc`: A [`ContinuousDataset`](@ref) or an empty vector `[]` if no
+- `ds_tc`: A [`ContinuousDataset`](@ref) or `nothing` if no
   continuous columns are present.
-- `ds_md`: A [`MultidimDataset`](@ref) or an empty vector `[]` if no
+- `ds_md`: A [`MultidimDataset`](@ref) or `nothing` if no
   multidimensional columns are present.
 
 See also: [`DataTreatment`](@ref), [`TreatmentGroup`](@ref),
@@ -250,13 +261,11 @@ function _build_datasets(
     return ds_td, ds_tc, ds_md
 end
 
-
-
 """
-    _get_treatments_datasets(dt::DataTreatment) -> Vector{AbstractDataset}
+    _get_treatments_datasets(dt::DataTreatment, treats::Vector{<:TreatmentGroup}) -> Vector{AbstractDataset}
 
 Extract the processed datasets using the [`TreatmentGroup`](@ref) directives
-specified by the user during the construction of the [`DataTreatment`](@ref) object.
+specified by the user when calling [`get_dataset`](@ref).
 
 Returns a flat `Vector{AbstractDataset}` where each element is one of:
 - [`DiscreteDataset`](@ref): columns with categorical/discrete data.
@@ -273,12 +282,13 @@ multiple `TreatmentGroup`s, this partitioning is preserved in the output.
 !!! note
     Only the columns covered by the user-defined treatment groups are returned.
     Columns not assigned to any `TreatmentGroup` are **not** included; use
-    [`_get_leftover_datasets`](@ref) to retrieve them, or [`get_datasets`](@ref)
+    [`_get_leftover_datasets`](@ref) to retrieve them, or [`get_dataset`](@ref)
     to obtain both.
 
 # Arguments
-- `dt::DataTreatment`: The `DataTreatment` object containing the raw dataset and
-  the user-defined treatment groups.
+- `dt::DataTreatment`: The `DataTreatment` object containing the raw dataset.
+- `treats::Vector{<:TreatmentGroup}`: The instantiated treatment groups specifying
+  which columns to select and how to process them.
 
 # Returns
 A `Vector{AbstractDataset}` containing, in order:
@@ -288,22 +298,8 @@ A `Vector{AbstractDataset}` containing, in order:
 
 Empty categories are omitted from the result.
 
-# Examples
-```julia
-using DataTreatments, DataFrames, Statistics
-
-dt = DataTreatment(
-    df,
-    TreatmentGroup(dims=1, aggrfunc=aggregate(features=(mean, std))),
-    TreatmentGroup(dims=0),
-)
-
-datasets = _get_treatments_datasets(dt)
-# e.g., [ContinuousDataset{Float64}(100×3), MultidimDataset{Float64}(100×6, dims=[1], aggregate)]
-```
-
 See also: [`DataTreatment`](@ref), [`TreatmentGroup`](@ref),
-[`_get_leftover_datasets`](@ref), [`get_datasets`](@ref),
+[`_get_leftover_datasets`](@ref), [`get_dataset`](@ref),
 [`_build_datasets`](@ref), [`_split_md_by_dims`](@ref)
 """
 function _get_treatments_datasets(dt::DataTreatment, treats::Vector{<:TreatmentGroup})
@@ -337,9 +333,8 @@ function _get_treatments_datasets(dt::DataTreatment, treats::Vector{<:TreatmentG
 
     return AbstractDataset[td_filtered; tc_filtered; md_split]
 end
-
 """
-    _get_leftover_datasets(dt::DataTreatment) -> Vector{AbstractDataset}
+    _get_leftover_datasets(dt::DataTreatment, treats::Vector{<:TreatmentGroup}) -> Vector{AbstractDataset}
 
 Complement of [`_get_treatments_datasets`](@ref): returns the dataset columns that
 were **not** selected by any user-defined [`TreatmentGroup`](@ref), formatted as
@@ -358,8 +353,9 @@ Leftover columns are partitioned by data type using the same logic as
     the returned vector will be empty.
 
 # Arguments
-- `dt::DataTreatment`: The `DataTreatment` object containing the raw dataset and
-  the user-defined treatment groups.
+- `dt::DataTreatment`: The `DataTreatment` object containing the raw dataset.
+- `treats::Vector{<:TreatmentGroup}`: The instantiated treatment groups. Columns
+  already assigned to these groups are excluded from the leftover set.
 
 # Returns
 A `Vector{AbstractDataset}` containing, in order:
@@ -370,22 +366,8 @@ A `Vector{AbstractDataset}` containing, in order:
 
 Empty categories are omitted from the result.
 
-# Examples
-```julia
-using DataTreatments, DataFrames, Statistics
-
-# Only treat 1D columns — scalars and 2D columns become leftovers
-dt = DataTreatment(
-    df,
-    TreatmentGroup(dims=1, aggrfunc=aggregate(features=(mean, std))),
-)
-
-leftovers = _get_leftover_datasets(dt)
-# e.g., [ContinuousDataset{Float64}(100×2), MultidimDataset{Float64}(100×9, dims=[2], aggregate)]
-```
-
 See also: [`DataTreatment`](@ref), [`_get_treatments_datasets`](@ref),
-[`get_datasets`](@ref), [`_build_datasets`](@ref), [`_split_md_by_dims`](@ref)
+[`get_dataset`](@ref), [`_build_datasets`](@ref), [`_split_md_by_dims`](@ref)
 """
 function _get_leftover_datasets(dt::DataTreatment, treats::Vector{<:TreatmentGroup})
     idxs = setdiff(collect(eachindex(dt)), reduce(vcat, get_idxs(treats)))
@@ -419,6 +401,7 @@ end
         treatments::Base.Callable...;
         treatment_ds=true,
         leftover_ds=true,
+        groupby_split=false,
         matrix=false,
         dataframe=false
     )
@@ -435,11 +418,11 @@ It supports extracting only the columns and transformations the user specifies,
 while also allowing retrieval of any leftover (unassigned) columns.
 
 This is a convenience method that concatenates the results of
-[`get_treatments_datasets`](@ref) and [`get_leftover_datasets`](@ref). The returned
+[`_get_treatments_datasets`](@ref) and [`_get_leftover_datasets`](@ref). The returned
 vector contains, in order:
-1. All datasets produced by [`get_treatments_datasets`](@ref) (discrete, continuous,
+1. All datasets produced by [`_get_treatments_datasets`](@ref) (discrete, continuous,
    and multidimensional columns covered by user-defined [`TreatmentGroup`](@ref)s).
-2. All datasets produced by [`get_leftover_datasets`](@ref) (columns not assigned to
+2. All datasets produced by [`_get_leftover_datasets`](@ref) (columns not assigned to
    any treatment group, processed with the default aggregation function).
 
 Each element is one of:
@@ -452,36 +435,77 @@ Each element is one of:
 
 - `dt::DataTreatment`: The container holding the raw dataset and all metadata.
 - `treatments::Base.Callable...`: One or more treatment group callables (e.g., from `TreatmentGroup`) 
-  that define how to filter, group, and process columns.
+  that define how to filter, group, and process columns. Defaults to a single `TreatmentGroup`
+  with the default aggregation function (`maximum`, `minimum`, `mean` over the whole window).
 - `treatment_ds::Bool=true`: If `true`, include datasets defined by the treatment groups.
 - `leftover_ds::Bool=true`: If `true`, include datasets for columns not assigned to any treatment group.
-- `matrix::Bool=false`: If `true`, return the concatenated data as a matrix.
-- `dataframe::Bool=false`: If `true`, return the concatenated data as a DataFrame.
+- `groupby_split::Bool=false`: If `true`, split multidimensional datasets by group.
+- `matrix::Bool=false`: If `true`, return the concatenated data as a vector of matrices.
+- `dataframe::Bool=false`: If `true`, return the concatenated data as a vector of DataFrames.
 
 # Returns
 
-- By default, returns a vector of processed datasets (`AbstractDataset`).
-- If `matrix=true`, returns a single matrix of all selected data.
-- If `dataframe=true`, returns a single DataFrame of all selected data.
+- By default, returns a `Vector{AbstractDataset}` of processed datasets.
+- If `matrix=true`, returns a vector of matrices of all selected data.
+- If `dataframe=true`, returns a vector of DataFrames of all selected data.
 
 # Example
 
-```julia
-dt = DataTreatment(df)
+```julia-repl
+using DataTreatments, DataFrames, Statistics
+```
+
+```@example
+df = DataFrame(
+    str_col  = [missing, "blue", "green", "red", "blue"],
+    sym_col  = [:circle, :square, :triangle, :square, missing],
+    int_col  = Int[10, 20, 30, 40, 50],
+    V1 = [NaN, missing, 3.0, 4.0, 5.6],
+    V2 = [2.5, missing, 4.5, 5.5, NaN],
+    ts1 = [NaN, collect(2.0:7.0), missing, collect(4.0:9.0), collect(5.0:10.0)],
+    ts2 = [collect(2.0:0.5:5.5), collect(1.0:0.5:4.5), collect(3.0:0.5:6.5), collect(4.0:0.5:7.5), NaN],
+)
+
+dt = DataTreatment(df; float_type=Float32)
+```
+
+```@example
+# With default treatment (aggregate with max, min, mean over whole window)
+ds = get_dataset(dt)
+```
+
+```@example
+# With custom treatment groups
 ds = get_dataset(dt, TreatmentGroup(dims=0), TreatmentGroup(dims=1, aggrfunc=aggregate(features=(mean, std))))
 ```
 
-See also: [`DataTreatment`](@ref), [`TreatmentGroup`](@ref), [`DatasetStructure`](@ref)
+```@example
+# Only leftover columns
+ds = get_dataset(dt, TreatmentGroup(dims=1); treatment_ds=false)
+```
+
+```@example
+# As matrices
+ds = get_dataset(dt; matrix=true)
+```
+
+```@example
+# As dataframe
+ds = get_dataset(dt; dataframe=true)
+```
+
+See also: [`DataTreatment`](@ref), [`TreatmentGroup`](@ref), [`DatasetStructure`](@ref),
+[`_get_treatments_datasets`](@ref), [`_get_leftover_datasets`](@ref)
 """
 function get_dataset(
     dt::DataTreatment,
-    treatments::Base.Callable...=TreatmentGroup(aggrfunc=DefaultAggrFunc,);
+    treatments::Vararg{Base.Callable}=TreatmentGroup(aggrfunc=DefaultAggrFunc,);
     treatment_ds::Bool=true,
     leftover_ds::Bool=true,
     groupby_split::Bool=false,
     matrix::Bool=false,
     dataframe::Bool=false
-)
+)::Vector{Union{AbstractDataset,AbstractMatrix,DataFrame}}
     treats = [treat(get_ds_struct(dt)) for treat in treatments]
 
     ds = AbstractDataset[]
@@ -489,7 +513,7 @@ function get_dataset(
     treatment_ds && append!(ds, _get_treatments_datasets(dt, treats))
     leftover_ds && append!(ds, _get_leftover_datasets(dt, treats))
 
-    isempty(ds) && return
+    isempty(ds) && return ds
 
     if matrix
         return reduce(vcat, [elem isa AbstractVector && eltype(elem) <: AbstractMatrix ?
@@ -511,4 +535,22 @@ function get_dataset(
     end
 
     return ds
+end
+
+# ---------------------------------------------------------------------------- #
+#                                 show method                                  #
+# ---------------------------------------------------------------------------- #
+function Base.show(io::IO, dt::DataTreatment)
+    nrows, ncols = size(dt.data)
+    target_info = isnothing(dt.target) ? "none" : "$(length(dt.target)) labels"
+    print(io, "DataTreatment($(nrows)×$(ncols), target=$(target_info), float_type=$(dt.float_type))")
+end
+
+function Base.show(io::IO, ::MIME"text/plain", dt::DataTreatment)
+    nrows, ncols = size(dt.data)
+    println(io, "DataTreatment")
+    println(io, "  Data size:    $(nrows) × $(ncols)")
+    println(io, "  Target:       ", isnothing(dt.target) ? "none" : "$(length(dt.target)) labels")
+    println(io, "  Float type:   $(dt.float_type)")
+    print(io,   "  DS structure: $(dt.ds_struct)")
 end

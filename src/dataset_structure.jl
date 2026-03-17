@@ -119,6 +119,11 @@ For each column, a single pass over the elements extracts:
   automatically extracted via `names(df)` and stored in the resulting `DatasetStructure`.
 
 ## Example
+
+```julia-repl
+using DataTreatments, DataFrames, Statistics
+```
+
 ```@example
 dataset = Matrix{Any}([
     1.0    "hello"   missing
@@ -129,12 +134,15 @@ vnames = ["numeric", "text", "with_missing"]
 
 ds = DatasetStructure(dataset, vnames)
 ```
+
 ```@example
 get_vnames(ds)
 ```
+
 ```@example
 get_datatype(ds)
 ```
+
 ```@example
 get_valididxs(ds, 3)
 ```
