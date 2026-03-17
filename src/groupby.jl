@@ -55,16 +55,16 @@ When flattened (e.g. with `reduce(vcat, collect.(collect(...)))`), the result
 is a `Vector{Vector{Int}}` giving every leaf group in hierarchical order.
 """
 function _groupby(
-    datafeats::MultidimDataset,
+    info::AbstractVector{<:AggregateFeat{T}},
     fields::Tuple{Vararg{Symbol}}
-)
+) where T
     # this function performs multi-level grouping (recursive).
     # - idxs: current groups of column indices
-    # - datafeats: current groups of FeatureId metadata (aligned with idxs)
+    # - info: current groups of FeatureId metadata (aligned with idxs)
     # - fields: remaining fields to group by (e.g., [:feat, :vname, :nwin])
 
     # split by the first field
-    sub_idxs = _groupby(datafeats, first(fields))
+    sub_idxs = _groupby(info, first(fields))
 
     remaining = fields[2:end]
     isempty(remaining) && return collect(sub_idxs)
@@ -73,7 +73,7 @@ function _groupby(
     all_groups = Vector{Vector{Int}}()
 
     for i in sub_idxs
-        groups = _groupby(@view(datafeats[i]), remaining)
+        groups = _groupby(@view(info[i]), remaining)
         append!(all_groups, collect(groups))
     end
 
@@ -99,15 +99,13 @@ of the chosen attribute.
 Throws `ArgumentError` if `field` is not a recognised attribute name.
 """
 function _groupby(
-    datafeats::MultidimDataset,
+    info::AbstractVector{<:AggregateFeat{T}},
     field::Symbol
-)
-    field == :all && return (i for i in eachindex(datafeats))
-
+) where T
+    field == :all && return (i for i in eachindex(info))
     getter = field_getter(field)
-    infos = datafeats.info
-    vals = [getter(infos[i]) for i in eachindex(infos)]
+    vals = [getter(info[i]) for i in eachindex(info)]
     unique_vals = unique(vals)
     idxs = (findall(==(v), vals) for v in unique_vals)
-    return (get_idx.(@view(infos[i])) for i in idxs)
+    return (get_idx.(@view(info[i])) for i in idxs)
 end

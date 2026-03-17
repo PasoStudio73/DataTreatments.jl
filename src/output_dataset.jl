@@ -52,6 +52,32 @@ function discrete_encode(x::AbstractVector)
     return [levelcode(cat) for cat in cats], levels(cats)
 end
 
+"""
+    _reindex_groups(groups, idxs) -> Union{Nothing, Vector{Vector{Int}}}
+
+Re-map group indices from the original column space to the new subset `idxs`.
+Only groups that have at least one member in `idxs` are kept.
+"""
+function _reindex_groups(groups::Nothing, idxs::AbstractVector{Int})
+    return nothing
+end
+
+function _reindex_groups(groups::Vector{Vector{Int}}, idxs::AbstractVector{Int})
+    idx_set = Set(idxs)
+    # Build reverse mapping: old index -> new index
+    old_to_new = Dict(old => new for (new, old) in enumerate(idxs))
+    
+    new_groups = Vector{Vector{Int}}()
+    for grp in groups
+        new_grp = [old_to_new[i] for i in grp if i in idx_set]
+        if !isempty(new_grp)
+            push!(new_groups, new_grp)
+        end
+    end
+    
+    return isempty(new_groups) ? nothing : new_groups
+end
+
 # ---------------------------------------------------------------------------- #
 #                               dataset structs                                #
 # ---------------------------------------------------------------------------- #
@@ -260,12 +286,19 @@ See also: [`DiscreteDataset`](@ref), [`ContinuousDataset`](@ref),
 struct MultidimDataset{T} <: AbstractDataset
     data::AbstractArray
     info::Vector{<:Union{AggregateFeat,ReduceFeat}}
-    treat::TreatmentGroup
+    groups::Union{Nothing,Vector{Vector{Int}}}
 
-    MultidimDataset(data::AbstractArray, info::Vector{<:AggregateFeat{T}}) where T =
-        new{AggregateFeat{T}}(data, info)
-    MultidimDataset(data::AbstractArray, info::Vector{<:ReduceFeat{T}}) where T =
-        new{ReduceFeat{T}}(data, info)
+    MultidimDataset(
+        data::AbstractArray,
+        info::Vector{<:AggregateFeat{T}},
+        groups::Union{Nothing,Vector{Vector{Int}}}
+    ) where T = new{AggregateFeat{T}}(data, info, groups)
+
+    MultidimDataset(
+        data::AbstractArray,
+        info::Vector{<:ReduceFeat{T}},
+        groups::Union{Nothing,Vector{Vector{Int}}}=nothing
+    ) where T = new{ReduceFeat{T}}(data, info, groups)
 
     function MultidimDataset(
         id::Vector,
@@ -274,7 +307,7 @@ struct MultidimDataset{T} <: AbstractDataset
         cols::Vector{Int},
         aggrfunc::Base.Callable,
         float_type::Type,
-        treat::TreatmentGroup
+        groups::Union{Nothing,Symbol,Tuple{Vararg{Symbol}}}
     )
         data = @view data[:, cols]
         vnames = get_vnames(ds_struct, cols)
@@ -318,7 +351,9 @@ struct MultidimDataset{T} <: AbstractDataset
                 for (i, c) in enumerate(axes(md,2))]
         end
 
-        return new{float_type}(md, md_feats, treat)
+        grouped = isnothing(groups) ? nothing : _groupby(md_feats, groups)
+
+        new{eltype(md_feats)}(md, md_feats, grouped)
     end
 end
 
@@ -339,14 +374,14 @@ Base.getindex(ds::DiscreteDataset, i::Int) =
 Base.getindex(ds::ContinuousDataset, i::Int) =
     ContinuousDataset(ds.data[:, i:i], [ds.info[i]])
 Base.getindex(ds::MultidimDataset, i::Int) =
-    MultidimDataset(ds.data[:, i:i], [ds.info[i]])
+    MultidimDataset(ds.data[:, i:i], [ds.info[i]], _reindex_groups(ds.groups, [i]))
 
 Base.getindex(ds::DiscreteDataset, idxs::AbstractVector{Int}) =
     DiscreteDataset(@view(ds.data[:, idxs]), ds.info[idxs])
 Base.getindex(ds::ContinuousDataset, idxs::AbstractVector{Int}) =
     ContinuousDataset(@view(ds.data[:, idxs]), ds.info[idxs])
 Base.getindex(ds::MultidimDataset, idxs::AbstractVector{Int}) =
-    MultidimDataset(@view(ds.data[:, idxs]), ds.info[idxs])
+    MultidimDataset(@view(ds.data[:, idxs]), ds.info[idxs], _reindex_groups(ds.groups, idxs))
 
 Base.view(ds::AbstractDataset, i::Integer) = ds[Int(i)]
 Base.view(ds::AbstractDataset, idxs::AbstractVector{<:Integer}) =
@@ -368,7 +403,12 @@ Base.eltype(::MultidimDataset{T}) where T = Union{AggregateFeat{T},ReduceFeat{T}
 
 Returns the underlying dataset matrix.
 """
-get_data(ds::AbstractDataset) = ds.data
+get_data(ds::AbstractDataset; kwargs...) = ds.data
+function get_data(ds::MultidimDataset{<:AggregateFeat}; groupby_split::Bool=false)
+    groupby_split && has_groups(ds) ?
+    [ds.data[:,g] for g in get_groups(ds)] :
+    ds.data
+end
 
 """
     get_data(ds::AbstractDataset, i::Int) -> Vector
@@ -395,6 +435,9 @@ Returns the `i`-th feature metadata entry, or a subset by indices.
 get_info(ds::AbstractDataset, i::Int) = ds.info[i]
 get_info(ds::AbstractDataset, idxs::Vector{Int}) = @views ds.info[idxs]
 
+has_groups(ds::MultidimDataset) = isnothing(ds.groups) ? false : true
+get_groups(ds::MultidimDataset) = ds.groups
+
 """
     get_nrows(ds::AbstractDataset) -> Int
 
@@ -414,9 +457,13 @@ get_ncols(ds::AbstractDataset) = size(ds.dataset, 2)
 
 Returns the variable names of all features in the dataset.
 """
-get_vnames(ds::AbstractDataset) = [get_vname(f) for f in ds.info]
-get_vnames(ds::MultidimDataset{<:AggregateFeat}) =
-    ["$(get_vname(f)),$(get_feat(f)),win:$(get_nwin(f))" for f in ds.info]
+get_vnames(ds::AbstractDataset; kwargs...) = [get_vname(f) for f in ds.info]
+function get_vnames(ds::MultidimDataset{<:AggregateFeat}; groupby_split::Bool=false)
+    names = ["$(get_vname(f)),$(get_feat(f)),win:$(get_nwin(f))" for f in ds.info]
+    groupby_split && has_groups(ds) ?
+    [names[g] for g in get_groups(ds)] :
+    names
+end
 
 """
     get_vnames(ds::AbstractDataset, i::Int) -> String

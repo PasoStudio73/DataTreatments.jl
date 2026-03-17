@@ -1,4 +1,6 @@
 using DataTreatments
+const DT = DataTreatments
+
 using DataFrames
 using Random
 using CategoricalArrays
@@ -106,7 +108,7 @@ test9 = get_dataset(
         dims=2,
         aggrfunc=DT.reducesize(
             win=(DT.adaptivewindow(nwindows=3, overlap=0.4),)
-        )),
+        ),),
     TreatmentGroup(
         dims=1,
         aggrfunc=DT.aggregate(
@@ -117,5 +119,19 @@ test9 = get_dataset(
     ),
     groupby_split=true,
     leftover_ds=false,
-    matrix=true
+    dataframe=true
+)
+
+test9 = get_dataset(
+    dt,
+    TreatmentGroup(
+        dims=2,
+        aggrfunc=DT.aggregate(
+            features=(mean, maximum),
+            win=(DT.adaptivewindow(nwindows=5, overlap=0.4),)
+        ),
+        groupby=:vname,
+    ),
+    groupby_split=true,
+    dataframe=true
 )

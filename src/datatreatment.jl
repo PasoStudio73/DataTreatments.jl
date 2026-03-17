@@ -231,6 +231,7 @@ function _build_datasets(
 )
     aggrfunc = get_aggrfunc(treat);
     valtype = get_datatype(ds_struct)
+    groups = has_groupby(treat) ? get_groupby(treat) : nothing
 
     td_cols = idxs ∩ findall(T -> !isnothing(T) && !(T <: AbstractFloat) && !(T <: AbstractArray), valtype)
     tc_cols = idxs ∩ findall(T -> !isnothing(T) && T <: AbstractFloat, valtype)
@@ -244,7 +245,7 @@ function _build_datasets(
         ContinuousDataset(id, data, ds_struct, tc_cols, float_type)
     ds_md = isempty(md_cols) ?
         nothing :
-        MultidimDataset(id, data, ds_struct, md_cols, aggrfunc, float_type, treat)
+        MultidimDataset(id, data, ds_struct, md_cols, aggrfunc, float_type, groups)
 
     return ds_td, ds_tc, ds_md
 end
@@ -485,15 +486,29 @@ function get_dataset(
 
     ds = AbstractDataset[]
 
-    for t in treats
-        @show has_groupby(t)
-    end
     treatment_ds && append!(ds, _get_treatments_datasets(dt, treats))
     leftover_ds && append!(ds, _get_leftover_datasets(dt, treats))
 
     isempty(ds) && return
 
-    matrix && return get_data.(ds)
-    dataframe && return DataFrame.(get_data.(ds), get_vnames.(ds))
+    if matrix
+        return reduce(vcat, [elem isa AbstractVector && eltype(elem) <: AbstractMatrix ?
+            elem :
+            [elem] for elem in get_data.(ds; groupby_split)]
+        )
+    end
+
+    if dataframe
+        data = reduce(vcat, [elem isa AbstractVector && eltype(elem) <: AbstractMatrix ?
+            elem :
+            [elem] for elem in get_data.(ds; groupby_split)]
+        )
+        cnames = reduce(vcat, [elem isa AbstractVector && eltype(elem) <: AbstractVector ?
+            elem :
+            [elem] for elem in get_vnames.(ds; groupby_split)]
+        )
+        return DataFrame.(data, cnames)
+    end
+
     return ds
 end
