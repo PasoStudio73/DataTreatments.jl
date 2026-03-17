@@ -260,6 +260,7 @@ See also: [`DiscreteDataset`](@ref), [`ContinuousDataset`](@ref),
 struct MultidimDataset{T} <: AbstractDataset
     data::AbstractArray
     info::Vector{<:Union{AggregateFeat,ReduceFeat}}
+    treat::TreatmentGroup
 
     MultidimDataset(data::AbstractArray, info::Vector{<:AggregateFeat{T}}) where T =
         new{AggregateFeat{T}}(data, info)
@@ -272,8 +273,8 @@ struct MultidimDataset{T} <: AbstractDataset
         ds_struct::DatasetStructure,
         cols::Vector{Int},
         aggrfunc::Base.Callable,
-        float_type::Type;
-        # groupby::Vector{Vector{Int}}=Vector{Vector{Int}}[]
+        float_type::Type,
+        treat::TreatmentGroup
     )
         data = @view data[:, cols]
         vnames = get_vnames(ds_struct, cols)
@@ -317,7 +318,7 @@ struct MultidimDataset{T} <: AbstractDataset
                 for (i, c) in enumerate(axes(md,2))]
         end
 
-        return new{float_type}(md, md_feats)
+        return new{float_type}(md, md_feats, treat)
     end
 end
 

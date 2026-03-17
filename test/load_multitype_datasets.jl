@@ -117,5 +117,5 @@ test9 = get_dataset(
     ),
     groupby_split=true,
     leftover_ds=false,
-    dataframe=true
+    matrix=true
 )

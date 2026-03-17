@@ -226,9 +226,10 @@ function _build_datasets(
     data::Matrix,
     ds_struct::DatasetStructure,
     idxs::Vector{Int},
-    aggrfunc::Base.Callable;
+    treat::TreatmentGroup;
     float_type::Type=Float64
 )
+    aggrfunc = get_aggrfunc(treat);
     valtype = get_datatype(ds_struct)
 
     td_cols = idxs ∩ findall(T -> !isnothing(T) && !(T <: AbstractFloat) && !(T <: AbstractArray), valtype)
@@ -243,7 +244,7 @@ function _build_datasets(
         ContinuousDataset(id, data, ds_struct, tc_cols, float_type)
     ds_md = isempty(md_cols) ?
         nothing :
-        MultidimDataset(id, data, ds_struct, md_cols, aggrfunc, float_type)
+        MultidimDataset(id, data, ds_struct, md_cols, aggrfunc, float_type, treat)
 
     return ds_td, ds_tc, ds_md
 end
@@ -322,8 +323,7 @@ function _get_treatments_datasets(dt::DataTreatment, treats::Vector{<:TreatmentG
             data,
             ds_struct,
             idxs[i],
-            get_aggrfunc(treats[i]);
-            # grps=get_groupby(treats[i]),
+            treats[i];
             float_type
         )
     end
@@ -398,7 +398,7 @@ function _get_leftover_datasets(dt::DataTreatment, treats::Vector{<:TreatmentGro
         data,
         ds_struct,
         idxs,
-        DefaultAggrFunc;
+        TreatmentGroup(get_ds_struct(dt); aggrfunc=DefaultAggrFunc);
         float_type
     )
 
