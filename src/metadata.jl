@@ -19,11 +19,6 @@ ordinal codes).
 - `levels::CategoricalArrays.CategoricalVector`: the ordered set of categorical levels.
 - `valididxs::Vector{Int}`: row indices with valid (non-missing) values.
 - `missingidxs::Vector{Int}`: row indices containing `missing`.
-
-# Example
-```julia
-DiscreteFeat{String}([1], "color", categorical(["red", "blue", "green"]), [1,2,3], Int[])
-```
 """
 struct DiscreteFeat{T} <: AbstractDataFeature
     id::Vector
@@ -60,11 +55,6 @@ Tracks validity, missingness, and `NaN` indices for scalar numeric columns
 - `valididxs::Vector{Int}`: row indices with valid (non-missing, non-NaN) values.
 - `missingidxs::Vector{Int}`: row indices containing `missing`.
 - `nanidxs::Vector{Int}`: row indices containing `NaN`.
-
-# Example
-```julia
-ContinuousFeat{Float64}([2], "temperature", [1,2,4,5], [3], Int[])
-```
 """
 struct ContinuousFeat{T} <: AbstractDataFeature
     id::Vector
@@ -114,15 +104,6 @@ This struct stores the metadata needed to reconstruct and validate that process.
   contains `missing` values internally.
 - `hasnans::Vector{Int}`: row indices where the element is a valid array but
   contains `NaN` values internally.
-
-# Example
-```julia
-# 1D source (time series of length 1000, split into 4 windows, aggregated with maximum)
-AggregateFeat{Float64}([3], "audio_signal", 1, maximum, 4, [1,2], Int[], Int[], Int[], [2])
-
-# 2D source (spectrogram 128×64, whole window, aggregated with mean)
-AggregateFeat{Float64}([5], "spectrogram", 2, mean, 1, [1,2,3], Int[], Int[], Int[], Int[])
-```
 
 See also: [`ReduceFeat`](@ref), [`aggregate`](@ref)
 """
@@ -185,15 +166,6 @@ This struct stores the metadata needed to reconstruct and validate that process.
 - `hasnans::Vector{Int}`: row indices where the element is a valid array but
   contains `NaN` values internally.
 
-# Example
-```julia
-# 1D source (time series reduced from 10000 to 256 points)
-ReduceFeat{Float64}([4], "audio_signal", 1, my_downsample, [1,2,3], Int[], Int[], Int[], [3])
-
-# 2D source (spectrogram reduced from 1024×128 to 64×16)
-ReduceFeat{Float64}([5], "spectrogram", 2, my_resize, [1,2,3], Int[], Int[], Int[], Int[])
-```
-
 See also: [`AggregateFeat`](@ref), [`reducesize`](@ref)
 """
 struct ReduceFeat{T} <: AbstractDataFeature
@@ -226,12 +198,17 @@ end
 #                               getter methods                                 #
 # ---------------------------------------------------------------------------- #
 """
-    get_id(f::AbstractDataFeature) -> Int
+    get_id(f::AbstractDataFeature) -> Vector
 
-Returns the column id of the feature.
+Returns the full column id path of the feature.
 """
 get_id(f::AbstractDataFeature) = f.id
 
+"""
+    get_idx(f::AbstractDataFeature) -> Int
+
+Returns the leaf column index of the feature (i.e., the last element of `id`).
+"""
 get_idx(f::AbstractDataFeature) = f.id[end]
 
 """
@@ -270,16 +247,18 @@ Returns the indices of `NaN` values for the feature.
 get_nanidxs(f::Union{ContinuousFeat,AggregateFeat,ReduceFeat}) = f.nanidxs
 
 """
-    get_hasmissing(f::Union{AggregateFeat,ReduceFeat}) -> Vector{Bool}
+    get_hasmissing(f::Union{AggregateFeat,ReduceFeat}) -> Vector{Int}
 
-Returns the per-element flags indicating presence of `missing` values internally.
+Returns the row indices where the element is a valid array but contains
+`missing` values internally.
 """
 get_hasmissing(f::Union{AggregateFeat,ReduceFeat}) = f.hasmissing
 
 """
-    get_hasnans(f::Union{AggregateFeat,ReduceFeat}) -> Vector{Bool}
+    get_hasnans(f::Union{AggregateFeat,ReduceFeat}) -> Vector{Int}
 
-Returns the per-element flags indicating presence of `NaN` values internally.
+Returns the row indices where the element is a valid array but contains
+`NaN` values internally.
 """
 get_hasnans(f::Union{AggregateFeat,ReduceFeat}) = f.hasnans
 
@@ -310,3 +289,26 @@ get_nwin(f::AggregateFeat) = f.nwin
 Returns the reduce function of the feature.
 """
 get_reducefunc(f::ReduceFeat) = f.reducefunc
+
+# ---------------------------------------------------------------------------- #
+#                                Base.show                                     #
+# ---------------------------------------------------------------------------- #
+function Base.show(io::IO, f::DiscreteFeat{T}) where T
+    print(io, "DiscreteFeat{$T}(\"$(f.vname)\", $(length(f.levels)) levels, " *
+        "$(length(f.valididxs)) valid, $(length(f.missingidxs)) missing)")
+end
+
+function Base.show(io::IO, f::ContinuousFeat{T}) where T
+    print(io, "ContinuousFeat{$T}(\"$(f.vname)\", " *
+        "$(length(f.valididxs)) valid, $(length(f.missingidxs)) missing, $(length(f.nanidxs)) NaN)")
+end
+
+function Base.show(io::IO, f::AggregateFeat{T}) where T
+    print(io, "AggregateFeat{$T}(\"$(f.vname)\", dims=$(f.dims), feat=$(f.feat), nwin=$(f.nwin), " *
+        "$(length(f.valididxs)) valid, $(length(f.missingidxs)) missing, $(length(f.nanidxs)) NaN)")
+end
+
+function Base.show(io::IO, f::ReduceFeat{T}) where T
+    print(io, "ReduceFeat{$T}(\"$(f.vname)\", dims=$(f.dims), " *
+        "$(length(f.valididxs)) valid, $(length(f.missingidxs)) missing, $(length(f.nanidxs)) NaN)")
+end

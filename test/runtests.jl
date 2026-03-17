@@ -19,8 +19,8 @@ test_suites = [
     ("Dataset Structure", ["dataset_structure.jl"]),
     ("DataTreatment", ["datatreatment.jl"]),
     ("Groupby", ["groupby.jl"]),
+    ("Metadatas",  ["metadata.jl",]),
     # ("Treatment Groups",  ["treatment_group.jl",]),
-    # ("Metadatas",  ["metadata.jl",]),
     # ("Output Datasets",  ["output_dataset.jl",]),
     # ("Treatments",  ["treatment.jl",]),
 
