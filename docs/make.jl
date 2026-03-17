@@ -5,7 +5,7 @@ DocMeta.setdocmeta!(DataTreatments, :DocTestSetup, :(using DataTreatments); recu
 
 makedocs(;
     modules=[DataTreatments],
-    authors="Federico Manzella, Riccardo Pasini",
+    authors="Michele Ghiotti, Federico Manzella, Riccardo Pasini",
     repo=Documenter.Remotes.GitHub("PasoStudio73", "DataTreatments.jl"),
     sitename="DataTreatments.jl",
     format=Documenter.HTML(;
@@ -16,12 +16,16 @@ makedocs(;
         assets=String[],
     ),
     pages=[
-        "Home"          => "index.md",
-        "DataTreatment" => "treatment.md",
-        "Grouping" => "grouping.md",
-        "Normalization" => "normalization.md",
-        "FeatureSet"    => "featureset.md",
-        "Api"           => "api.md",
+        "Home" => "index.md",
+        "Dataset Structure" => "dataset_structure.md",
+        "DataTreatment" => "datatreatment.md",
+        "Grouping" => "groupby.md",
+        "Treatment Groups" => "treatment_group.md",
+        "Treatments" => "treatment.md",
+        "Metadata" => "metadata.md",
+        "Output Datasets" => "output_dataset.md",
+        "FeatureSet" => "featureset.md",
+        "Windowing" => "windowing.md",
     ],
     warnonly=:true,
 )

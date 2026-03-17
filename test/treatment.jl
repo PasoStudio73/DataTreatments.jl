@@ -1,630 +1,385 @@
-using Test
 using DataTreatments
 const DT = DataTreatments
 
 using DataFrames
+using Random
+using CategoricalArrays
 using Statistics
+using Test
 
-@testset "aggregate - Flatten to Tabular" begin
-    X = rand(100, 120)
-    Xmatrix = fill(X, 100, 10)
-    vnames = Symbol.("var", 1:size(Xmatrix, 2))
-    nwindows = 3
-    win = splitwindow(; nwindows)
-    features = (mean, maximum)
-    
-    result = DataTreatment(Xmatrix, :aggregate; vnames, win, features)
-    
-    @test get_aggrtype(result) == :aggregate
-    @test size(get_dataset(result), 1) == size(Xmatrix, 1)  # Same number of rows
-    # features are matrices, multidim windowing is: nwindows * nwindows
-    @test size(get_dataset(result), 2) == size(Xmatrix, 2) * nwindows^2 * length(features)
-    @test length(get_featureid(result)) == 180
-    @test isnothing(get_norm(result))
-    @test eltype(result) == Float64
+function create_image(seed::Int; n=6)
+    Random.seed!(seed)
+    rand(Float64, n, n)
 end
 
-@testset "reducesize - Reduce elements size" begin
-    X = rand(100, 120)
-    Xmatrix = fill(X, 100, 10)
-    vnames = Symbol.("var", 1:size(Xmatrix, 2))
-    win = splitwindow(nwindows=3)
-    
-    result = DataTreatment(Xmatrix, :reducesize; vnames, win, reducefunc=Statistics.std)
-    
-    @test size(get_dataset(result)) == size(Xmatrix)
-    @test typeof(first(get_dataset(result))) <: eltype(result)
-    @test size(first(get_dataset(result))) == (3, 3)
-    @test get_reducefunc(result) == std
+df = DataFrame(
+    str_col  = [missing, "blue", "green", "red", "blue"],
+    sym_col  = [:circle, :square, :triangle, :square, missing],
+    cat_col  = categorical(["small", "medium", missing, "small", "large"]),
+    uint_col = UInt32[1, 2, 3, 4, 5],
+    int_col  = Int[10, 20, 30, 40, 50],
+    V1 = [NaN, missing, 3.0, 4.0, 5.6],
+    V2 = [2.5, missing, 4.5, 5.5, NaN],
+    V3 = [3.2, 4.2, 5.2, missing, 2.4],
+    V4 = [4.1, NaN, NaN, 7.1, 5.5],
+    V5 = [5.0, 6.0, 7.0, 8.0, 1.8],
+    ts1 = [NaN, collect(2.0:7.0), missing, collect(4.0:9.0), collect(5.0:10.0)],
+    ts2 = [collect(2.0:0.5:5.5), collect(1.0:0.5:4.5), collect(3.0:0.5:6.5), collect(4.0:0.5:7.5), NaN],
+    ts3 = [[1.0, 1.2, 1.2, 2.6, NaN, 4.0, 4.2], NaN, NaN, missing, [3.0, NaN, 4.4, missing, 5.8, 7.0, 7.2]],
+    ts4 = [[6.0, 5.2, missing, 4.4, 1.2, 3.6, 2.8], missing, [5.0, 4.2, NaN, 3.4, missing, 2.6, 1.8], [8.0, 7.2, missing, 6.4, NaN, 5.6, 4.8], [9.0, NaN, 8.2, missing, 7.4, 6.6, 5.8]],
+    img1 = [create_image(i) for i in 1:5],
+    img2 = [i == 1 ? NaN : create_image(i+10) for i in 1:5],
+    img3 = [create_image(i+20) for i in 1:5],
+    img4 = [i == 3 ? missing : create_image(i+30) for i in 1:5]
+)
+
+ds_struct = DT.DatasetStructure(df)
+
+
+"""Build X matrix and idx vector for the given column names."""
+function _build_Xidx(colnames::Vector{String})
+    colidxs = [findfirst(==(c), names(df)) for c in colnames]
+    X = Matrix{Any}(undef, nrow(df), length(colidxs))
+    for (j, c) in enumerate(colidxs)
+        X[:, j] = df[!, c]
+    end
+    idx = [_get_valid(df, c) for c in colidxs]
+    X, idx
 end
 
-@testset "FeatureId" begin
-    @testset "Creation and accessors" begin
-        fid = FeatureId(:temperature, mean, 1)
-        
-        @test get_vname(fid) == :temperature
-        @test get_feat(fid) == mean
-        @test get_nwin(fid) == 1
+"""Build X matrix and idx vector for all columns selected by a TreatmentGroup."""
+function _build_Xidx(tg::TreatmentGroup)
+    cols = DT.get_idxs(tg)
+    X = Matrix{Any}(undef, nrow(df), length(cols))
+    for (j, c) in enumerate(cols)
+        X[:, j] = df[!, c]
     end
-    
-    @testset "Display single window" begin
-        fid = FeatureId(:temperature, mean, 1)
-        str = sprint(show, fid)
-        @test occursin("mean", str)
-        @test occursin("temperature", str)
-        @test occursin("_w1", str)
-    end
-    
-    @testset "Display multi-window" begin
-        fid = FeatureId(:pressure, maximum, 3)
-        str = sprint(show, fid)
-        @test occursin("maximum", str)
-        @test occursin("pressure", str)
-        @test occursin("_w3", str)
-    end
+    idx = [_get_valid(df, c) for c in cols]
+    X, idx
 end
 
-@testset "DataTreatment - Matrix Input" begin
-    Xmatrix = fill(rand(200, 120), 100, 10)
-    win = splitwindow(nwindows=4)
-    features = (mean, std, maximum)
-    
-    @testset ":reducesize mode" begin
-        dt = DataTreatment(Xmatrix, :reducesize; 
-                            vnames=Symbol.("var", 1:10),
-                            win, 
-                            reducefunc=mean)
-        
-        @test size(dt, 1) == 100
-        @test get_aggrtype(dt) == :reducesize
-        @test length(get_vnames(dt)) == 10
-    end
-    
-    @testset ":aggregate mode" begin
-        dt = DataTreatment(Xmatrix, :aggregate;
-                            vnames=Symbol.("var", 1:10),
-                            win,
-                            features=features)
-        
-        @test size(dt) == (100, 10 * length(features) * 16)  # 10 vars × 3 features × 16 windows
-        @test length(get_featureid(dt)) == size(dt, 2)
-        @test get_aggrtype(dt) == :aggregate
-        @test length(get_vnames(dt)) == 10
-        @test length(get_features(dt)) == length(features)
-    end
+"""Return indices of rows that are neither missing nor scalar NaN."""
+function _get_valid(dataframe::DataFrame, colidx::Int)
+    col = dataframe[!, colidx]
+    [i for i in eachindex(col) if !ismissing(col[i]) && !(col[i] isa Number && isnan(col[i]))]
 end
 
-@testset "FeatureId - Extended Tests" begin
-    @testset "propertynames" begin
-        fid = FeatureId(:temperature, mean, 1)
-        props = propertynames(fid)
-        
-        @test :vname in props
-        @test :feat in props
-        @test :nwin in props
-        @test length(props) == 3
-    end
-    
-    @testset "MIME text/plain display" begin
-        fid = FeatureId(:pressure, std, 5)
-        str = sprint(show, MIME("text/plain"), fid)
-        
-        @test occursin("FeatureId:", str)
-        @test occursin("std", str)
-        @test occursin("pressure", str)
-        @test occursin("_w5", str)
-    end
-    
-    @testset "Single window FeatureId creation" begin
-        vnames = [:var1, :var2, :var3]
-        features = (mean, Statistics.std, maximum)
-        
-        # Simulate single window case
-        feature_ids = [FeatureId(v, f, 1) for f in features, v in vnames] |> vec
-        
-        @test length(feature_ids) == length(vnames) * length(features)
-        @test all(get_nwin(fid) == 1 for fid in feature_ids)
-        
-        # Check ordering: features × variables
-        @test get_feat(feature_ids[1]) == mean
-        @test get_vname(feature_ids[1]) == :var1
-        @test get_feat(feature_ids[2]) == Statistics.std
-        @test get_vname(feature_ids[2]) == :var1
-    end
-
-    @testset "get FeatureId vectors" begin
-        X = fill(rand(10), 8, 3)
-        win = splitwindow(nwindows=2)
-        features = (mean, std)
-
-        dt = DataTreatment(X, :aggregate;
-                            vnames=Symbol.("var", 1:4),
-                            win,
-                            features=features)
-    
-        vnames_vec = get_vecvnames(dt.featureid)
-        @test length(vnames_vec) == 16
-        @test unique(vnames_vec) == [:var1, :var2, :var3, :var4]
-
-        feat_vec = get_vecfeatures(dt.featureid)
-        @test unique(feat_vec) == [mean, std]
-
-        win_vec = get_vecnwins(dt.featureid)
-        @test unique(win_vec) == [1, 2]
-    end
+# ---------------------------------------------------------------------------- #
+#                              get_window_ranges                               #
+# ---------------------------------------------------------------------------- #
+@testset "get_window_ranges" begin
+    @test DT.get_window_ranges(([1:5, 6:10, 11:15],), CartesianIndex(2)) == (6:10,)
+    @test DT.get_window_ranges(([1:3, 4:6], [1:2, 3:4, 5:6]), CartesianIndex(1, 3)) == (1:3, 5:6)
+    @test DT.get_window_ranges(([1:2, 3:4], [1:3, 4:6], [1:5]), CartesianIndex(2, 1, 1)) == (3:4, 1:3, 1:5)
 end
 
-@testset "DataTreatment - DataFrame Constructor" begin
-    @testset "Automatic vnames from DataFrame" begin
-        df = DataFrame(
-            ch1 = [rand(100) for _ in 1:50],
-            ch2 = [rand(100) for _ in 1:50],
-            ch3 = [rand(100) for _ in 1:50]
-        )
-        
-        win = splitwindow(nwindows=3)
-        features = (mean, std)
-        
-        # Test without specifying vnames (should use propertynames)
-        dt = DataTreatment(df, :reducesize; win, features=features)
-        
-        @test Set(get_vnames(dt)) == Set([:ch1, :ch2, :ch3])
-        @test size(dt, 1) == 50
-        @test get_aggrtype(dt) == :reducesize
+# ---------------------------------------------------------------------------- #
+#                                 safe_feat                                    #
+# ---------------------------------------------------------------------------- #
+@testset "safe_feat" begin
+    @test DT.safe_feat([1.0, 2.0, 3.0, 4.0, 5.0], maximum) == 5.0
+    @test DT.safe_feat([1.0, 2.0, 3.0, 4.0, 5.0], mean) == 3.0
+
+    # missing filtered
+    @test DT.safe_feat([1.0, missing, 3.0, missing, 5.0], maximum) == 5.0
+    @test DT.safe_feat([1.0, missing, 3.0, missing, 5.0], mean) == 3.0
+
+    # NaN filtered
+    @test DT.safe_feat([1.0, NaN, 3.0, NaN, 5.0], maximum) == 5.0
+    @test DT.safe_feat([1.0, NaN, 3.0, NaN, 5.0], mean) == 3.0
+
+    # both missing and NaN
+    @test DT.safe_feat([1.0, missing, NaN, 4.0, missing, NaN, 7.0], maximum) == 7.0
+    @test DT.safe_feat([1.0, missing, NaN, 4.0, missing, NaN, 7.0], mean) == 4.0
+
+    # all invalid → empty vector
+    @test_throws Exception DT.safe_feat(Union{Missing,Float64}[missing, missing], maximum)
+    @test isnan(DT.safe_feat([NaN, NaN, NaN], mean))
+
+    # single valid element
+    @test DT.safe_feat([missing, NaN, 42.0, missing], maximum) == 42.0
+
+    # integers (no NaN possible)
+    @test DT.safe_feat(Union{Missing,Int}[1, missing, 3, missing, 5], sum) == 9
+
+    # custom function
+    @test DT.safe_feat([1.0, missing, 3.0, NaN, 5.0], x -> length(x)) == 3
+    @test DT.safe_feat([1.0, missing, 3.0, NaN, 5.0], std) ≈ std([1.0, 3.0, 5.0])
+end
+
+# ---------------------------------------------------------------------------- #
+#                        aggregate — curried constructor                        #
+# ---------------------------------------------------------------------------- #
+@testset "aggregate — curried constructor" begin
+    @test aggregate() isa Function
+    @test aggregate(win=(movingwindow(winsize=3, winstep=2),), features=(sum, mean)) isa Function
+    @test aggregate(features=(maximum,)) isa Function
+    @test aggregate(win=(splitwindow(nwindows=3),), features=(mean,)) isa Function
+end
+
+# ---------------------------------------------------------------------------- #
+#                     aggregate — 1D time series                               #
+# ---------------------------------------------------------------------------- #
+@testset "aggregate — 1D time series" begin
+    tg1d = TreatmentGroup(df; dims=1)
+
+    @testset "wholewindow + 3 features" begin
+        X, idx = _build_Xidx(tg1d)
+        Xa, nw = aggregate(win=(wholewindow(),), features=(maximum, minimum, mean))(X, idx, Float64)
+
+        @test Xa isa Matrix{Union{Missing,Float64}}
+        @test size(Xa, 1) == nrow(df)
+        @test size(Xa, 2) == sum(nw) * 3
+        @test all(w -> w >= 1, nw)
     end
-    
-    @testset "Explicit vnames override" begin
-        df = DataFrame(
-            ch1 = [rand(100) for _ in 1:50],
-            ch2 = [rand(100) for _ in 1:50],
-            ch3 = [rand(100) for _ in 1:50]
-        )
-        
-        win = splitwindow(nwindows=3)
-        features = (mean, std)
-        
-        # Override with custom names
-        custom_names = [:custom1, :custom2, :custom3]
-        dt = DataTreatment(df, :reducesize; 
-                          vnames=custom_names, 
-                          win, 
-                          features=features)
-        
-        @test Set(get_vnames(dt)) == Set(custom_names)
+
+    @testset "splitwindow(2) + 1 feature" begin
+        X, idx = _build_Xidx(tg1d)
+        Xa, nw = aggregate(win=(splitwindow(nwindows=2),), features=(mean,))(X, idx, Float64)
+
+        @test all(==(2), nw)
+        @test size(Xa, 2) == sum(nw)
+    end
+
+    @testset "missing/NaN row propagation" begin
+        X, idx = _build_Xidx(["ts1"])
+        Xa, _ = aggregate(win=(wholewindow(),), features=(maximum,))(X, idx, Float64)
+
+        @test !ismissing(Xa[1, 1]) && isnan(Xa[1, 1])  # ts1 row 1 = NaN
+        @test ismissing(Xa[3, 1])                        # ts1 row 3 = missing
+    end
+
+    @testset "correct aggregated values" begin
+        X, idx = _build_Xidx(["ts1"])
+        Xa, _ = aggregate(win=(wholewindow(),), features=(maximum, minimum, mean))(X, idx, Float64)
+
+        # row 2: ts1 = [2.0, 3.0, 4.0, 5.0, 6.0, 7.0]
+        @test Xa[2, 1] == 7.0   # max
+        @test Xa[2, 2] == 2.0   # min
+        @test Xa[2, 3] ≈ 4.5    # mean
+    end
+
+    @testset "internal NaN/missing handled by safe_feat" begin
+        # ts3 row 1 = [1.0, 1.2, 1.2, 2.6, NaN, 4.0, 4.2]
+        X, idx = _build_Xidx(["ts3"])
+        Xa, _ = aggregate(win=(wholewindow(),), features=(maximum, minimum))(X, idx, Float64)
+        @test Xa[1, 1] == 4.2
+        @test Xa[1, 2] == 1.0
+
+        # ts4 row 1 = [6.0, 5.2, missing, 4.4, 1.2, 3.6, 2.8]
+        X, idx = _build_Xidx(["ts4"])
+        Xa, _ = aggregate(win=(wholewindow(),), features=(sum,))(X, idx, Float64)
+        @test Xa[1, 1] ≈ 23.2
     end
 end
 
-@testset "DataTreatment - propertynames" begin
-    df = DataFrame(
-        var1 = [rand(100) for _ in 1:30],
-        var2 = [rand(100) for _ in 1:30]
-    )
-    
-    win = splitwindow(nwindows=2)
-    dt = DataTreatment(df, :reducesize; win, features=(mean,))
-    
-    props = propertynames(dt)
-    
-    @test :dataset in props
-    @test :featureid in props
-    @test :reducefunc in props
-    @test :aggrtype in props
-    @test length(props) == 6
-end
+# ---------------------------------------------------------------------------- #
+#                     aggregate — 2D images                                    #
+# ---------------------------------------------------------------------------- #
+@testset "aggregate — 2D images" begin
+    tg2d = TreatmentGroup(df; dims=2)
 
-@testset "DataTreatment - Accessor Functions" begin
-    X = rand(200, 120)
-    Xmatrix = fill(X, 50, 5)
-    win = splitwindow(nwindows=3)
-    features = (mean, std, maximum)
-    
-    dt = DataTreatment(Xmatrix, :aggregate;
-                      vnames=Symbol.("var", 1:5),
-                      win,
-                      features=features)
-    
-    @testset "get_dataset" begin
-        dataset = get_dataset(dt)
-        @test dataset isa AbstractMatrix
-        @test size(dataset) == size(dt.dataset)
-        @test dataset === dt.dataset
-    end
-    
-    @testset "get_reducefunc" begin
-        reducefunc = get_reducefunc(dt)
-        @test reducefunc isa Base.Callable
-        @test reducefunc == mean  # default value
-    end
-    
-    @testset "get_nwindows" begin
-        nwindows = get_nwindows(dt)
-        @test nwindows == 9
-        @test nwindows == maximum(get_nwin.(dt.featureid))
-    end
-end
+    @testset "wholewindow + 3 features" begin
+        X, idx = _build_Xidx(tg2d)
+        Xa, nw = aggregate(win=(wholewindow(),), features=(maximum, minimum, mean))(X, idx, Float64)
 
-@testset "DataTreatment - Base Methods" begin
-    X = rand(200, 120)
-    Xmatrix = fill(X, 40, 4)
-    win = splitwindow(nwindows=2)
-    features = (mean, std)
-    
-    dt = DataTreatment(Xmatrix, :aggregate;
-                      vnames=Symbol.("var", 1:4),
-                      win,
-                      features=features)
-    
-    @testset "length" begin
-        @test length(dt) == length(dt.featureid)
-        @test length(dt) == 4 * 2 * 4  # 4 vars × 2 features × 4 windows (2×2)
+        @test size(Xa, 1) == nrow(df)
+        @test size(Xa, 2) == sum(nw) * 3
     end
-    
-    @testset "eltype" begin
-        @test eltype(dt) == eltype(dt.dataset)
-        @test eltype(dt) == Float64
+
+    @testset "splitwindow per dimension (2×3)" begin
+        X, idx = _build_Xidx(tg2d)
+        Xa, nw = aggregate(
+            win=(splitwindow(nwindows=2), splitwindow(nwindows=3)),
+            features=(mean,)
+        )(X, idx, Float64)
+
+        @test all(==(6), nw)  # 2 × 3 = 6 windows per column
+        @test size(Xa, 2) == sum(nw)
     end
-    
-    @testset "Indexing - single column" begin
-        col = dt[:, 1]
-        @test length(col) == size(dt, 1)
-        @test col == dt.dataset[:, 1]
+
+    @testset "missing/NaN image propagation" begin
+        X, idx = _build_Xidx(["img4"])
+        Xa, _ = aggregate(win=(wholewindow(),), features=(maximum,))(X, idx, Float64)
+        @test ismissing(Xa[3, 1])  # img4 row 3 = missing
+
+        X, idx = _build_Xidx(["img2"])
+        Xa, _ = aggregate(win=(wholewindow(),), features=(maximum,))(X, idx, Float64)
+        @test !ismissing(Xa[1, 1]) && isnan(Xa[1, 1])  # img2 row 1 = NaN
     end
-    
-    @testset "Indexing - single row" begin
-        row = dt[1, :]
-        @test length(row) == size(dt, 2)
-        @test row == dt.dataset[1, :]
+
+    @testset "correct values for valid image" begin
+        Random.seed!(1)
+        expected = rand(Float64, 6, 6)
+
+        X, idx = _build_Xidx(["img1"])
+        Xa, _ = aggregate(win=(wholewindow(),), features=(maximum, minimum))(X, idx, Float64)
+
+        @test Xa[1, 1] ≈ maximum(expected)
+        @test Xa[1, 2] ≈ minimum(expected)
     end
-    
-    @testset "Indexing - single element" begin
-        elem = dt[1, 1]
-        @test elem == dt.dataset[1, 1]
-        @test elem isa Number
-    end
-    
-    @testset "Indexing - range" begin
-        subset = dt[1:10, :]
-        @test size(subset, 1) == 10
-        @test size(subset, 2) == size(dt, 2)
-    end
-    
-    @testset "Indexing - general" begin
-        subset = dt[1:5, 1:10]
-        @test size(subset) == (5, 10)
+
+    @testset "single window func reused across 2D" begin
+        X, idx = _build_Xidx(["img1"])
+        Xa, nw = aggregate(win=(splitwindow(nwindows=2),), features=(mean,))(X, idx, Float64)
+
+        @test nw[1] == 4       # 2 × 2 = 4
+        @test size(Xa, 2) == 4
     end
 end
 
-@testset "DataTreatment - Display Methods" begin
-    X = rand(200, 120)
-    Xmatrix = fill(X, 30, 3)
-    win = splitwindow(nwindows=2)
-    features = (mean, std, maximum)
-    
-    dt = DataTreatment(Xmatrix, :aggregate;
-                      vnames=Symbol.("var", 1:3),
-                      win,
-                      features=features)
-    
-    @testset "Compact show" begin
-        str = sprint(show, dt)
-        
-        @test occursin("DataTreatment", str)
-        @test occursin("aggregate", str)
-        @test occursin("30×", str)  # rows
-        @test occursin("features", str)
+# ---------------------------------------------------------------------------- #
+#                     aggregate — output shape & types                         #
+# ---------------------------------------------------------------------------- #
+@testset "aggregate — output shape & types" begin
+
+    @testset "float_type propagation" begin
+        X, idx = _build_Xidx(["ts1"])
+
+        Xa32, _ = aggregate(features=(mean,))(X, idx, Float32)
+        @test eltype(Xa32) == Union{Missing,Float32}
+
+        Xa64, _ = aggregate(features=(mean,))(X, idx, Float64)
+        @test eltype(Xa64) == Union{Missing,Float64}
     end
-    
-    @testset "MIME text/plain - few features" begin
-        # Create a small case with ≤10 features
-        X_small = rand(100)
-        Xmatrix_small = fill(X_small, 20, 2)
-        win_small = splitwindow(nwindows=2)
-        features_small = (mean, std)
-        
-        dt_small = DataTreatment(Xmatrix_small, :reducesize;
-                                vnames=[:v1, :v2],
-                                win=(win_small,),
-                                features=features_small)
-        
-        str = sprint(show, MIME("text/plain"), dt_small)
-        
-        @test occursin("DataTreatment:", str)
-        @test occursin("Type: reducesize", str)
-        @test occursin("Dimensions:", str)
-        @test occursin("Features:", str)
-        @test occursin("Reduction function:", str)
-        @test occursin("Feature IDs:", str)
-        
-        # Check that all features are listed (≤10)
-        nfeatures = length(dt_small.featureid)
-        @test nfeatures <= 10
-        for i in 1:nfeatures
-            @test occursin("$(i).", str)
+
+    @testset "adaptivewindow same shape as splitwindow" begin
+        X, idx = _build_Xidx(["ts1"])
+        _, nw1 = aggregate(win=(splitwindow(nwindows=3),), features=(mean,))(X, idx, Float64)
+        _, nw2 = aggregate(win=(adaptivewindow(nwindows=3, overlap=0.5),), features=(mean,))(X, idx, Float64)
+        @test nw1 == nw2
+    end
+end
+
+# ---------------------------------------------------------------------------- #
+#                       reducesize — curried constructor                        #
+# ---------------------------------------------------------------------------- #
+@testset "reducesize — curried constructor" begin
+    @test reducesize() isa Function
+    @test reducesize(win=(splitwindow(nwindows=4),), reducefunc=mean) isa Function
+    @test reducesize(reducefunc=sum) isa Function
+end
+
+# ---------------------------------------------------------------------------- #
+#                       reducesize — 1D time series                            #
+# ---------------------------------------------------------------------------- #
+@testset "reducesize — 1D time series" begin
+    @testset "splitwindow(3) reduces length" begin
+        X, idx = _build_Xidx(["ts1"])
+        Xr, unused = reducesize(win=(splitwindow(nwindows=3),), reducefunc=mean)(X, idx, Float64)
+
+        @test unused == 0
+        @test size(Xr) == (nrow(df), 1)
+        @test Xr[2, 1] isa Array{Float64}
+        @test length(Xr[2, 1]) == 3  # row 2: [2..7] → 3 windows
+    end
+
+    @testset "missing/NaN row propagation" begin
+        X, idx = _build_Xidx(["ts1"])
+        Xr, _ = reducesize(win=(splitwindow(nwindows=2),), reducefunc=mean)(X, idx, Float64)
+
+        @test ismissing(Xr[3, 1])                              # ts1 row 3 = missing
+        @test !ismissing(Xr[1, 1]) && isnan(Xr[1, 1])          # ts1 row 1 = NaN
+    end
+
+    @testset "correct reduced values" begin
+        X, idx = _build_Xidx(["ts1"])
+        Xr, _ = reducesize(win=(splitwindow(nwindows=2),), reducefunc=mean)(X, idx, Float64)
+
+        # row 4: ts1 = [4,5,6,7,8,9] → win1=[4,5,6]→5.0, win2=[7,8,9]→8.0
+        @test length(Xr[4, 1]) == 2
+        @test Xr[4, 1][1] ≈ 5.0
+        @test Xr[4, 1][2] ≈ 8.0
+    end
+
+    @testset "internal NaN/missing handled by safe_feat" begin
+        # ts3 row 1 = [1.0, 1.2, 1.2, 2.6, NaN, 4.0, 4.2]
+        X, idx = _build_Xidx(["ts3"])
+        Xr, _ = reducesize(win=(wholewindow(),), reducefunc=maximum)(X, idx, Float64)
+        @test Xr[1, 1][1] ≈ 4.2
+
+        # ts4 row 1 = [6.0, 5.2, missing, 4.4, 1.2, 3.6, 2.8]
+        X, idx = _build_Xidx(["ts4"])
+        Xr, _ = reducesize(win=(wholewindow(),), reducefunc=sum)(X, idx, Float64)
+        @test Xr[1, 1][1] ≈ 23.2
+    end
+end
+
+# ---------------------------------------------------------------------------- #
+#                       reducesize — 2D images                                 #
+# ---------------------------------------------------------------------------- #
+@testset "reducesize — 2D images" begin
+    @testset "splitwindow(2)×splitwindow(3) → 2×3 output" begin
+        X, idx = _build_Xidx(["img1"])
+        Xr, unused = reducesize(
+            win=(splitwindow(nwindows=2), splitwindow(nwindows=3)),
+            reducefunc=mean
+        )(X, idx, Float64)
+
+        @test unused == 0
+        for row in 1:nrow(df)
+            @test size(Xr[row, 1]) == (2, 3)
         end
     end
-    
-    @testset "MIME text/plain - many features" begin
-        # Use the original dt with more features
-        str = sprint(show, MIME("text/plain"), dt)
-        
-        @test occursin("DataTreatment:", str)
-        @test occursin("Dimensions:", str)
-        @test occursin("Features:", str)
-    end
-    
-    @testset "Display with different aggrtype" begin
-        dt_agg = DataTreatment(Xmatrix, :aggregate;
-                              vnames=Symbol.("var", 1:3),
-                              win,
-                              features=features)
-        
-        str = sprint(show, dt_agg)
-        @test occursin("aggregate", str)
-        
-        str_plain = sprint(show, MIME("text/plain"), dt_agg)
-        @test occursin("Type: aggregate", str_plain)
-    end
-end
 
-@testset "DataTreatment - Edge Cases" begin
-    @testset "Single variable" begin
-        X = rand(100)
-        Xmatrix = fill(X, 50, 1)
-        win = splitwindow(nwindows=3)
-        
-        dt = DataTreatment(Xmatrix, :reducesize;
-                          vnames=[:single],
-                          win,
-                          features=(mean,))
-        
-        @test get_vnames(dt) == [:single]
-        @test size(dt, 1) == 50
+    @testset "missing/NaN image propagation" begin
+        X, idx = _build_Xidx(["img4"])
+        Xr, _ = reducesize(win=(splitwindow(nwindows=2),), reducefunc=mean)(X, idx, Float64)
+        @test ismissing(Xr[3, 1])
+
+        X, idx = _build_Xidx(["img2"])
+        Xr, _ = reducesize(win=(splitwindow(nwindows=2),), reducefunc=mean)(X, idx, Float64)
+        @test !ismissing(Xr[1, 1]) && isnan(Xr[1, 1])
     end
-    
-    @testset "Single feature" begin
-        X = rand(100)
-        Xmatrix = fill(X, 30, 3)
-        win = splitwindow(nwindows=2)
-        
-        dt = DataTreatment(Xmatrix, :reducesize;
-                          vnames=Symbol.("var", 1:3),
-                          win,
-                          features=(mean,))
-        
-        feature_funcs = get_features(dt)
-        @test length(feature_funcs) == 1
-        @test mean in feature_funcs
-    end
-    
-    @testset "Single window (wholewindow)" begin
-        X = rand(100)
-        Xmatrix = fill(X, 40, 2)
-        win = wholewindow()
-        features = (mean, std)
-        
-        dt = DataTreatment(Xmatrix, :reducesize;
-                          vnames=[:v1, :v2],
-                          win,
-                          features=features)
-        
-        @test get_nwindows(dt) == 1
-        @test all(get_nwin(fid) == 1 for fid in dt.featureid)
+
+    @testset "splitwindow(3)×splitwindow(2) → 3×2 output" begin
+        X, idx = _build_Xidx(["img3"])
+        Xr, _ = reducesize(
+            win=(splitwindow(nwindows=3), splitwindow(nwindows=2)),
+            reducefunc=mean
+        )(X, idx, Float64)
+
+        for row in 1:nrow(df)
+            @test size(Xr[row, 1]) == (3, 2)
+        end
     end
 end
 
-@testset "DataTreatment - aggregate" begin
-    Xmatrix = [Float64.(rand(1:100, 10, 10)) for _ in 1:10, _ in 1:5]
+# ---------------------------------------------------------------------------- #
+#                  reducesize — multiple columns & types                       #
+# ---------------------------------------------------------------------------- #
+@testset "reducesize — multiple columns & types" begin
+    @testset "all 1D columns" begin
+        tg = TreatmentGroup(df; dims=1)
+        X, idx = _build_Xidx(tg)
+        Xr, unused = reducesize(win=(splitwindow(nwindows=3),), reducefunc=mean)(X, idx, Float64)
 
-    X = rand(200, 120)
-    Xmatrix = fill(X, 50, 5)
-    win = splitwindow(nwindows=3)
-    features = (mean, std, maximum)
-    
-    @testset "element_norm - Z-score" begin
-        dt = DataTreatment(Xmatrix, :aggregate;
-                          vnames=Symbol.("var", 1:5),
-                          win,
-                          features=features,
-                          norm=ZScore)
-        
-        @test abs(mean(dt.dataset)) < 1e-10  # mean ≈ 0
-        @test abs(std(dt.dataset) - 1.0) < 1e-3  # std ≈ 1
+        @test unused == 0
+        @test size(Xr) == (nrow(df), length(DT.get_idxs(tg)))
     end
-    
-    @testset "element_norm - MinMax" begin
-        dt = DataTreatment(Xmatrix, :aggregate;
-                          vnames=Symbol.("var", 1:5),
-                          win,
-                          features=features,
-                          norm=MinMax)
-        
-        @test minimum(dt.dataset) ≈ 0.0 atol=1e-10
-        @test maximum(dt.dataset) ≈ 1.0 atol=1e-10
-    end
-    
-    @testset "element_norm - Sigmoid" begin
-        dt = DataTreatment(Xmatrix, :aggregate;
-                          vnames=Symbol.("var", 1:5),
-                          win,
-                          features=features,
-                          norm=Sigmoid)
-        
-        @test all(0 .< dt.dataset .< 1)
-    end
-    
-    @testset "element_norm - Center" begin
-        dt = DataTreatment(Xmatrix, :aggregate;
-                          vnames=Symbol.("var", 1:5),
-                          win,
-                          features=features,
-                          norm=Center)
-        
-        @test abs(mean(dt.dataset)) < 1e-10
-    end
-    
-    @testset "element_norm - Unit Power" begin
-        dt = DataTreatment(Xmatrix, :aggregate;
-                          vnames=Symbol.("var", 1:5),
-                          win,
-                          features=features,
-                          norm=UnitPower)
-        
-        rms = sqrt(mean(abs2, dt.dataset))
-        @test rms ≈ 1.0 atol=1e-10
-    end
-    
-    # @testset "element_norm - Outlier Suppress" begin
-    #     # Create data with outliers
-    #     X_outlier = rand(200, 120)
-    #     X_outlier[1, 1] = 1000.0  # Add outlier
-    #     Xmatrix_outlier = fill(X_outlier, 50, 5)
-        
-    #     dt = DataTreatment(Xmatrix_outlier, :aggregate;
-    #                       vnames=Symbol.("var", 1:5),
-    #                       win,
-    #                       features=features,
-    #                       norm=OutlierSuppress)
-        
-    #     @test maximum(dt.dataset) < maximum(X_outlier)
-    # end
-end
 
-@testset "DataTreatment - reducesize" begin
-    # Create nested array structure
-    X_nested = [rand(100) * 100 for _ in 1:30, _ in 1:3]
-    win = splitwindow(nwindows=2)
-    features = (mean, std)
-    
-    @testset "Basic ds_norm" begin
-        dt = DataTreatment(X_nested, :reducesize;
-                          vnames=Symbol.("ch", 1:3),
-                          win,
-                          features=features,
-                          norm=MinMax)
-        
-        @test minimum(minimum.(dt.dataset)) ≈ 0.0 atol=1e-10
-        @test maximum(maximum.(dt.dataset)) ≈ 1.0 atol=1e-10
+    @testset "float_type propagation" begin
+        X, idx = _build_Xidx(["ts1"])
+
+        Xr32, _ = reducesize(win=(splitwindow(nwindows=2),), reducefunc=mean)(X, idx, Float32)
+        @test eltype(Xr32) == Union{Missing, Float32, Array{Float32}}
+
+        Xr64, _ = reducesize(win=(splitwindow(nwindows=2),), reducefunc=mean)(X, idx, Float64)
+        @test eltype(Xr64) == Union{Missing, Float64, Array{Float64}}
     end
 end
 
-@testset "has_uniform_element_size - DataFrame" begin
-    # empty DataFrame
-    @test has_uniform_element_size(DataFrame()) === true
+# ---------------------------------------------------------------------------- #
+#                 return signature consistency                                 #
+# ---------------------------------------------------------------------------- #
+@testset "return signature consistency" begin
+    X, idx = _build_Xidx(["ts1"])
 
-    # uniform element sizes (all 2x3 matrices)
-    df_uniform = DataFrame(
-        a = [rand(2,3) for _ in 1:3],
-        b = [rand(2,3) for _ in 1:3]
-    )
-    @test has_uniform_element_size(df_uniform) === true
+    result_agg = aggregate(features=(mean,))(X, idx, Float64)
+    @test result_agg isa Tuple{Matrix, Vector{Int}}
 
-    # mismatch in one element
-    df_mismatch = DataFrame(
-        a = [rand(2,3), rand(3,3), rand(2,3)],
-        b = [rand(2,3) for _ in 1:3]
-    )
-    @test has_uniform_element_size(df_mismatch) === false
-end
-
-@testset "has_uniform_element_size - AbstractArray" begin
-    # empty array of arrays
-    empty_arr = Matrix{Vector{Float64}}(undef, 0, 0)
-    @test has_uniform_element_size(empty_arr) === true
-
-    # uniform sizes (all 2x3 matrices)
-    A = [rand(2,3) for _ in 1:4, _ in 1:2]
-    @test has_uniform_element_size(A) === true
-
-    # introduce a mismatch
-    A_bad = copy(A)
-    A_bad[3, 2] = rand(3,3)
-    @test has_uniform_element_size(A_bad) === false
-end
-
-# helper to build independent copies
-function make_uniform_matrix(vec, rows, cols)
-    [copy(vec) for _ in 1:rows, _ in 1:cols]
-end
-
-@testset "aggregate/reducesize - uniform element sizes" begin
-    v10 = collect(1.0:10.0)
-    Xu  = make_uniform_matrix(v10, 2, 3)
-    vnames = Symbol.("var", 1:size(Xu, 2))
-
-    nwindows = 2
-    win = splitwindow(; nwindows)
-    features = (mean, maximum)
-
-    # aggregate with uniform=true
-    Au = DataTreatment(Xu, :aggregate; vnames, features, win)
-    @test size(get_dataset(Au)) == (2, 3 * length(features) * nwindows)
-
-    # reducesize with uniform=true
-    Ru = DataTreatment(Xu, :reducesize; vnames, reducefunc=mean, win)
-    @test size(get_dataset(Ru)) == size(Xu)
-    @test length(get_dataset(Ru)[1,1]) == nwindows
-    intervals_u = first(@evalwindow v10 win)
-    @test get_dataset(Ru)[1,1] ≈ [mean(v10[r]) for r in intervals_u]
-end
-
-@testset "aggregate/reducesize - non-uniform element sizes (adaptivewindow)" begin
-    v8  = collect(1.0:8.0)
-    v10 = collect(1.0:10.0)
-    v12 = collect(1.0:12.0)
-
-    # non-uniform matrix of vectors (avoid hvcat)
-    Xn = Matrix{Vector{Float64}}(undef, 2, 3)
-    Xn[1,1] = copy(v10); Xn[1,2] = copy(v12); Xn[1,3] = copy(v8)
-    Xn[2,1] = copy(v12); Xn[2,2] = copy(v8);  Xn[2,3] = copy(v10)
-    vnames = Symbol.("var", 1:size(Xn, 2))
-
-    nwindows = 2
-    win = adaptivewindow(; nwindows, overlap=0.0)
-    features = (mean, maximum)
-
-    An = DataTreatment(Xn, :aggregate; vnames, win, features)
-    @test size(get_dataset(An)) == (2, 3 * length(features) * nwindows)
-
-    # reducesize with uniform=false and adaptivewindow
-    Rn = DataTreatment(Xn, :reducesize; vnames, win, reducefunc=mean)
-    @test size(get_dataset(Rn)) == size(Xn)
-    intervals_e = first(@evalwindow Xn[1,1] win)
-    @test get_dataset(Rn)[1,1] ≈ [mean(Xn[1,1][r]) for r in intervals_e]
-end
-
-@testset "dataset utilities" begin
-    X = rand(100, 120)
-    Xmatrix = fill(X, 100, 10)
-    @test DT.is_multidim_dataset(Xmatrix) == true
-    
-    intervals = (UnitRange{Int}[1:50, 51:100, 101:150, 151:200],
-            UnitRange{Int}[1:30, 31:60, 61:90, 91:120])
-    @test nvals(intervals) == 16
-    @test nvals(intervals[1]) == 4
-
-    Xconv = DT.convert(Xmatrix; type=Float32)
-    @test eltype(Xmatrix) <: AbstractArray{Float64}
-    @test eltype(Xconv) <: AbstractArray{Float32}
-end
-
-@testset "wholewindow" begin
-    X = rand(100, 120)
-    Xmatrix = fill(X, 100, 10)
-    vnames = Symbol.("var", 1:size(Xmatrix, 2))
-    win = wholewindow()
-    features = (mean, maximum)
-    
-    result = DataTreatment(Xmatrix, :aggregate; vnames, win, features)
-    
-    @test length(get_featureid(result)) == (length(vnames) * length(features))
-end
-
-@testset "DataTreatment getindex (single Int)" begin
-    X = rand(100, 120)
-    Xmatrix = fill(X, 100, 10)
-    vnames = Symbol.("var", 1:size(Xmatrix, 2))
-    dt = DataTreatment(Xmatrix, :aggregate; vnames, win=wholewindow(), features=(mean,))
-
-    i = 1
-    @test dt[i] == get_dataset(dt)[:, i]
+    result_red = reducesize(reducefunc=mean)(X, idx, Float64)
+    @test result_red isa Tuple
+    @test result_red[1] isa Array
+    @test result_red[2] == 0
 end

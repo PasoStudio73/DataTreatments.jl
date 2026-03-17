@@ -2,94 +2,61 @@ using Test
 using DataTreatments
 const DT = DataTreatments
 
-using MLJ, DataFrames
-using SoleData: Artifacts
+using DataFrames
+using Random
+using Statistics
 
-# ---------------------------------------------------------------------------- #
-#                                load dataset                                  #
-# ---------------------------------------------------------------------------- #
-Xc, yc = @load_iris
-Xc = DataFrame(Xc)
-
-natopsloader = Artifacts.NatopsLoader()
-Xts, yts = Artifacts.load(natopsloader)
-
-# ---------------------------------------------------------------------------- #
-#                           windowing and treatment                            #
-# ---------------------------------------------------------------------------- #
-win = adaptivewindow(nwindows=3, overlap=0.2)
-features = (mean, maximum)
-
-rs_no_grp = DataTreatment(Xts, :reducesize; win)
-ag_no_grp = DataTreatment(Xts, :aggregate; win, features)
-
-# ---------------------------------------------------------------------------- #
-#                             DataFrame groupby                                #
-# ---------------------------------------------------------------------------- #
-@testset "groupby single column" begin
-    fields = [:sepal_length]
-
-    groups = DT.groupby(Xc, fields)
-    @test length(groups) == 2
-    @test propertynames(groups[2]) == [:sepal_width, :petal_length, :petal_width]
+function create_image(seed::Int; n=6)
+    Random.seed!(seed)
+    rand(Float64, n, n)
 end
 
-@testset "groupby adds leftover columns" begin
-    fields = [[:sepal_length, :petal_length], [:sepal_width]]
+df = DataFrame(
+    V1 = [1.0, 2.0, 3.0, 4.0, 5.0],
+    ts1 = [collect(1.0:6.0), collect(2.0:7.0), collect(3.0:8.0), collect(4.0:9.0), collect(5.0:10.0)],
+    ts2 = [collect(2.0:0.5:5.5), collect(1.0:0.5:4.5), collect(3.0:0.5:6.5), collect(4.0:0.5:7.5), collect(5.0:0.5:8.5)],
+    img1 = [create_image(i) for i in 1:5],
+    img2 = [create_image(i+10) for i in 1:5],
+)
 
-    groups = DT.groupby(Xc, fields)
-    @test length(groups) == 3
-    @test propertynames(groups[3]) == [:petal_width]
-end
+dt = DataTreatment(df)
 
-# ---------------------------------------------------------------------------- #
-#                           DataTreatment groupby                              #
-# ---------------------------------------------------------------------------- #
-rs_grp = DataTreatment(Xts, :reducesize; win, groups=(:vname,))
-ag_grp = DataTreatment(Xts, :aggregate; win, features, groups=(:vname, :feat))
-
-@testset "Manual groupby vs built-in groupby" begin
-    # manual grouping for rs_no_grp by :vname
-    rs_featureids = get_featureid(rs_no_grp)
-    rs_vnames = unique(get_vecvnames(rs_featureids))
-    rs_manual_groups = [findall(fid -> get_vname(fid) == vn, rs_featureids) for vn in rs_vnames]
-    
-    @test length(rs_manual_groups) == length(get_groups(rs_grp))
-    @test all(rs_manual_groups .== [gr.group for gr in get_groups(rs_grp)])
-    
-    # manual grouping for ag_no_grp by :vname then :feat
-    ag_featureids = get_featureid(ag_no_grp)
-    ag_vnames = unique(get_vecvnames(ag_featureids))
-    
-    # first level: group by vname
-    ag_manual_groups_l1 = [findall(fid -> get_vname(fid) == vn, ag_featureids) for vn in ag_vnames]
-    
-    # second level: within each vname group, split by feat
-    ag_manual_groups = Vector{Vector{Int64}}()
-    for group_l1 in ag_manual_groups_l1
-        feats_in_group = unique(get_vecfeatures(ag_featureids[group_l1]))
-        for f in feats_in_group
-            mask = findall(i -> get_feat(ag_featureids[i]) == f, group_l1)
-            push!(ag_manual_groups, group_l1[mask])
-        end
+@testset "_split_md_by_dims" begin
+    mds = filter(d -> d isa MultidimDataset, get_dataset(dt))
+    @test length(mds) >= 2
+    for md in mds
+        @test length(unique(get_dims(md))) == 1
     end
-    
-    @test length(ag_manual_groups) == length(get_groups(ag_grp))
-    @test all(ag_manual_groups .== [gr.group for gr in get_groups(ag_grp)])
 end
 
-@testset "DataTreatments groupby vs built-in groupby" begin
-    # test groupby function on rs_no_grp by :vname
-    rs_groupby_groups, _ = DT.groupby(rs_no_grp, :vname)
-    rs_builtin_groups = [gr.group for gr in get_groups(rs_grp)]
-    
-    @test length(rs_groupby_groups) == length(rs_builtin_groups)
-    @test all(rs_groupby_groups .== rs_builtin_groups)
-    
-    # test groupby function on ag_no_grp by :vname then :feat
-    ag_groupby_groups, _ = DT.groupby(ag_no_grp, :vname, :feat)
-    ag_builtin_groups = [gr.group for gr in get_groups(ag_grp)]
-    
-    @test length(ag_groupby_groups) == length(ag_builtin_groups)
-    @test all(ag_groupby_groups .== ag_builtin_groups)
+@testset "groupby :vname" begin
+    ds = get_dataset(dt,
+        TreatmentGroup(dims=1, aggrfunc=DT.aggregate(features=(mean,)), groupby=:vname),
+        groupby_split=true, leftover_ds=false, dataframe=true)
+    @test length(ds) == 2  # ts1, ts2
+    @test all(d -> nrow(d) == 5, ds)
+end
+
+@testset "groupby :feat" begin
+    ds = get_dataset(dt,
+        TreatmentGroup(dims=1, aggrfunc=DT.aggregate(features=(mean, maximum)), groupby=:feat),
+        groupby_split=true, leftover_ds=false, dataframe=true)
+    @test length(ds) == 2  # mean, maximum
+    @test all(d -> nrow(d) == 5, ds)
+end
+
+@testset "groupby (:vname, :feat)" begin
+    ds = get_dataset(dt,
+        TreatmentGroup(dims=1, aggrfunc=DT.aggregate(features=(mean, maximum)), groupby=(:vname, :feat)),
+        groupby_split=true, leftover_ds=false, dataframe=true)
+    @test length(ds) == 4  # 2 vnames × 2 feats
+    @test all(d -> nrow(d) == 5 && ncol(d) >= 1, ds)
+end
+
+@testset "groupby_split=false preserves column count" begin
+    treat = TreatmentGroup(dims=1, aggrfunc=DT.aggregate(features=(mean,)), groupby=:vname)
+    ds_split = get_dataset(dt, treat, groupby_split=true, leftover_ds=false, matrix=true)
+    ds_flat  = get_dataset(dt, treat, leftover_ds=false)
+    mds = filter(d -> d isa MultidimDataset, ds_flat)
+    @test sum(size(m, 2) for m in ds_split) == sum(length(md) for md in mds)
 end

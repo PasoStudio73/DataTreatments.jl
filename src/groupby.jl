@@ -1,174 +1,129 @@
 # ---------------------------------------------------------------------------- #
-#                                  groupby                                     #
+#                              split & _groupby                                #
 # ---------------------------------------------------------------------------- #
+@inline field_getter(field::Symbol) =
+    field == :dims ? f -> f.dims :
+    field == :vname ? f -> f.vname :
+    field == :nwin ? f -> f.nwin :
+    field == :feat ? f -> f.feat :
+    throw(ArgumentError("Unknown field: $field"))
+
 """
-    groupby(data::DataTreatment, fields...)
+    _split_md_by_dims(ds_md::MultidimDataset) -> Vector{MultidimDataset}
 
-Group rows in a DataTreatment dataset by one or more feature attributes.
+Split a [`MultidimDataset`](@ref) into multiple `MultidimDataset`s, one for each
+unique source dimensionality of its features.
 
-## Purpose
+When a `MultidimDataset` contains features originating from arrays of different
+dimensionalities (e.g., 1D time series and 2D spectrograms), this function groups
+them by dimensionality and returns a separate `MultidimDataset` for each group.
 
-The `groupby` function enables hierarchical grouping of DataTreatment columns based on 
-feature properties stored in the `FeatureId` structure. This is essential for operations 
-that require consistent computation across groups rather than column-by-column, preventing 
-data inconsistencies and unwanted flattening.
+# Arguments
+- `ds_md::MultidimDataset`: A multidimensional dataset potentially containing
+  features with heterogeneous source dimensionalities.
 
-## FeatureId Structure
-
-Each feature in the dataset carries metadata through its `FeatureId`:
-- **vname**: The name/identifier of the feature
-- **nwin**: The window number associated with multidimensional levels
-- **feat**: The feature used to reduce or aggregate multidimensional elements to 
-  manageable computational size
-
-## Use Cases
-
-### Normalization Across Groups
-Instead of normalizing column-by-column (which can flatten or damage the dataset), 
-you can compute normalization coefficients spanning an entire group, ensuring 
-consistent scaling across related features.
-
-**Example**: Normalize all channels of a multi-channel sensor reading together, 
-rather than independently per channel.
-
-### Multi-Level Grouping
-Group hierarchically by multiple attributes (e.g., first by feature name, then by 
-window, then by reduction method) for complex data analysis pipelines.
-
-## Returns
-
-Tuple of:
-- **groups**: Vector of index groups mapping to original dataset positions
-- **feat_groups**: Corresponding FeatureId groups for each group of indices
+# Returns
+A `Vector{MultidimDataset}` where each element contains only features sharing the
+same dimensionality. The length of the returned vector equals the number of unique
+dimensionalities present in `ds_md`.
 """
-function groupby(df::DataTreatment, fields::Symbol...)
-    # initial setup Vector{Vector} of all indexes and featureids
-    featureids = get_featureid(df)
+function _split_md_by_dims(ds_md::MultidimDataset)
+    dims = get_dims(ds_md)
+    unique_dims = unique(get_dims(ds_md))
 
-    _groupby(get_dataset(df), featureids, collect(fields))
+    idxs = [filter(i -> dims[i] == ud, collect(eachindex(dims))) for ud in unique_dims]
+
+    return [ds_md[idx] for idx in idxs]
 end
 
-# TODO
-# function groupby(df::DataTreatment, fields::Vector{Vector{Symbol}})
-#     colnames = propertynames(df)
-#     used = unique(vcat(fields...))
-#     left = setdiff(colnames, used)
-#     !isempty(left) && push!(fields, left)
-
-#     groups = Vector{DataFrame}(undef, length(fields))
-
-#     @inbounds for i in eachindex(fields)
-#         groups[i] = df[!, fields[i]]
-#     end
-
-#     return groups
-# end
-
 """
-    groupby(df::DataFrame, fields::Vector{Vector{Symbol}})
+    _groupby(info::AbstractVector{<:AggregateFeat{T}}, fields::Tuple{Vararg{Symbol}}) where T
 
-Group DataFrame columns into multiple sub-DataFrames based on pre-defined column groups.
+Perform hierarchical (multi-level) grouping by applying `_groupby` recursively
+on each sub-group for every field in `fields`, left to right.
 
-## Arguments
-- `df`: Source `DataFrame`.
-- `fields`: Vector of column-name vectors (each inner vector is one group).
+# Arguments
+- `info::AbstractVector{<:AggregateFeat{T}}`: Vector of `AggregateFeat` metadata
+  entries, one per feature column.
+- `fields::Tuple{Vararg{Symbol}}`: Ordered tuple of attribute symbols to group by
+  sequentially. Each element must be one of the symbols supported by
+  [`field_getter`](@ref): `:dims`, `:vname`, `:nwin`, `:feat`.
 
-## Behavior
-- Computes any leftover columns not listed in `fields` and appends them as a final group.
-- Returns a `Vector{DataFrame}` where each element is `df[!, fields[i]]`.
+# Returns
+A `Vector{Vector{Int}}` where each inner vector contains the original column
+indices belonging to one leaf group in the hierarchical grouping.
 
-## Example
+# Example
 ```julia
-using DataFrames
-
-df = DataFrame(
-    sepal_length = rand(3),
-    sepal_width  = rand(3),
-    petal_length = rand(3),
-    petal_width  = rand(3),
-)
-
-fields = [[:sepal_length, :petal_length], [:sepal_width]]
-groups = groupby(df, fields)
+# Group first by variable name, then by feature function
+groups = _groupby(info, (:vname, :feat))
+# → [[1, 4], [2, 5], [3, 6]]  (example indices)
 ```
+
+See also: [`_groupby(::AbstractVector{<:AggregateFeat}, ::Symbol)`](@ref),
+[`field_getter`](@ref)
 """
-function groupby(df::DataFrame, fields::Vector{Vector{Symbol}})
-    colnames = propertynames(df)
-    used = unique(vcat(fields...))
-    left = setdiff(colnames, used)
-    !isempty(left) && push!(fields, left)
-
-    groups = Vector{DataFrame}(undef, length(fields))
-
-    @inbounds for i in eachindex(fields)
-        groups[i] = df[!, fields[i]]
-    end
-
-    return groups
-end
-
-groupby(df::DataFrame, fields::Vector{Symbol}) = groupby(df, [fields])
-# ---------------------------------------------------------------------------- #
-#                              internal _groupby                               #
-# ---------------------------------------------------------------------------- #
-function _groupby(::Matrix{T}, featureids::Vector{FeatureId}, fields::Vector{Symbol}) where T
-    # initial setup Vector{Vector} of all indexes
-    idxs = [[1:length(featureids)...]]
-
-    _groupby(idxs, [featureids], fields)
-end
-
-function _groupby(idxs::Vector{Vector{Int64}}, featureids::Vector{Vector{FeatureId}}, fields::Vector{Symbol})
+function _groupby(
+    info::AbstractVector{<:AggregateFeat{T}},
+    fields::Tuple{Vararg{Symbol}}
+) where T
     # this function performs multi-level grouping (recursive).
     # - idxs: current groups of column indices
-    # - featureids: current groups of FeatureId metadata (aligned with idxs)
+    # - info: current groups of FeatureId metadata (aligned with idxs)
     # - fields: remaining fields to group by (e.g., [:feat, :vname, :nwin])
 
-    ngroups = length(featureids)
-    all_groups = Vector{Vector{Int}}()
-    all_feats = Vector{Vector{FeatureId}}()
+    # split by the first field
+    sub_idxs = _groupby(info, first(fields))
 
-    for i in 1:ngroups
-        # first, split the i-th group by the first field
-        sub_idxs, sub_featureids = _groupby(idxs[i], featureids[i], fields[1])
-        
-        if length(fields) == 1
-            # base case: only one field left, append the final groups
-            append!(all_groups, sub_idxs)
-            append!(all_feats, sub_featureids)
-        else
-            # recursive case: keep grouping by the remaining fields
-            groups, feats = _groupby(sub_idxs, sub_featureids, fields[2:end])
-            append!(all_groups, groups)
-            append!(all_feats, feats)
-        end
+    remaining = fields[2:end]
+    isempty(remaining) && return collect(sub_idxs)
+
+    # recursively group each sub-group by remaining fields
+    all_groups = Vector{Vector{Int}}()
+
+    for i in sub_idxs
+        groups = _groupby(@view(info[i]), remaining)
+        append!(all_groups, collect(groups))
     end
 
-    return all_groups, all_feats
+    return all_groups
 end
 
-function _groupby(idxs::Vector{Int64}, featureids::Vector{FeatureId}, field::Symbol)
-    # dynamically construct the appropriate getter function (get_vname, get_nwin, or get_feat)
-    # based on the field symbol passed as argument
-    getter = @eval $(Symbol(:get_, field))
+"""
+    _groupby(info::AbstractVector{<:AggregateFeat{T}}, field::Symbol) where T
 
-    # extract unique values of the specified field across all FeatureId objects
-    # this determines how many distinct groups we'll create
-    feats = unique(getter.(featureids))
+Group feature metadata by a single attribute and return the corresponding
+original column indices for each unique value.
 
-    # pre-allocate vectors to store grouped indices and their corresponding FeatureIds
-    groups = Vector{Vector{Int}}(undef, length(feats))
-    feat_groups = Vector{Vector{FeatureId}}(undef, length(feats))
+# Arguments
+- `info::AbstractVector{<:AggregateFeat{T}}`: Vector of `AggregateFeat` metadata
+  entries, one per feature column.
+- `field::Symbol`: The attribute to group by. Must be one of the symbols supported
+  by [`field_getter`](@ref): `:dims`, `:vname`, `:nwin`, `:feat`.
+  The special value `:all` returns each index as its own singleton group.
 
-    # iterate through each unique field value and partition the data
-    for (i, f) in enumerate(feats)
-        # find all positions where the field value matches current unique value
-        mask = findall(fid -> getter(fid) == f, featureids)
-        # store the original indices that belong to this group
-        groups[i] = idxs[mask]
-        # store the corresponding FeatureId objects for this group
-        feat_groups[i] = featureids[mask]
-    end
+# Returns
+A generator yielding `Vector{Int}` groups, where each vector contains original
+column indices (obtained via `get_idx`) sharing the same value for `field`.
 
-    return groups, feat_groups
+When `field == :all`, returns a generator yielding one index per element
+(i.e., no grouping is performed).
+
+# Errors
+Throws `ArgumentError` (via [`field_getter`](@ref)) if `field` is not a
+recognised attribute name.
+
+See also: [`_groupby(::AbstractVector{<:AggregateFeat}, ::Tuple{Vararg{Symbol}})`](@ref),
+[`field_getter`](@ref)
+"""
+function _groupby(
+    info::AbstractVector{<:AggregateFeat{T}},
+    field::Symbol
+) where T
+    field == :all && return (i for i in eachindex(info))
+    getter = field_getter(field)
+    vals = [getter(info[i]) for i in eachindex(info)]
+    unique_vals = unique(vals)
+    idxs = (findall(==(v), vals) for v in unique_vals)
+    return (get_idx.(@view(info[i])) for i in idxs)
 end
