@@ -1,338 +1,457 @@
-using Test
 using DataTreatments
 const DT = DataTreatments
 
+using DataFrames
+using Random
 using CategoricalArrays
-using Statistics
+using Test
 
-@testset "Metadata" begin
+function create_image(seed::Int; n=6)
+    Random.seed!(seed)
+    rand(Float64, n, n)
+end
 
-    @testset "DiscreteFeat" begin
-        levels = categorical(["red", "blue", "green"])
-        valid = [1, 2, 3]
-        miss = [4, 5]
+df = DataFrame(
+    str_col  = [missing, "blue", "green", "red", "blue"],
+    sym_col  = [:circle, :square, :triangle, :square, missing],
+    cat_col  = categorical(["small", "medium", missing, "small", "large"]),
+    uint_col = UInt32[1, 2, 3, 4, 5],
+    int_col  = Int[10, 20, 30, 40, 50],
+    V1 = [NaN, missing, 3.0, 4.0, 5.6],
+    V2 = [2.5, missing, 4.5, 5.5, NaN],
+    V3 = [3.2, 4.2, 5.2, missing, 2.4],
+    V4 = [4.1, NaN, NaN, 7.1, 5.5],
+    V5 = [5.0, 6.0, 7.0, 8.0, 1.8],
+    ts1 = [NaN, collect(2.0:7.0), missing, collect(4.0:9.0), collect(5.0:10.0)],
+    ts2 = [collect(2.0:0.5:5.5), collect(1.0:0.5:4.5), collect(3.0:0.5:6.5), collect(4.0:0.5:7.5), NaN],
+    ts3 = [[1.0, 1.2, 1.2, 2.6, NaN, 4.0, 4.2], NaN, NaN, missing, [3.0, NaN, 4.4, missing, 5.8, 7.0, 7.2]],
+    ts4 = [[6.0, 5.2, missing, 4.4, 1.2, 3.6, 2.8], missing, [5.0, 4.2, NaN, 3.4, missing, 2.6, 1.8], [8.0, 7.2, missing, 6.4, NaN, 5.6, 4.8], [9.0, NaN, 8.2, missing, 7.4, 6.6, 5.8]],
+    img1 = [create_image(i) for i in 1:5],
+    img2 = [i == 1 ? NaN : create_image(i+10) for i in 1:5],
+    img3 = [create_image(i+20) for i in 1:5],
+    img4 = [i == 3 ? missing : create_image(i+30) for i in 1:5]
+)
 
-        df = DiscreteFeat{String}([1], "color", levels, valid, miss)
-
-        @testset "Construction" begin
-            @test df isa DiscreteFeat{String}
-            @test df isa DT.AbstractDataFeature
-        end
-
-        @testset "get_id" begin
-            @test get_id(df) == [1]
-        end
-
-        @testset "get_vname" begin
-            @test get_vname(df) == "color"
-        end
-
-        @testset "get_valididxs" begin
-            @test get_valididxs(df) == [1, 2, 3]
-        end
-
-        @testset "get_missingidxs" begin
-            @test get_missingidxs(df) == [4, 5]
-        end
-
-        @testset "get_levels" begin
-            @test get_levels(df) === levels
-            @test Set(levels) == Set(["red", "blue", "green"])
-        end
-
-        @testset "type parameter" begin
-            df_int = DiscreteFeat{Int}([2], "grade", categorical([1, 2, 3]), [1, 2, 3], Int[])
-            @test df_int isa DiscreteFeat{Int}
-        end
-
-        @testset "empty missing" begin
-            df_clean = DiscreteFeat{String}([1], "x", categorical(["a"]), [1], Int[])
-            @test isempty(get_missingidxs(df_clean))
-        end
+# ---------------------------------------------------------------------------- #
+#                              DiscreteFeat                                    #
+# ---------------------------------------------------------------------------- #
+@testset "DiscreteFeat" begin
+    @testset "Construction" begin
+        levels_vec = categorical(["blue", "green", "red"])
+        feat = DT.DiscreteFeat{String}(
+            [1], "str_col", levels_vec, [2, 3, 4, 5], [1]
+        )
+        @test feat isa DT.DiscreteFeat{String}
+        @test feat isa DT.AbstractDataFeature
     end
 
-    @testset "ContinuousFeat" begin
-        valid = [1, 2, 4, 5]
-        miss = [3]
-        nans = [6]
-
-        cf = ContinuousFeat{Float64}([2], "temperature", valid, miss, nans)
-
-        @testset "Construction" begin
-            @test cf isa ContinuousFeat{Float64}
-            @test cf isa DT.AbstractDataFeature
-        end
-
-        @testset "get_id" begin
-            @test get_id(cf) == [2]
-        end
-
-        @testset "get_vname" begin
-            @test get_vname(cf) == "temperature"
-        end
-
-        @testset "get_valididxs" begin
-            @test get_valididxs(cf) == [1, 2, 4, 5]
-        end
-
-        @testset "get_missingidxs" begin
-            @test get_missingidxs(cf) == [3]
-        end
-
-        @testset "get_nanidxs" begin
-            @test get_nanidxs(cf) == [6]
-        end
-
-        @testset "type parameter Int" begin
-            cf_int = ContinuousFeat{Int}([3], "count", [1, 2], Int[], Int[])
-            @test cf_int isa ContinuousFeat{Int}
-        end
-
-        @testset "all clean" begin
-            cf_clean = ContinuousFeat{Float64}([1], "x", [1, 2, 3], Int[], Int[])
-            @test isempty(get_missingidxs(cf_clean))
-            @test isempty(get_nanidxs(cf_clean))
-        end
+    @testset "Construction with CategoricalValue type" begin
+        levels_vec = categorical(["large", "medium", "small"])
+        feat = DT.DiscreteFeat{String}(
+            [3], "cat_col", levels_vec, [1, 2, 4, 5], [3]
+        )
+        @test feat isa DT.DiscreteFeat{String}
     end
 
-    @testset "AggregateFeat" begin
-        valid = [1, 2]
-        miss = [3]
-        nans = [4]
-        hmiss = [5]
-        hnans = [2]
-
-        af = AggregateFeat{Float64}(
-            [3], "audio_signal", 1, maximum, 4,
-            valid, miss, nans, hmiss, hnans
+    @testset "Getters" begin
+        levels_vec = categorical(["blue", "green", "red"])
+        feat = DT.DiscreteFeat{String}(
+            [1], "str_col", levels_vec, [2, 3, 4, 5], [1]
         )
 
-        @testset "Construction" begin
-            @test af isa AggregateFeat{Float64}
-            @test af isa DT.AbstractDataFeature
-        end
-
-        @testset "get_id" begin
-            @test get_id(af) == [3]
-        end
-
-        @testset "get_vname" begin
-            @test get_vname(af) == "audio_signal"
-        end
-
-        @testset "get_dims" begin
-            @test get_dims(af) == 1
-        end
-
-        @testset "get_feat" begin
-            @test get_feat(af) === maximum
-        end
-
-        @testset "get_nwin" begin
-            @test get_nwin(af) == 4
-        end
-
-        @testset "get_valididxs" begin
-            @test get_valididxs(af) == [1, 2]
-        end
-
-        @testset "get_missingidxs" begin
-            @test get_missingidxs(af) == [3]
-        end
-
-        @testset "get_nanidxs" begin
-            @test get_nanidxs(af) == [4]
-        end
-
-        @testset "get_hasmissing" begin
-            @test get_hasmissing(af) == [5]
-        end
-
-        @testset "get_hasnans" begin
-            @test get_hasnans(af) == [2]
-        end
-
-        @testset "different feature functions" begin
-            af_mean = AggregateFeat{Float64}(
-                [1], "ts", 1, mean, 2,
-                [1, 2], Int[], Int[], Int[], Int[]
-            )
-            @test get_feat(af_mean) === mean
-            @test get_nwin(af_mean) == 2
-            @test get_dims(af_mean) == 1
-        end
-
-        @testset "2D source" begin
-            af_2d = AggregateFeat{Float64}(
-                [5], "spectrogram", 2, mean, 1,
-                [1, 2, 3], Int[], Int[], Int[], Int[]
-            )
-            @test get_dims(af_2d) == 2
-            @test get_vname(af_2d) == "spectrogram"
-        end
-
-        @testset "all clean" begin
-            af_clean = AggregateFeat{Float64}(
-                [1], "x", 1, maximum, 1,
-                [1, 2, 3], Int[], Int[], Int[], Int[]
-            )
-            @test isempty(get_missingidxs(af_clean))
-            @test isempty(get_nanidxs(af_clean))
-            @test isempty(get_hasmissing(af_clean))
-            @test isempty(get_hasnans(af_clean))
-        end
+        @test DT.get_id(feat) == [1]
+        @test DT.get_idx(feat) == 1
+        @test DT.get_vname(feat) == "str_col"
+        @test DT.get_valididxs(feat) == [2, 3, 4, 5]
+        @test DT.get_missingidxs(feat) == [1]
+        @test DT.get_levels(feat) === levels_vec
     end
 
-    @testset "ReduceFeat" begin
-        my_downsample = x -> x[1:2:end]
-        valid = [1, 2, 3]
-        miss = [4]
-        nans = Int[]
-        hmiss = Int[]
-        hnans = [3]
+    @testset "Getters with nested id" begin
+        levels_vec = categorical(["blue", "green", "red"])
+        feat = DT.DiscreteFeat{String}(
+            [1, 3], "str_col", levels_vec, [2, 3, 4, 5], [1]
+        )
+        @test DT.get_id(feat) == [1, 3]
+        @test DT.get_idx(feat) == 3
+    end
 
-        rf = ReduceFeat{Float64}(
-            [4], "spectrogram", 2, my_downsample,
-            valid, miss, nans, hmiss, hnans
+    @testset "Empty valid/missing indices" begin
+        levels_vec = categorical(["a", "b", "c"])
+        feat_no_missing = DT.DiscreteFeat{String}(
+            [1], "col", levels_vec, [1, 2, 3], Int[]
+        )
+        @test DT.get_valididxs(feat_no_missing) == [1, 2, 3]
+        @test DT.get_missingidxs(feat_no_missing) == Int[]
+
+        feat_all_missing = DT.DiscreteFeat{String}(
+            [1], "col", levels_vec, Int[], [1, 2, 3]
+        )
+        @test DT.get_valididxs(feat_all_missing) == Int[]
+        @test DT.get_missingidxs(feat_all_missing) == [1, 2, 3]
+    end
+
+    @testset "Base.show" begin
+        levels_vec = categorical(["blue", "green", "red"])
+        feat = DT.DiscreteFeat{String}(
+            [1], "str_col", levels_vec, [2, 3, 4, 5], [1]
+        )
+        str = sprint(show, feat)
+        @test occursin("DiscreteFeat{String}", str)
+        @test occursin("str_col", str)
+        @test occursin("3 levels", str)
+        @test occursin("4 valid", str)
+        @test occursin("1 missing", str)
+    end
+end
+
+# ---------------------------------------------------------------------------- #
+#                            ContinuousFeat                                    #
+# ---------------------------------------------------------------------------- #
+@testset "ContinuousFeat" begin
+    @testset "Construction" begin
+        feat = DT.ContinuousFeat{Float64}(
+            [6], "V1", [3, 4, 5], [2], [1]
+        )
+        @test feat isa DT.ContinuousFeat{Float64}
+        @test feat isa DT.AbstractDataFeature
+    end
+
+    @testset "Construction with Int type" begin
+        feat = DT.ContinuousFeat{Int}(
+            [5], "int_col", [1, 2, 3, 4, 5], Int[], Int[]
+        )
+        @test feat isa DT.ContinuousFeat{Int}
+    end
+
+    @testset "Construction with UInt32 type" begin
+        feat = DT.ContinuousFeat{UInt32}(
+            [4], "uint_col", [1, 2, 3, 4, 5], Int[], Int[]
+        )
+        @test feat isa DT.ContinuousFeat{UInt32}
+    end
+
+    @testset "Getters" begin
+        feat = DT.ContinuousFeat{Float64}(
+            [6], "V1", [3, 4, 5], [2], [1]
         )
 
-        @testset "Construction" begin
-            @test rf isa ReduceFeat{Float64}
-            @test rf isa DT.AbstractDataFeature
-        end
+        @test DT.get_id(feat) == [6]
+        @test DT.get_idx(feat) == 6
+        @test DT.get_vname(feat) == "V1"
+        @test DT.get_valididxs(feat) == [3, 4, 5]
+        @test DT.get_missingidxs(feat) == [2]
+        @test DT.get_nanidxs(feat) == [1]
+    end
 
-        @testset "get_id" begin
-            @test get_id(rf) == [4]
-        end
+    @testset "Getters with nested id" begin
+        feat = DT.ContinuousFeat{Float64}(
+            [2, 7], "V2", [1, 3, 4], [2], [5]
+        )
+        @test DT.get_id(feat) == [2, 7]
+        @test DT.get_idx(feat) == 7
+    end
 
-        @testset "get_vname" begin
-            @test get_vname(rf) == "spectrogram"
-        end
+    @testset "No missing, no NaN" begin
+        feat = DT.ContinuousFeat{Float64}(
+            [10], "V5", [1, 2, 3, 4, 5], Int[], Int[]
+        )
+        @test DT.get_valididxs(feat) == [1, 2, 3, 4, 5]
+        @test DT.get_missingidxs(feat) == Int[]
+        @test DT.get_nanidxs(feat) == Int[]
+    end
 
-        @testset "get_dims" begin
-            @test get_dims(rf) == 2
-        end
+    @testset "Multiple NaN indices" begin
+        # V4 = [4.1, NaN, NaN, 7.1, 5.5]
+        feat = DT.ContinuousFeat{Float64}(
+            [9], "V4", [1, 4, 5], Int[], [2, 3]
+        )
+        @test DT.get_nanidxs(feat) == [2, 3]
+        @test length(DT.get_valididxs(feat)) == 3
+    end
 
-        @testset "get_reducefunc" begin
-            @test get_reducefunc(rf) === my_downsample
-        end
+    @testset "Base.show" begin
+        feat = DT.ContinuousFeat{Float64}(
+            [6], "V1", [3, 4, 5], [2], [1]
+        )
+        str = sprint(show, feat)
+        @test occursin("ContinuousFeat{Float64}", str)
+        @test occursin("V1", str)
+        @test occursin("3 valid", str)
+        @test occursin("1 missing", str)
+        @test occursin("1 NaN", str)
+    end
 
-        @testset "get_valididxs" begin
-            @test get_valididxs(rf) == [1, 2, 3]
-        end
+    @testset "Base.show no issues" begin
+        feat = DT.ContinuousFeat{Int}(
+            [5], "int_col", [1, 2, 3, 4, 5], Int[], Int[]
+        )
+        str = sprint(show, feat)
+        @test occursin("ContinuousFeat{Int", str)
+        @test occursin("5 valid", str)
+        @test occursin("0 missing", str)
+        @test occursin("0 NaN", str)
+    end
+end
 
-        @testset "get_missingidxs" begin
-            @test get_missingidxs(rf) == [4]
-        end
+# ---------------------------------------------------------------------------- #
+#                             AggregateFeat                                    #
+# ---------------------------------------------------------------------------- #
+@testset "AggregateFeat" begin
+    @testset "Construction" begin
+        feat = DT.AggregateFeat{Float64}(
+            [11], "ts1", 1, maximum, 3,
+            [2, 4, 5], [3], [1], Int[], Int[]
+        )
+        @test feat isa DT.AggregateFeat{Float64}
+        @test feat isa DT.AbstractDataFeature
+    end
 
-        @testset "get_nanidxs" begin
-            @test get_nanidxs(rf) == Int[]
-        end
+    @testset "Construction with mean" begin
+        feat = DT.AggregateFeat{Float64}(
+            [12], "ts2", 1, Statistics.mean, 4,
+            [1, 2, 3, 4], Int[], [5], Int[], Int[]
+        )
+        @test feat isa DT.AggregateFeat{Float64}
+    end
 
-        @testset "get_hasmissing" begin
-            @test get_hasmissing(rf) == Int[]
-        end
+    @testset "Getters - basic" begin
+        feat = DT.AggregateFeat{Float64}(
+            [11], "ts1", 1, maximum, 3,
+            [2, 4, 5], [3], [1], Int[], Int[]
+        )
 
-        @testset "get_hasnans" begin
-            @test get_hasnans(rf) == [3]
-        end
+        @test DT.get_id(feat) == [11]
+        @test DT.get_idx(feat) == 11
+        @test DT.get_vname(feat) == "ts1"
+        @test DT.get_dims(feat) == 1
+        @test DT.get_feat(feat) === maximum
+        @test DT.get_nwin(feat) == 3
+        @test DT.get_valididxs(feat) == [2, 4, 5]
+        @test DT.get_missingidxs(feat) == [3]
+        @test DT.get_nanidxs(feat) == [1]
+        @test DT.get_hasmissing(feat) == Int[]
+        @test DT.get_hasnans(feat) == Int[]
+    end
 
-        @testset "1D source" begin
-            rf_1d = ReduceFeat{Float64}(
-                [1], "audio", 1, identity,
-                [1, 2], Int[], Int[], Int[], Int[]
-            )
-            @test get_dims(rf_1d) == 1
-        end
+    @testset "Getters - with hasmissing and hasnans" begin
+        # ts3 has elements with internal NaN and missing
+        feat = DT.AggregateFeat{Float64}(
+            [13], "ts3", 1, minimum, 2,
+            [1, 5], [4], [2, 3], [5], [1, 5]
+        )
 
-        @testset "all clean" begin
-            rf_clean = ReduceFeat{Float64}(
-                [1], "x", 1, identity,
-                [1, 2, 3], Int[], Int[], Int[], Int[]
-            )
-            @test isempty(get_missingidxs(rf_clean))
-            @test isempty(get_nanidxs(rf_clean))
-            @test isempty(get_hasmissing(rf_clean))
-            @test isempty(get_hasnans(rf_clean))
+        @test DT.get_hasmissing(feat) == [5]
+        @test DT.get_hasnans(feat) == [1, 5]
+    end
+
+    @testset "Getters - 2D (images)" begin
+        feat = DT.AggregateFeat{Float64}(
+            [15], "img1", 2, maximum, 4,
+            [1, 2, 3, 4, 5], Int[], Int[], Int[], Int[]
+        )
+
+        @test DT.get_dims(feat) == 2
+        @test DT.get_feat(feat) === maximum
+        @test DT.get_nwin(feat) == 4
+    end
+
+    @testset "Getters with nested id" begin
+        feat = DT.AggregateFeat{Float64}(
+            [3, 11, 2], "ts1", 1, maximum, 3,
+            [2, 4, 5], [3], [1], Int[], Int[]
+        )
+        @test DT.get_id(feat) == [3, 11, 2]
+        @test DT.get_idx(feat) == 2
+    end
+
+    @testset "Base.show" begin
+        feat = DT.AggregateFeat{Float64}(
+            [11], "ts1", 1, maximum, 3,
+            [2, 4, 5], [3], [1], Int[], Int[]
+        )
+        str = sprint(show, feat)
+        @test occursin("AggregateFeat{Float64}", str)
+        @test occursin("ts1", str)
+        @test occursin("dims=1", str)
+        @test occursin("feat=maximum", str)
+        @test occursin("nwin=3", str)
+        @test occursin("3 valid", str)
+        @test occursin("1 missing", str)
+        @test occursin("1 NaN", str)
+    end
+
+    @testset "Base.show 2D" begin
+        feat = DT.AggregateFeat{Float64}(
+            [15], "img1", 2, minimum, 6,
+            [1, 2, 3, 4, 5], Int[], Int[], Int[], Int[]
+        )
+        str = sprint(show, feat)
+        @test occursin("dims=2", str)
+        @test occursin("feat=minimum", str)
+        @test occursin("nwin=6", str)
+        @test occursin("5 valid", str)
+    end
+end
+
+# ---------------------------------------------------------------------------- #
+#                              ReduceFeat                                      #
+# ---------------------------------------------------------------------------- #
+@testset "ReduceFeat" begin
+    reduce_fn = x -> x[1:2:end]  # simple downsampling
+
+    @testset "Construction" begin
+        feat = DT.ReduceFeat{Float64}(
+            [11], "ts1", 1, reduce_fn,
+            [2, 4, 5], [3], [1], Int[], Int[]
+        )
+        @test feat isa DT.ReduceFeat{Float64}
+        @test feat isa DT.AbstractDataFeature
+    end
+
+    @testset "Construction 2D" begin
+        feat = DT.ReduceFeat{Float64}(
+            [15], "img1", 2, reduce_fn,
+            [1, 2, 3, 4, 5], Int[], Int[], Int[], Int[]
+        )
+        @test feat isa DT.ReduceFeat{Float64}
+        @test DT.get_dims(feat) == 2
+    end
+
+    @testset "Getters - basic" begin
+        feat = DT.ReduceFeat{Float64}(
+            [11], "ts1", 1, reduce_fn,
+            [2, 4, 5], [3], [1], Int[], Int[]
+        )
+
+        @test DT.get_id(feat) == [11]
+        @test DT.get_idx(feat) == 11
+        @test DT.get_vname(feat) == "ts1"
+        @test DT.get_dims(feat) == 1
+        @test DT.get_reducefunc(feat) === reduce_fn
+        @test DT.get_valididxs(feat) == [2, 4, 5]
+        @test DT.get_missingidxs(feat) == [3]
+        @test DT.get_nanidxs(feat) == [1]
+        @test DT.get_hasmissing(feat) == Int[]
+        @test DT.get_hasnans(feat) == Int[]
+    end
+
+    @testset "Getters - with hasmissing and hasnans" begin
+        # ts4 has elements with internal NaN and missing
+        feat = DT.ReduceFeat{Float64}(
+            [14], "ts4", 1, reduce_fn,
+            [1, 3, 4, 5], [2], Int[], [1, 3, 4, 5], [3, 4, 5]
+        )
+
+        @test DT.get_hasmissing(feat) == [1, 3, 4, 5]
+        @test DT.get_hasnans(feat) == [3, 4, 5]
+    end
+
+    @testset "Getters with nested id" begin
+        feat = DT.ReduceFeat{Float64}(
+            [5, 14], "ts4", 1, reduce_fn,
+            [1, 3, 4, 5], [2], Int[], Int[], Int[]
+        )
+        @test DT.get_id(feat) == [5, 14]
+        @test DT.get_idx(feat) == 14
+    end
+
+    @testset "Base.show" begin
+        feat = DT.ReduceFeat{Float64}(
+            [11], "ts1", 1, reduce_fn,
+            [2, 4, 5], [3], [1], Int[], Int[]
+        )
+        str = sprint(show, feat)
+        @test occursin("ReduceFeat{Float64}", str)
+        @test occursin("ts1", str)
+        @test occursin("dims=1", str)
+        @test occursin("3 valid", str)
+        @test occursin("1 missing", str)
+        @test occursin("1 NaN", str)
+    end
+
+    @testset "Base.show 2D" begin
+        feat = DT.ReduceFeat{Float64}(
+            [16], "img2", 2, reduce_fn,
+            [2, 3, 4, 5], Int[], [1], Int[], Int[]
+        )
+        str = sprint(show, feat)
+        @test occursin("dims=2", str)
+        @test occursin("4 valid", str)
+        @test occursin("0 missing", str)
+        @test occursin("1 NaN", str)
+    end
+end
+
+# ---------------------------------------------------------------------------- #
+#                          Cross-type checks                                   #
+# ---------------------------------------------------------------------------- #
+@testset "AbstractDataFeature interface" begin
+    levels_vec = categorical(["blue", "green", "red"])
+    reduce_fn = x -> x[1:2:end]
+
+    discrete = DT.DiscreteFeat{String}([1], "str_col", levels_vec, [2, 3, 4, 5], [1])
+    continuous = DT.ContinuousFeat{Float64}([6], "V1", [3, 4, 5], [2], [1])
+    aggregate = DT.AggregateFeat{Float64}([11], "ts1", 1, maximum, 3, [2, 4, 5], [3], [1], Int[], Int[])
+    reduce = DT.ReduceFeat{Float64}([11], "ts1", 1, reduce_fn, [2, 4, 5], [3], [1], Int[], Int[])
+
+    @testset "All subtypes share common getters" begin
+        for feat in [discrete, continuous, aggregate, reduce]
+            @test DT.get_id(feat) isa Vector
+            @test DT.get_idx(feat) isa Integer
+            @test DT.get_vname(feat) isa String
+            @test DT.get_valididxs(feat) isa Vector{Int}
+            @test DT.get_missingidxs(feat) isa Vector{Int}
         end
     end
 
-    @testset "Getter dispatch" begin
-        df = DiscreteFeat{String}([1], "a", categorical(["x"]), [1], Int[])
-        cf = ContinuousFeat{Float64}([2], "b", [1], Int[], Int[])
-        af = AggregateFeat{Float64}([3], "c", 1, maximum, 1, [1], Int[], Int[], Int[], Int[])
-        rf = ReduceFeat{Float64}([4], "d", 1, identity, [1], Int[], Int[], Int[], Int[])
-
-        @testset "Common getters work on all types" begin
-            for f in [df, cf, af, rf]
-                @test get_id(f) isa Vector
-                @test get_vname(f) isa String
-                @test get_valididxs(f) isa Vector{Int}
-                @test get_missingidxs(f) isa Vector{Int}
-            end
-        end
-
-        @testset "get_dims dispatches on Aggregate and Reduce only" begin
-            @test get_dims(af) isa Int
-            @test get_dims(rf) isa Int
-            @test_throws MethodError get_dims(df)
-            @test_throws MethodError get_dims(cf)
-        end
-
-        @testset "get_nanidxs dispatches on Continuous, Aggregate, Reduce only" begin
-            @test get_nanidxs(cf) isa Vector{Int}
-            @test get_nanidxs(af) isa Vector{Int}
-            @test get_nanidxs(rf) isa Vector{Int}
-            @test_throws MethodError get_nanidxs(df)
-        end
-
-        @testset "get_hasmissing dispatches on Aggregate and Reduce only" begin
-            @test get_hasmissing(af) isa Vector{Int}
-            @test get_hasmissing(rf) isa Vector{Int}
-            @test_throws MethodError get_hasmissing(df)
-            @test_throws MethodError get_hasmissing(cf)
-        end
-
-        @testset "get_hasnans dispatches on Aggregate and Reduce only" begin
-            @test get_hasnans(af) isa Vector{Int}
-            @test get_hasnans(rf) isa Vector{Int}
-            @test_throws MethodError get_hasnans(df)
-            @test_throws MethodError get_hasnans(cf)
-        end
-
-        @testset "get_levels dispatches on DiscreteFeat only" begin
-            @test get_levels(df) isa CategoricalVector
-            @test_throws MethodError get_levels(cf)
-            @test_throws MethodError get_levels(af)
-            @test_throws MethodError get_levels(rf)
-        end
-
-        @testset "get_feat dispatches on AggregateFeat only" begin
-            @test get_feat(af) === maximum
-            @test_throws MethodError get_feat(df)
-            @test_throws MethodError get_feat(cf)
-            @test_throws MethodError get_feat(rf)
-        end
-
-        @testset "get_nwin dispatches on AggregateFeat only" begin
-            @test get_nwin(af) == 1
-            @test_throws MethodError get_nwin(df)
-            @test_throws MethodError get_nwin(cf)
-            @test_throws MethodError get_nwin(rf)
-        end
-
-        @testset "get_reducefunc dispatches on ReduceFeat only" begin
-            @test get_reducefunc(rf) === identity
-            @test_throws MethodError get_reducefunc(df)
-            @test_throws MethodError get_reducefunc(cf)
-            @test_throws MethodError get_reducefunc(af)
-        end
+    @testset "get_nanidxs only for numeric types" begin
+        @test DT.get_nanidxs(continuous) isa Vector{Int}
+        @test DT.get_nanidxs(aggregate) isa Vector{Int}
+        @test DT.get_nanidxs(reduce) isa Vector{Int}
+        @test_throws MethodError DT.get_nanidxs(discrete)
     end
 
-    @testset "Subtyping" begin
-        @test DiscreteFeat <: DT.AbstractDataFeature
-        @test ContinuousFeat <: DT.AbstractDataFeature
-        @test AggregateFeat <: DT.AbstractDataFeature
-        @test ReduceFeat <: DT.AbstractDataFeature
+    @testset "get_dims only for multidimensional types" begin
+        @test DT.get_dims(aggregate) isa Int
+        @test DT.get_dims(reduce) isa Int
+        @test_throws MethodError DT.get_dims(discrete)
+        @test_throws MethodError DT.get_dims(continuous)
+    end
+
+    @testset "get_hasmissing/get_hasnans only for multidimensional types" begin
+        @test DT.get_hasmissing(aggregate) isa Vector{Int}
+        @test DT.get_hasmissing(reduce) isa Vector{Int}
+        @test DT.get_hasnans(aggregate) isa Vector{Int}
+        @test DT.get_hasnans(reduce) isa Vector{Int}
+        @test_throws MethodError DT.get_hasmissing(discrete)
+        @test_throws MethodError DT.get_hasmissing(continuous)
+        @test_throws MethodError DT.get_hasnans(discrete)
+        @test_throws MethodError DT.get_hasnans(continuous)
+    end
+
+    @testset "get_levels only for DiscreteFeat" begin
+        @test DT.get_levels(discrete) isa CategoricalArrays.CategoricalVector
+        @test_throws MethodError DT.get_levels(continuous)
+        @test_throws MethodError DT.get_levels(aggregate)
+        @test_throws MethodError DT.get_levels(reduce)
+    end
+
+    @testset "get_feat/get_nwin only for AggregateFeat" begin
+        @test DT.get_feat(aggregate) === maximum
+        @test DT.get_nwin(aggregate) == 3
+        @test_throws MethodError DT.get_feat(discrete)
+        @test_throws MethodError DT.get_feat(continuous)
+        @test_throws MethodError DT.get_feat(reduce)
+        @test_throws MethodError DT.get_nwin(discrete)
+        @test_throws MethodError DT.get_nwin(continuous)
+        @test_throws MethodError DT.get_nwin(reduce)
+    end
+
+    @testset "get_reducefunc only for ReduceFeat" begin
+        @test DT.get_reducefunc(reduce) === reduce_fn
+        @test_throws MethodError DT.get_reducefunc(discrete)
+        @test_throws MethodError DT.get_reducefunc(continuous)
+        @test_throws MethodError DT.get_reducefunc(aggregate)
     end
 end
