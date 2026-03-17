@@ -21,7 +21,7 @@ makedocs(;
         "DataTreatment" => "datatreatment.md",
         "Grouping" => "groupby.md",
         "FeatureSet" => "featureset.md",
-        # "Api" => "api.md",
+        "Metadata" => "metadata.md",
     ],
     warnonly=:true,
 )

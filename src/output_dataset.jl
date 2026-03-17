@@ -88,33 +88,33 @@ Output dataset for **discrete (categorical)** columns produced by `DataTreatment
 
 Each column of the original dataset that belongs to a discrete `TreatmentGroup`
 is encoded as an integer-coded categorical variable via [`discrete_encode`](@ref).
-The resulting `dataset` matrix contains integer level codes (with `missing`
+The resulting `data` matrix contains integer level codes (with `missing`
 preserved), and each column is described by a [`DiscreteFeat`](@ref) metadata
 entry in `info`.
 
 # Fields
-- `dataset::Matrix`: encoded integer-coded matrix (one column per discrete feature).
+- `data::AbstractMatrix`: encoded integer-coded matrix (one column per discrete feature).
   Each value is either an `Int` level code or `missing`.
-- `info::Vector{DiscreteFeat}`: per-column metadata, including the original column
+- `info::Vector{<:DiscreteFeat}`: per-column metadata, including the original column
   name, categorical levels, validity indices, and an `id` vector tracing the
   column back to the source dataset and `TreatmentGroup`.
 
 # Constructors
 
-    DiscreteDataset(dataset::Matrix, info::Vector{DiscreteFeat})
+    DiscreteDataset(data::AbstractMatrix, info::Vector{<:DiscreteFeat})
 
 Direct constructor from a pre-built matrix and metadata vector.
 
-    DiscreteDataset(id::Vector, dataset::Matrix, ds_struct::DatasetStructure, cols::Vector{Int})
+    DiscreteDataset(id::Vector, data::AbstractMatrix, ds_struct::DatasetStructure, cols::Vector{Int})
 
 Lazy constructor called internally by `DataTreatment`. Selects columns `cols`
-from `dataset`, encodes them categorically, and builds the corresponding
+from `data`, encodes them categorically, and builds the corresponding
 [`DiscreteFeat`](@ref) metadata from `ds_struct`.
 
 ## Arguments
 - `id::Vector`: base identifier vector; each feature appends its local index to
   trace provenance back to the source `TreatmentGroup`.
-- `dataset::Matrix`: the full raw dataset matrix.
+- `data::AbstractMatrix`: the full raw dataset matrix.
 - `ds_struct::DatasetStructure`: pre-computed dataset metadata.
 - `cols::Vector{Int}`: column indices to include in this dataset.
 
@@ -152,7 +152,7 @@ end
 Output dataset for **continuous (numeric scalar)** columns produced by `DataTreatment`.
 
 Each selected column is cast to the target `float_type` (e.g., `Float64`), with
-`missing` values preserved. The resulting `dataset` matrix is a numeric matrix
+`missing` values preserved. The resulting `data` matrix is a numeric matrix
 ready for downstream ML pipelines, and each column is described by a
 [`ContinuousFeat`](@ref) metadata entry in `info`.
 
@@ -160,27 +160,27 @@ ready for downstream ML pipelines, and each column is described by a
 - `T`: the floating-point type used for numeric conversion (e.g., `Float64`, `Float32`).
 
 # Fields
-- `dataset::Matrix`: numeric matrix (one column per continuous feature), with
+- `data::AbstractMatrix`: numeric matrix (one column per continuous feature), with
   elements of type `Union{Missing, T}`.
-- `info::Vector{ContinuousFeat}`: per-column metadata, including the original
+- `info::Vector{<:ContinuousFeat}`: per-column metadata, including the original
   column name, validity indices, missing indices, NaN indices, and an `id` vector
   tracing the column back to the source dataset and `TreatmentGroup`.
 
 # Constructors
 
-    ContinuousDataset(dataset::Matrix, info::Vector{ContinuousFeat{T}})
+    ContinuousDataset(data::AbstractMatrix, info::Vector{<:ContinuousFeat{T}})
 
 Direct constructor from a pre-built matrix and metadata vector.
 
-    ContinuousDataset(id::Vector, dataset::Matrix, ds_struct::DatasetStructure, cols::Vector{Int}, float_type::Type)
+    ContinuousDataset(id::Vector, data::AbstractMatrix, ds_struct::DatasetStructure, cols::Vector{Int}, float_type::Type)
 
 Lazy constructor called internally by `DataTreatment`. Selects columns `cols`
-from `dataset`, converts each element to `float_type` (preserving `missing`),
+from `data`, converts each element to `float_type` (preserving `missing`),
 and builds the corresponding [`ContinuousFeat`](@ref) metadata from `ds_struct`.
 
 ## Arguments
 - `id::Vector`: base identifier vector; each feature appends its local index.
-- `dataset::Matrix`: the full raw dataset matrix.
+- `data::AbstractMatrix`: the full raw dataset matrix.
 - `ds_struct::DatasetStructure`: pre-computed dataset metadata.
 - `cols::Vector{Int}`: column indices to include in this dataset.
 - `float_type::Type`: target floating-point type for numeric conversion.
@@ -224,14 +224,14 @@ Handles columns whose elements are arrays (e.g., time series, spectrograms).
 The output format depends on the aggregation strategy chosen in the `TreatmentGroup`:
 
 - **`aggregate`**: each multidimensional element is flattened into multiple scalar
-  columns — one per (window, feature) combination. The resulting `dataset` is a
+  columns — one per (window, feature) combination. The resulting `data` is a
   **tabular matrix** (not multidimensional), ready to be used alongside
   [`DiscreteDataset`](@ref) and [`ContinuousDataset`](@ref) in standard ML
   pipelines. Each column is described by an [`AggregateFeat`](@ref) entry.
 
 - **`reducesize`**: each element preserves its original dimensionality but is
   reduced in size (e.g., downsampling from 10 000 points to 256). The resulting
-  `dataset` remains a matrix of arrays. Each column is described by a
+  `data` remains a matrix of arrays. Each column is described by a
   [`ReduceFeat`](@ref) entry.
 
 Every column carries an `id` vector that traces its provenance back to the
@@ -243,7 +243,7 @@ operations or auditing the source of each derived feature.
   type when aggregation flattens the data.
 
 # Fields
-- `dataset::AbstractArray`: the processed matrix. When using `aggregate`, this is a
+- `data::AbstractArray`: the processed matrix. When using `aggregate`, this is a
   scalar tabular matrix with one column per (feature × window × original column)
   combination. When using `reducesize`, this is a matrix of reduced-size arrays.
 - `info::Vector{<:Union{AggregateFeat,ReduceFeat}}`: per-column metadata. Contains
@@ -252,18 +252,21 @@ operations or auditing the source of each derived feature.
   source dimensionality (`dims`), validity/missing/NaN indices, internal corruption
   indices (`hasmissing`, `hasnans`), and the applied feature function or reduction
   function.
+- `groups::Union{Nothing,Vector{Vector{Int}}}`: optional column groupings for
+  grouped operations. Each inner vector contains column indices belonging to the
+  same group. `nothing` when no grouping is applied.
 
 # Constructors
 
-    MultidimDataset(dataset::AbstractArray, info::Vector{<:AggregateFeat{T}})
-    MultidimDataset(dataset::AbstractArray, info::Vector{<:ReduceFeat{T}})
+    MultidimDataset(data::AbstractArray, info::Vector{<:AggregateFeat{T}}, groups::Union{Nothing,Vector{Vector{Int}}})
+    MultidimDataset(data::AbstractArray, info::Vector{<:ReduceFeat{T}}, groups::Union{Nothing,Vector{Vector{Int}}}=nothing)
 
 Direct constructors from a pre-built matrix and metadata vector.
 
-    MultidimDataset(id::Vector, dataset::Matrix, ds_struct::DatasetStructure, cols::Vector{Int}, aggrfunc::Base.Callable, float_type::Type)
+    MultidimDataset(id::Vector, data::AbstractMatrix, ds_struct::DatasetStructure, cols::Vector{Int}, aggrfunc::Base.Callable, float_type::Type, groups::Union{Nothing,Symbol,Tuple{Vararg{Symbol}}})
 
 Lazy constructor called internally by `DataTreatment`. Selects columns `cols`
-from `dataset`, applies `aggrfunc` to transform the multidimensional elements,
+from `data`, applies `aggrfunc` to transform the multidimensional elements,
 and builds the corresponding metadata from `ds_struct`.
 
 The constructor inspects `aggrfunc` to decide the output format:
@@ -274,11 +277,13 @@ The constructor inspects `aggrfunc` to decide the output format:
 
 ## Arguments
 - `id::Vector`: base identifier vector; each feature appends its local index.
-- `dataset::Matrix`: the full raw dataset matrix.
+- `data::AbstractMatrix`: the full raw dataset matrix.
 - `ds_struct::DatasetStructure`: pre-computed dataset metadata.
 - `cols::Vector{Int}`: column indices to include in this dataset.
 - `aggrfunc::Base.Callable`: the aggregation or reduction strategy.
 - `float_type::Type`: target floating-point type for numeric conversion.
+- `groups::Union{Nothing,Symbol,Tuple{Vararg{Symbol}}}`: grouping specification.
+  `nothing` disables grouping; a `Symbol` or tuple of `Symbol`s enables it.
 
 See also: [`DiscreteDataset`](@ref), [`ContinuousDataset`](@ref),
 [`AggregateFeat`](@ref), [`ReduceFeat`](@ref), [`aggregate`](@ref), [`reducesize`](@ref)
@@ -443,14 +448,14 @@ get_groups(ds::MultidimDataset) = ds.groups
 
 Returns the number of rows (observations) in the dataset.
 """
-get_nrows(ds::AbstractDataset) = size(ds.dataset, 1)
+get_nrows(ds::AbstractDataset) = size(ds.data, 1)
 
 """
     get_ncols(ds::AbstractDataset) -> Int
 
 Returns the number of columns (features) in the dataset.
 """
-get_ncols(ds::AbstractDataset) = size(ds.dataset, 2)
+get_ncols(ds::AbstractDataset) = size(ds.data, 2)
 
 """
     get_vnames(ds::AbstractDataset) -> Vector{String}
@@ -491,7 +496,7 @@ get_dims(ds::MultidimDataset, i::Int) = get_dims(ds.info[i])
 get_dims(ds::MultidimDataset, idxs::Vector{Int}) = [get_dims(ds.info[i]) for i in idxs]
 
 """
-    get_ids(ds::AbstractDataset) -> Vector{Vector}
+    get_idxs(ds::AbstractDataset) -> Vector{Vector}
 
 Returns the id vectors for all features in the dataset.
 """
@@ -525,9 +530,10 @@ end
 function Base.show(io::IO, ds::MultidimDataset{T}) where T
     nrows = size(ds, 1)
     ncols = ndims(ds.data) >= 2 ? size(ds, 2) : length(ds.info)
-    dims = reduce(vcat, unique(get_dims(ds)))
+    dims_vec = unique(get_dims(ds))
+    dims_str = length(dims_vec) == 1 ? string(dims_vec[1]) : string(dims_vec)
     mode = all(f -> f isa AggregateFeat, ds.info) ? "aggregate" : "reducesize"
-    print(io, "MultidimDataset{$T}($(nrows)×$(ncols), dims=$dims, $mode)")
+    print(io, "MultidimDataset{$T}($(nrows)×$(ncols), dims=$dims_str, $mode)")
 end
 
 # multi-line
@@ -596,11 +602,29 @@ function Base.show(io::IO, ::MIME"text/plain", ds::MultidimDataset{T}) where T
     end
 
     if mode == "aggregate"
-        unique_feats = unique([string(nameof(get_feat(f))) for f in ds.info])
+        unique_feats = unique([_callable_name(get_feat(f)) for f in ds.info])
         println(io, "├─ features: $(join(unique_feats, ", "))")
         unique_nwins = unique([get_nwin(f) for f in ds.info])
         print(io, "└─ windows: $(join(string.(unique_nwins), ", "))")
     else
-        print(io, "└─ reduce function: $(nameof(get_reducefunc(ds.info[1])))")
+        print(io, "└─ reduce function: $(_callable_name(get_reducefunc(ds.info[1])))")
+    end
+end
+
+"""
+    _callable_name(f) -> String
+
+Return a human-readable name for a callable. Uses `nameof` for named functions,
+the type name for callable structs / functors, and a fallback `string`
+representation for anonymous closures.
+"""
+function _callable_name(f)
+    if f isa Function
+        n = nameof(f)
+        # anonymous closures have names like #3, #foo#5, etc.
+        startswith(string(n), "#") ? string(f) : string(n)
+    else
+        # callable struct / functor — use type name
+        string(nameof(typeof(f)))
     end
 end
