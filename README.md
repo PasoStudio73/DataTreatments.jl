@@ -1,5 +1,5 @@
 <div align="center">
-    <img src="banner.png" alt="DataTreatments" width="800">
+    <img src="banner.png" alt="DataTreatments" width="900">
 </div>
 
 [![dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://PasoStudio73.github.io/DataTreatments.jl/)
