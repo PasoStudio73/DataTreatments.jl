@@ -1,5 +1,5 @@
 <div align="center">
-    <img src="logo.png" alt="DataTreatments" width="600">
+    <img src="banner.png" alt="DataTreatments" width="600">
 </div>
 
 # DataTreatments.jl
