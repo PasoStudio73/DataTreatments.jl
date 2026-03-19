@@ -100,15 +100,12 @@ without having the `DatasetStructure` available yet.
 ## Getter Methods
 
 ```@docs
-get_idxs(tg::TreatmentGroup)
-get_idxs(tg::TreatmentGroup, i::Int)
-get_dims(tg::TreatmentGroup)
-get_vnames(tg::TreatmentGroup)
-get_vnames(tg::TreatmentGroup, i::Int)
-get_vnames(tg::TreatmentGroup, idxs::Vector{Int})
-get_aggrfunc(tg::TreatmentGroup)
-get_groupby(tg::TreatmentGroup)
-has_groupby(tg::TreatmentGroup)
+get_idxs
+get_dims(::TreatmentGroup)
+get_vnames
+get_aggrfunc
+get_groupby
+has_groupby
 ```
 
 ---

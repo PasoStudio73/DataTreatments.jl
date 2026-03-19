@@ -117,7 +117,6 @@ ds = get_dataset(dt,
 
 ```@docs
 DataTreatments._split_md_by_dims
-DataTreatments._groupby(::AbstractVector{<:DataTreatments.AggregateFeat}, ::Tuple{Vararg{Symbol}})
-DataTreatments._groupby(::AbstractVector{<:DataTreatments.AggregateFeat}, ::Symbol)
-DataTreatments.field_getter
+DataTreatments._groupby(info::AbstractVector{<:AggregateFeat{T}}, fields::Tuple{Vararg{Symbol}}) where T
+DataTreatments._groupby(info::AbstractVector{<:AggregateFeat{T}}, field::Symbol) where T
 ```

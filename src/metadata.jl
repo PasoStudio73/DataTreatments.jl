@@ -1,25 +1,6 @@
 # ---------------------------------------------------------------------------- #
 #                              metadata structs                                #
 # ---------------------------------------------------------------------------- #
-"""
-    DiscreteFeat{T} <: AbstractDataFeature
-
-Metadata for a **discrete (categorical)** column in a `DataTreatment`.
-
-Stores the categorical levels alongside validity information. Used for columns
-whose values belong to a finite set of categories (e.g., labels, classes, 
-ordinal codes).
-
-# Type Parameter
-- `T`: the element type of the column (e.g., `String`, `Int`).
-
-# Fields
-- `id::Vector`: column index identifier within the original dataset.
-- `vname::String`: column name.
-- `levels::CategoricalArrays.CategoricalVector`: the ordered set of categorical levels.
-- `valididxs::Vector{Int}`: row indices with valid (non-missing) values.
-- `missingidxs::Vector{Int}`: row indices containing `missing`.
-"""
 struct DiscreteFeat{T} <: AbstractDataFeature
     id::Vector
     vname::String
@@ -37,25 +18,26 @@ struct DiscreteFeat{T} <: AbstractDataFeature
         new{T}(id, vname, levels, valididxs, missingidxs)
     end
 end
+@doc """
+    DiscreteFeat{T} <: AbstractDataFeature
 
-"""
-    ContinuousFeat{T} <: AbstractDataFeature
+Metadata for a **discrete (categorical)** column in a `DataTreatment`.
 
-Metadata for a **continuous (numeric scalar)** column in a `DataTreatment`.
-
-Tracks validity, missingness, and `NaN` indices for scalar numeric columns
-(e.g., measurements, sensor readings, computed statistics).
+Stores the categorical levels alongside validity information. Used for columns
+whose values belong to a finite set of categories (e.g., labels, classes, 
+ordinal codes).
 
 # Type Parameter
-- `T`: the numeric element type (e.g., `Float64`, `Int`).
+- `T`: the element type of the column (e.g., `String`, `Int`).
 
 # Fields
 - `id::Vector`: column index identifier within the original dataset.
 - `vname::String`: column name.
-- `valididxs::Vector{Int}`: row indices with valid (non-missing, non-NaN) values.
+- `levels::CategoricalArrays.CategoricalVector`: the ordered set of categorical levels.
+- `valididxs::Vector{Int}`: row indices with valid (non-missing) values.
 - `missingidxs::Vector{Int}`: row indices containing `missing`.
-- `nanidxs::Vector{Int}`: row indices containing `NaN`.
-"""
+""" DiscreteFeat
+
 struct ContinuousFeat{T} <: AbstractDataFeature
     id::Vector
     vname::String
@@ -73,8 +55,53 @@ struct ContinuousFeat{T} <: AbstractDataFeature
         new{T}(id, vname, valididxs, missingidxs, nanidxs)
     end
 end
+@doc """
+    ContinuousFeat{T} <: AbstractDataFeature
 
-"""
+Metadata for a **continuous (numeric scalar)** column in a `DataTreatment`.
+
+Tracks validity, missingness, and `NaN` indices for scalar numeric columns
+(e.g., measurements, sensor readings, computed statistics).
+
+# Type Parameter
+- `T`: the numeric element type (e.g., `Float64`, `Int`).
+
+# Fields
+- `id::Vector`: column index identifier within the original dataset.
+- `vname::String`: column name.
+- `valididxs::Vector{Int}`: row indices with valid (non-missing, non-NaN) values.
+- `missingidxs::Vector{Int}`: row indices containing `missing`.
+- `nanidxs::Vector{Int}`: row indices containing `NaN`.
+""" ContinuousFeat
+
+struct AggregateFeat{T} <: AbstractDataFeature
+    id::Vector
+    vname::String
+    dims::Int
+    feat::Base.Callable
+    nwin::Int
+    valididxs::Vector{Int}
+    missingidxs::Vector{Int}
+    nanidxs::Vector{Int}
+    hasmissing::Vector{Int}
+    hasnans::Vector{Int}
+
+    function AggregateFeat{T}(
+        id::Vector,
+        vname::String,
+        dims::Int,
+        feat::Base.Callable,
+        nwin::Int,
+        valididxs::Vector{Int},
+        missingidxs::Vector{Int},
+        nanidxs::Vector{Int},
+        hasmissing::Vector{Int},
+        hasnans::Vector{Int}
+    ) where T
+        new{T}(id, vname, dims, feat, nwin, valididxs, missingidxs, nanidxs, hasmissing, hasnans)
+    end
+end
+@doc """
     AggregateFeat{T} <: AbstractDataFeature
 
 Metadata for a **multidimensional column processed via aggregation** in a `DataTreatment`.
@@ -106,36 +133,34 @@ This struct stores the metadata needed to reconstruct and validate that process.
   contains `NaN` values internally.
 
 See also: [`ReduceFeat`](@ref), [`aggregate`](@ref)
-"""
-struct AggregateFeat{T} <: AbstractDataFeature
+""" AggregateFeat
+
+struct ReduceFeat{T} <: AbstractDataFeature
     id::Vector
     vname::String
     dims::Int
-    feat::Base.Callable
-    nwin::Int
+    reducefunc::Base.Callable
     valididxs::Vector{Int}
     missingidxs::Vector{Int}
     nanidxs::Vector{Int}
     hasmissing::Vector{Int}
     hasnans::Vector{Int}
 
-    function AggregateFeat{T}(
+    function ReduceFeat{T}(
         id::Vector,
         vname::String,
         dims::Int,
-        feat::Base.Callable,
-        nwin::Int,
+        reducefunc::Base.Callable,
         valididxs::Vector{Int},
         missingidxs::Vector{Int},
         nanidxs::Vector{Int},
         hasmissing::Vector{Int},
         hasnans::Vector{Int}
     ) where T
-        new{T}(id, vname, dims, feat, nwin, valididxs, missingidxs, nanidxs, hasmissing, hasnans)
+        new{T}(id, vname, dims, reducefunc, valididxs, missingidxs, nanidxs, hasmissing, hasnans)
     end
 end
-
-"""
+@doc """
     ReduceFeat{T} <: AbstractDataFeature
 
 Metadata for a **multidimensional column processed via size reduction** in a `DataTreatment`.
@@ -167,32 +192,7 @@ This struct stores the metadata needed to reconstruct and validate that process.
   contains `NaN` values internally.
 
 See also: [`AggregateFeat`](@ref), [`reducesize`](@ref)
-"""
-struct ReduceFeat{T} <: AbstractDataFeature
-    id::Vector
-    vname::String
-    dims::Int
-    reducefunc::Base.Callable
-    valididxs::Vector{Int}
-    missingidxs::Vector{Int}
-    nanidxs::Vector{Int}
-    hasmissing::Vector{Int}
-    hasnans::Vector{Int}
-
-    function ReduceFeat{T}(
-        id::Vector,
-        vname::String,
-        dims::Int,
-        reducefunc::Base.Callable,
-        valididxs::Vector{Int},
-        missingidxs::Vector{Int},
-        nanidxs::Vector{Int},
-        hasmissing::Vector{Int},
-        hasnans::Vector{Int}
-    ) where T
-        new{T}(id, vname, dims, reducefunc, valididxs, missingidxs, nanidxs, hasmissing, hasnans)
-    end
-end
+""" ReduceFeat
 
 # ---------------------------------------------------------------------------- #
 #                               getter methods                                 #
