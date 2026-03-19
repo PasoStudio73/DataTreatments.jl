@@ -63,4 +63,7 @@ export get_dataset
 export get_treatments_datasets, get_leftover_datasets
 include("datatreatment.jl")
 
+# export get_tabular, get_multidim
+# include("methods.jl")
+
 end
