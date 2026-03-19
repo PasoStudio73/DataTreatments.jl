@@ -8,22 +8,14 @@ CurrentModule = DataTreatments
 
 ```@docs
 TargetStructure
-get_values(::TargetStructure)
-get_labels(::TargetStructure)
+get_values
+get_labels
 ```
 
 ## DatasetStructure
 
 ```@docs
 DatasetStructure
-```
-
-### Base methods
-
-```@docs
-Base.size(::DatasetStructure)
-Base.length(::DatasetStructure)
-Base.eachindex(::DatasetStructure)
 ```
 
 ### Getter methods

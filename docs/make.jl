@@ -27,7 +27,7 @@ makedocs(;
         "FeatureSet" => "featureset.md",
         "Windowing" => "windowing.md",
     ],
-    warnonly=:true,
+    warnonly=true,
 )
 
 deploydocs(;

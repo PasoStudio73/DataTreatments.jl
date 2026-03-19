@@ -8,7 +8,7 @@ The metadata module defines the core types used to describe individual columns
 data** a column contains together with **validity information** (which rows are
 valid, missing, or `NaN`).
 
-There are four concrete subtypes of [`AbstractDataFeature`](@ref):
+There are four concrete subtypes of `AbstractDataFeature`:
 
 | Type | Use case |
 |:-----|:---------|
@@ -59,22 +59,22 @@ subtypes.
 get_id
 get_idx
 get_vname
-get_valididxs
-get_missingidxs
+get_valididxs(::AbstractDataFeature)
+get_missingidxs(::AbstractDataFeature)
 ```
 
 ### Numeric getters (`ContinuousFeat`, `AggregateFeat`, `ReduceFeat`)
 
 ```@docs
-get_nanidxs
+get_nanidxs(::Union{ContinuousFeat,AggregateFeat,ReduceFeat})
 ```
 
 ### Multidimensional getters (`AggregateFeat`, `ReduceFeat`)
 
 ```@docs
-get_dims
-get_hasmissing
-get_hasnans
+get_dims(::Union{AggregateFeat,ReduceFeat})
+get_hasmissing(::Union{AggregateFeat,ReduceFeat})
+get_hasnans(::Union{AggregateFeat,ReduceFeat})
 ```
 
 ### Discrete-only getters (`DiscreteFeat`)

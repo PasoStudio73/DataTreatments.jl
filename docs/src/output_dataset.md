@@ -3,9 +3,9 @@ CurrentModule = DataTreatments
 ```
 # [Output Datasets](@id output_dataset)
 
-Output datasets are the structured results produced by [`DataTreatment`](@ref) after processing raw data. Each dataset type wraps a data matrix together with per-column metadata ([`AbstractDataFeature`](@ref) entries), enabling downstream pipelines to access not only the transformed values but also provenance information, missing/NaN indices, and categorical levels.
+Output datasets are the structured results produced by [`DataTreatment`](@ref) after processing raw data. Each dataset type wraps a data matrix together with per-column metadata (`AbstractDataFeature` entries), enabling downstream pipelines to access not only the transformed values but also provenance information, missing/NaN indices, and categorical levels.
 
-All concrete dataset types are subtypes of [`AbstractDataset`](@ref).
+All concrete dataset types are subtypes of `AbstractDataset`.
 
 | Type | Purpose |
 |------|---------|
@@ -39,7 +39,7 @@ MultidimDataset
 
 ## `Base` Methods
 
-All [`AbstractDataset`](@ref) subtypes support the following `Base` methods:
+All `AbstractDataset` subtypes support the following `Base` methods:
 
 ### Size & Iteration
 
@@ -80,9 +80,7 @@ For [`MultidimDataset`](@ref), indexing also re-indexes the `groups` field via [
 ### Data Access
 
 ```@docs
-get_data(ds::AbstractDataset)
-get_data(ds::AbstractDataset, i::Int)
-get_data(ds::AbstractDataset, idxs::Vector{Int})
+get_data(::AbstractDataset)
 ```
 
 !!! note "GroupBy Split"
@@ -93,24 +91,20 @@ get_data(ds::AbstractDataset, idxs::Vector{Int})
 ### Metadata Access
 
 ```@docs
-get_info(ds::AbstractDataset)
-get_info(ds::AbstractDataset, i::Int)
-get_info(ds::AbstractDataset, idxs::Vector{Int})
+get_info(::AbstractDataset)
 ```
 
 ### Dimensions
 
 ```@docs
-get_nrows(ds::AbstractDataset)
-get_ncols(ds::AbstractDataset)
+get_nrows(::AbstractDataset)
+get_ncols(::AbstractDataset)
 ```
 
 ### Variable Names
 
 ```@docs
-get_vnames(ds::AbstractDataset)
-get_vnames(ds::AbstractDataset, i::Int)
-get_vnames(ds::AbstractDataset, idxs::Vector{Int})
+get_vnames(::AbstractDataset)
 ```
 
 !!! note "Aggregate naming"
@@ -121,17 +115,13 @@ get_vnames(ds::AbstractDataset, idxs::Vector{Int})
 ### Source Dimensionality (MultidimDataset only)
 
 ```@docs
-get_dims(ds::MultidimDataset)
-get_dims(ds::MultidimDataset, i::Int)
-get_dims(ds::MultidimDataset, idxs::Vector{Int})
+get_dims(::MultidimDataset)
 ```
 
 ### Provenance IDs
 
 ```@docs
-get_idxs(ds::AbstractDataset)
-get_idxs(ds::AbstractDataset, i::Int)
-get_idxs(ds::AbstractDataset, idxs::Vector{Int})
+get_idxs(::AbstractDataset)
 ```
 
 ### Groups (MultidimDataset only)
@@ -148,8 +138,8 @@ get_idxs(ds::AbstractDataset, idxs::Vector{Int})
 ### discrete\_encode
 
 ```@docs
-discrete_encode(X::Matrix)
-discrete_encode(x::AbstractVector)
+discrete_encode(::Matrix)
+discrete_encode(::AbstractVector)
 ```
 
 Both overloads treat `missing` and `NaN` identically: they are preserved as

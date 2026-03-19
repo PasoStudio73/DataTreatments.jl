@@ -312,12 +312,6 @@ end
 - **Medical Data**: Process multi-channel physiological signals
 - **Experiment Reproducibility**: All parameters stored for exact replication
 
-## API Reference
-
-```@autodocs
-Modules = [DataTreatments]
-```
-
 ## License
 
 MIT License
