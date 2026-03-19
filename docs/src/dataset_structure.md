@@ -21,12 +21,12 @@ DatasetStructure
 ### Getter methods
 
 ```@docs
-get_vnames
-get_datatype
-get_dims
-get_valididxs
-get_missingidxs
-get_nanidxs
-get_hasmissing
-get_hasnans
+get_vnames(::DatasetStructure)
+get_datatype(::DatasetStructure)
+get_dims(::DatasetStructure)
+get_valididxs(::DatasetStructure)
+get_missingidxs(::DatasetStructure)
+get_nanidxs(::DatasetStructure)
+get_hasmissing(::DatasetStructure)
+get_hasnans(::DatasetStructure)
 ```

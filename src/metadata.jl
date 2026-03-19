@@ -18,25 +18,6 @@ struct DiscreteFeat{T} <: AbstractDataFeature
         new{T}(id, vname, levels, valididxs, missingidxs)
     end
 end
-@doc """
-    DiscreteFeat{T} <: AbstractDataFeature
-
-Metadata for a **discrete (categorical)** column in a `DataTreatment`.
-
-Stores the categorical levels alongside validity information. Used for columns
-whose values belong to a finite set of categories (e.g., labels, classes, 
-ordinal codes).
-
-# Type Parameter
-- `T`: the element type of the column (e.g., `String`, `Int`).
-
-# Fields
-- `id::Vector`: column index identifier within the original dataset.
-- `vname::String`: column name.
-- `levels::CategoricalArrays.CategoricalVector`: the ordered set of categorical levels.
-- `valididxs::Vector{Int}`: row indices with valid (non-missing) values.
-- `missingidxs::Vector{Int}`: row indices containing `missing`.
-""" DiscreteFeat
 
 struct ContinuousFeat{T} <: AbstractDataFeature
     id::Vector

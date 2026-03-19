@@ -102,7 +102,7 @@ without having the `DatasetStructure` available yet.
 ```@docs
 get_idxs
 get_dims(::TreatmentGroup)
-get_vnames
+get_vnames(::TreatmentGroup)
 get_aggrfunc
 get_groupby
 has_groupby
