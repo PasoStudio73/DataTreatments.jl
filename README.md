@@ -114,12 +114,12 @@ result = get_dataset(
 
 ### 5. Filter columns by name
 
-Use `name_expr` to select columns matching a regex pattern. Set `leftover_ds=false` to exclude unmatched columns:
+Use `vnames` to select columns matching a regex pattern. Set `leftover_ds=false` to exclude unmatched columns:
 
 ```julia
 result = get_dataset(
     dt,
-    TreatmentGroup(name_expr=r"^(V|i)"),
+    TreatmentGroup(vnames=r"^(V|i)"),
     leftover_ds=false,
     output_type=dataframe
 )
@@ -209,7 +209,7 @@ A `TreatmentGroup` specifies which columns to select and how to process them:
 | Parameter | Description |
 |---|---|
 | `dims` | Filter columns by dimensionality (`0` = scalar, `1` = vector, `2` = matrix, etc.) |
-| `name_expr` | Filter columns by regex on column name |
+| `vnames` | Filter columns by regex on column name |
 | `aggrfunc` | Processing function (`aggregate(...)` or `reducesize(...)`) |
 | `groupby` | Group output columns by metadata (`:vname`, `:feat`, `:nwin`, or a tuple) |
 

@@ -1,5 +1,6 @@
 using DataTreatments
 const DT = DataTreatments
+TreatmentOutput = DT.TreatmentOutput
 
 using DataFrames
 using Random
@@ -34,26 +35,45 @@ function build_test_df()
 end
 
 # ---------------------------------------------------------------------------- #
+#                               getter methods                                 #
+# ---------------------------------------------------------------------------- #
+get_discrete(dt::TreatmentOutput) = filter(d -> d isa DiscreteDataset, dt)
+get_continuous(dt::TreatmentOutput) = filter(d -> d isa ContinuousDataset, dt)
+get_multidim(dt::TreatmentOutput) = filter(d -> d isa MultidimDataset, dt)
+
+get_aggregated(dt::TreatmentOutput) = filter(d -> d isa MultidimDataset && 
+    # isa(getfield(d, :info), Vector) && 
+    # !isempty(getfield(d, :info)) && 
+    eltype(getfield(d, :info)) <: AggregateFeat, dt)
+
+get_reduced(dt::TreatmentOutput) = filter(d -> d isa MultidimDataset && 
+    # isa(getfield(d, :info), Vector) && 
+    # !isempty(getfield(d, :info)) && 
+    eltype(getfield(d, :info)) <: ReduceFeat, dt)
+
+# ---------------------------------------------------------------------------- #
 #                             get tabular method                               #
 # ---------------------------------------------------------------------------- #
 # args:
 # treatments::Vararg{Base.Callable}=TreatmentGroup(aggrfunc=DefaultAggrFunc,)
+# kwargs:
+# treatment_ds::Bool=true,
+# leftover_ds::Bool=true,
 
 function get_tabular(
     dt::DataTreatment,
     args...;
-    leftover_ds::Bool=false,
     groupby_split::Bool=false,
-    output_type::Symbol=:standard # :standard, :matrix, :dataframe
+    output_type::Base.Callable=standard, # standard, matrix, dataframe
+    kwargs...
 ) # ::Vector{Union{AbstractDataset,AbstractMatrix,DataFrame}}
-    data = get_dataset(
-        dt::DataTreatment,
-        args...;
-        treatment_ds::Bool=true,
-        leftover_ds::Bool=true,
-        groupby_split::Bool=false,
-        output_type::Base.Callable
-    )
+    data = get_dataset(dt::DataTreatment, args...; kwargs...)
+
+    get_discrete(data)
+    get_continuous(data)
+    get_aggregated(data)
+
+    return output_type(data, groupby_split)
 end
 
 # ---------------------------------------------------------------------------- #
@@ -69,3 +89,27 @@ function get_multidim(
 ) # ::Vector{Union{AbstractDataset,AbstractMatrix,DataFrame}}
 
 end
+
+df = build_test_df()
+dt = DataTreatment(df)
+
+# result = get_tabular(
+data = get_tabular(
+    dt,
+    TreatmentGroup(
+        name_expr=["V3", "V4", "V5"]
+    ),
+    TreatmentGroup(
+        dims=1,
+        aggrfunc=DT.aggregate(
+            features=(mean, maximum),
+            win=(DT.adaptivewindow(nwindows=5, overlap=0.4),)
+        )),
+    TreatmentGroup(
+        dims=2,
+        aggrfunc=DT.reducesize()
+    ),
+    # output_type=dataframe
+)
+
+@show result isa DT.TreatmentOutput

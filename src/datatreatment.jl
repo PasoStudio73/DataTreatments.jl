@@ -2,6 +2,7 @@
 #                                     types                                    #
 # ---------------------------------------------------------------------------- #
 const DefaultAggrFunc = aggregate(win=(wholewindow(),), features=(maximum, minimum, mean))
+const TreatmentOutput = Vector{Union{DataFrame, AbstractDataset, AbstractMatrix}}
 
 # ---------------------------------------------------------------------------- #
 #                                 output funcs                                 #
@@ -470,6 +471,9 @@ Each element is one of:
 
 # Returns
 
+- The output is always a `TreatmentOutput`, which is defined as:
+  `Vector{Union{DataFrame, AbstractDataset, AbstractMatrix}}`.
+
 - If `output_type=standard` (default), returns a `Vector{AbstractDataset}` of processed datasets.
 - If `output_type=matrix`, returns a vector of matrices of all selected data.
 - If `output_type=dataframe`, returns a vector of DataFrames of all selected data.
@@ -528,10 +532,8 @@ function get_dataset(
     treatment_ds::Bool=true,
     leftover_ds::Bool=true,
     groupby_split::Bool=false,
-    # matrix::Bool=false,
-    # dataframe::Bool=false
     output_type::Base.Callable=standard # standard, matrix, dataframe
-)::Vector{Union{AbstractDataset,AbstractMatrix,DataFrame}}
+)::TreatmentOutput
     treats = [treat(get_ds_struct(dt)) for treat in treatments]
 
     ds = AbstractDataset[]
