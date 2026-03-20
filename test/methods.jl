@@ -1,7 +1,6 @@
 using Test
 using DataTreatments
 const DT = DataTreatments
-TreatmentOutput = DT.TreatmentOutput
 
 using DataFrames
 using Random
@@ -121,4 +120,19 @@ end
     empty_multidim = get_multidim(empty_dt)
     @test isa(empty_multidim, TreatmentOutput)
     @test isempty(empty_multidim)
+end
+
+@testset "get_multidim getter on TreatmentOutput" begin
+    # Use the output from get_tabular or get_dataset
+    tabular_result = get_tabular(dt)
+    multidim_only = get_multidim(tabular_result)
+    @test isa(multidim_only, Vector)
+    @test all(x -> x isa DT.MultidimDataset, multidim_only)
+    # Should be a subset of tabular_result
+    @test all(x -> x in tabular_result, multidim_only)
+
+    # Also test on empty input
+    empty = DT.get_multidim(TreatmentOutput())
+    @test isa(empty, Vector)
+    @test isempty(empty)
 end

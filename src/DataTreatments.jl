@@ -55,7 +55,7 @@ export has_groups, get_groups
 include("output_dataset.jl")
 include("groupby.jl")
 
-export DataTreatment
+export DataTreatment, TreatmentOutput
 export groupby
 export get_data, get_target, get_ds_struct, get_t_groups, get_float_type
 export get_nrows, get_ncols
