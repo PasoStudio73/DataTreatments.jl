@@ -2,31 +2,31 @@
 #                                     types                                    #
 # ---------------------------------------------------------------------------- #
 const DefaultAggrFunc = aggregate(win=(wholewindow(),), features=(maximum, minimum, mean))
-const TreatmentOutput = Vector{Union{DataFrame, AbstractDataset, AbstractMatrix}}
+# const TreatmentOutput = Vector{Union{DataFrame, AbstractDataset, AbstractMatrix}}
 
 # ---------------------------------------------------------------------------- #
 #                                 output funcs                                 #
 # ---------------------------------------------------------------------------- #
-standard = (ds, _) -> ds
+# standard = (ds, _) -> ds
 
-matrix = (ds, groupby_split) -> begin
-    return reduce(vcat, [elem isa AbstractVector && eltype(elem) <: AbstractMatrix ?
-        elem :
-        [elem] for elem in get_data.(ds; groupby_split)]
-    )
-end
+# matrix = (ds, groupby_split) -> begin
+#     return reduce(vcat, [elem isa AbstractVector && eltype(elem) <: AbstractMatrix ?
+#         elem :
+#         [elem] for elem in get_data.(ds; groupby_split)]
+#     )
+# end
 
-dataframe = (ds, groupby_split) -> begin
-    data = reduce(vcat, [elem isa AbstractVector && eltype(elem) <: AbstractMatrix ?
-        elem :
-        [elem] for elem in get_data.(ds; groupby_split)]
-    )
-    cnames = reduce(vcat, [elem isa AbstractVector && eltype(elem) <: AbstractVector ?
-        elem :
-        [elem] for elem in get_vnames.(ds; groupby_split)]
-    )
-    return DataFrame.(data, cnames)
-end
+# dataframe = (ds, groupby_split) -> begin
+#     data = reduce(vcat, [elem isa AbstractVector && eltype(elem) <: AbstractMatrix ?
+#         elem :
+#         [elem] for elem in get_data.(ds; groupby_split)]
+#     )
+#     cnames = reduce(vcat, [elem isa AbstractVector && eltype(elem) <: AbstractVector ?
+#         elem :
+#         [elem] for elem in get_vnames.(ds; groupby_split)]
+#     )
+#     return DataFrame.(data, cnames)
+# end
 
 # ---------------------------------------------------------------------------- #
 #                             DataTreatment struct                             #
@@ -426,8 +426,6 @@ end
         treatments::Base.Callable...;
         treatment_ds=true,
         leftover_ds=true,
-        groupby_split=false,
-        output_type=standard
     )
 
 The core function of the DataTreatments package.
@@ -463,20 +461,10 @@ Each element is one of:
   with the default aggregation function (`maximum`, `minimum`, `mean` over the whole window).
 - `treatment_ds::Bool=true`: If `true`, include datasets defined by the treatment groups.
 - `leftover_ds::Bool=true`: If `true`, include datasets for columns not assigned to any treatment group.
-- `groupby_split::Bool=false`: If `true`, split multidimensional datasets by group.
-- `output_type`: Specifies the output format. Must be one of the following:
-    - `standard` (default): returns a vector of processed datasets (no formatting).
-    - `matrix`: returns a vector of matrices with all selected data.
-    - `dataframe`: returns a vector of DataFrames with all selected data.
 
 # Returns
 
-- The output is always a `TreatmentOutput`, which is defined as:
-  `Vector{Union{DataFrame, AbstractDataset, AbstractMatrix}}`.
-
-- If `output_type=standard` (default), returns a `Vector{AbstractDataset}` of processed datasets.
-- If `output_type=matrix`, returns a vector of matrices of all selected data.
-- If `output_type=dataframe`, returns a vector of DataFrames of all selected data.
+- The output is a `Vector{AbstractDataset}` of processed datasets.
 
 # Example
 
@@ -513,16 +501,6 @@ ds = get_dataset(dt, TreatmentGroup(dims=0), TreatmentGroup(dims=1, aggrfunc=agg
 ds = get_dataset(dt, TreatmentGroup(dims=1); treatment_ds=false)
 ```
 
-```@example
-# As matrices
-ds = get_dataset(dt; output_type=matrix)
-```
-
-```@example
-# As dataframes
-ds = get_dataset(dt; output_type=dataframe)
-```
-
 See also: [`DataTreatment`](@ref), [`TreatmentGroup`](@ref), [`DatasetStructure`](@ref),
 [`_get_treatments_datasets`](@ref), [`_get_leftover_datasets`](@ref)
 """
@@ -531,9 +509,7 @@ function get_dataset(
     treatments::Vararg{Base.Callable}=TreatmentGroup(aggrfunc=DefaultAggrFunc,);
     treatment_ds::Bool=true,
     leftover_ds::Bool=true,
-    groupby_split::Bool=false,
-    output_type::Base.Callable=standard # standard, matrix, dataframe
-)::TreatmentOutput
+)
     treats = [treat(get_ds_struct(dt)) for treat in treatments]
 
     ds = AbstractDataset[]
@@ -541,9 +517,7 @@ function get_dataset(
     treatment_ds && append!(ds, _get_treatments_datasets(dt, treats))
     leftover_ds && append!(ds, _get_leftover_datasets(dt, treats))
 
-    isempty(ds) && return ds
-
-    return output_type(ds, groupby_split)
+    return ds
 end
 
 # ---------------------------------------------------------------------------- #

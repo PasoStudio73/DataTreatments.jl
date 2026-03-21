@@ -1,21 +1,21 @@
 # ---------------------------------------------------------------------------- #
 #                               getter methods                                 #
 # ---------------------------------------------------------------------------- #
-get_discrete(dt::TreatmentOutput) = filter(d -> d isa DiscreteDataset, dt)
-get_continuous(dt::TreatmentOutput) = filter(d -> d isa ContinuousDataset, dt)
-get_multidim(dt::TreatmentOutput) = filter(d -> d isa MultidimDataset, dt)
+get_discrete(dt::Vector{<:AbstractDataset}) = filter(d -> d isa DiscreteDataset, dt)
+get_continuous(dt::Vector{<:AbstractDataset}) = filter(d -> d isa ContinuousDataset, dt)
+get_multidim(dt::Vector{<:AbstractDataset}) = filter(d -> d isa MultidimDataset, dt)
 
-get_aggregated(dt::TreatmentOutput) = filter(d -> d isa MultidimDataset && 
+get_aggregated(dt::Vector{<:AbstractDataset}) = filter(d -> d isa MultidimDataset && 
     eltype(getfield(d, :info)) <: AggregateFeat, dt)
 
-get_reduced(dt::TreatmentOutput) = filter(d -> d isa MultidimDataset && 
+get_reduced(dt::Vector{<:AbstractDataset}) = filter(d -> d isa MultidimDataset && 
     eltype(getfield(d, :info)) <: ReduceFeat, dt)
 
 # ---------------------------------------------------------------------------- #
 #                             get tabular method                               #
 # ---------------------------------------------------------------------------- #
 """
-    get_tabular(dt::DataTreatment, args...; groupby_split=true, output_type=standard, kwargs...) -> TreatmentOutput
+    get_tabular(dt::DataTreatment, args...; kwargs...)
 
 Convenience function to collect all tabular-like datasets from a `DataTreatment` object, including discrete, continuous, and aggregated multidimensional data.
 
@@ -29,8 +29,6 @@ This function is helpful because the `DataTreatments` package allows flexible tr
 
 - `dt::DataTreatment`: The data treatment object.
 - `args...`: One or more treatment group callables (e.g., from `TreatmentGroup`). These specify how to group or aggregate columns.
-- `groupby_split::Bool=true`: Whether to split multidimensional datasets by group.
-- `output_type`: Output format function (`standard`, `matrix`, or `dataframe`).
 - `kwargs...`: Additional keyword arguments passed to `get_dataset`, such as:
     - `treatment_ds::Bool=true`: Include datasets defined by the treatment groups.
     - `leftover_ds::Bool=true`: Include datasets for columns not assigned to any treatment group.
@@ -44,23 +42,18 @@ See also: [`get_multidim`](@ref), [`get_dataset`](@ref)
 @inline function get_tabular(
     dt::DataTreatment,
     args...;
-    groupby_split::Bool=true,
-    output_type::Base.Callable=standard, # standard, matrix, dataframe
     kwargs...
-)::TreatmentOutput
+)
     data = get_dataset(dt::DataTreatment, args...; kwargs...)
-    isempty(data) && return data
     
-    selected = vcat(get_discrete(data), get_continuous(data), get_aggregated(data))
-
-    return output_type(selected, groupby_split)
+    return vcat(get_discrete(data), get_continuous(data), get_aggregated(data))
 end
 
 # ---------------------------------------------------------------------------- #
 #                            get multidim method                               #
 # ---------------------------------------------------------------------------- #
 """
-    get_multidim(dt::DataTreatment, args...; output_type=standard, kwargs...) -> TreatmentOutput
+    get_multidim(dt::DataTreatment, args...; kwargs...)
 
 Convenience function to collect all reduced multidimensional datasets from a `DataTreatment` object.
 
@@ -74,7 +67,6 @@ Use `get_multidim` when you want to focus on the reduced multidimensional featur
 
 - `dt::DataTreatment`: The data treatment object.
 - `args...`: One or more treatment group callables (e.g., from `TreatmentGroup`). These specify how to group or reduce columns.
-- `output_type`: Output format function (`standard`, `matrix`, or `dataframe`).
 - `kwargs...`: Additional keyword arguments passed to `get_dataset`, such as:
     - `treatment_ds::Bool=true`: Include datasets defined by the treatment groups.
     - `leftover_ds::Bool=true`: Include datasets for columns not assigned to any treatment group.
@@ -88,11 +80,9 @@ See also: [`get_tabular`](@ref), [`get_dataset`](@ref)
 @inline function get_multidim(
     dt::DataTreatment,
     args...;
-    output_type::Base.Callable=standard, # standard, matrix, dataframe
     kwargs...
-)::TreatmentOutput
+)
     data = get_dataset(dt::DataTreatment, args...; kwargs...)
-    isempty(data) && return data
 
-    return output_type(get_reduced(data), false)
+    return get_reduced(data)
 end

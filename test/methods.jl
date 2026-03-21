@@ -54,11 +54,9 @@ dt = DataTreatment(df)
         TreatmentGroup(
             dims=2,
             aggrfunc=DT.reducesize()
-        ),
-        groupby_split=true,
-        output_type=standard
+        )
     )
-    @test isa(tabular_result, TreatmentOutput)
+    @test isa(tabular_result, Vector{<:DT.AbstractDataset})
     @test all(x -> x isa DT.AbstractDataset, tabular_result)
     @test any(x -> x isa DT.DiscreteDataset, tabular_result)
     @test any(x -> x isa DT.ContinuousDataset, tabular_result)
@@ -80,49 +78,27 @@ dt = DataTreatment(df)
         TreatmentGroup(
             dims=2,
             aggrfunc=DT.reducesize()
-        ),
-        groupby_split=true,
-        output_type=standard
+        )
     )
-    @test isa(multidim_result, TreatmentOutput)
+    @test isa(multidim_result, Vector{<:DT.AbstractDataset})
     @test all(x -> x isa DT.MultidimDataset, multidim_result)
     @test all(x -> eltype(getfield(x, :info)) <: DT.ReduceFeat || eltype(getfield(x, :info)) <: DT.AggregateFeat, multidim_result)
-
-    # Test output_type=matrix
-    tabular_matrix = get_tabular(dt; output_type=matrix)
-    @test isa(tabular_matrix, TreatmentOutput)
-    @test all(x -> x isa AbstractMatrix, tabular_matrix)
-
-    multidim_matrix = get_multidim(dt, TreatmentGroup(aggrfunc=DT.reducesize()),; output_type=matrix)
-    @test isa(multidim_matrix, TreatmentOutput)
-    @test all(x -> x isa AbstractMatrix, multidim_matrix)
-
-    # Test output_type=dataframe
-    tabular_df = get_tabular(dt; output_type=dataframe)
-    @test isa(tabular_df, TreatmentOutput)
-    @test all(x -> x isa DataFrame, tabular_df)
-
-    multidim_df = get_multidim(dt, TreatmentGroup(aggrfunc=DT.reducesize()),; output_type=dataframe)
-    @test isa(multidim_df, TreatmentOutput)
-    @test all(x -> x isa DataFrame, multidim_df)
 end
 
 @testset "get_tabular and get_multidim" begin
-    # ...existing tests...
-
     # Test empty DataTreatment
     empty_df = DataFrame()
     empty_dt = DataTreatment(empty_df)
     empty_tabular = get_tabular(empty_dt)
-    @test isa(empty_tabular, TreatmentOutput)
+    @test isa(empty_tabular, Vector{<:DT.AbstractDataset})
     @test isempty(empty_tabular)
 
     empty_multidim = get_multidim(empty_dt)
-    @test isa(empty_multidim, TreatmentOutput)
+    @test isa(empty_multidim, Vector{<:DT.AbstractDataset})
     @test isempty(empty_multidim)
 end
 
-@testset "get_multidim getter on TreatmentOutput" begin
+@testset "get_multidim getter on Vector{<:DT.AbstractDataset}" begin
     # Use the output from get_tabular or get_dataset
     tabular_result = get_tabular(dt)
     multidim_only = get_multidim(tabular_result)
@@ -132,7 +108,7 @@ end
     @test all(x -> x in tabular_result, multidim_only)
 
     # Also test on empty input
-    empty = DT.get_multidim(TreatmentOutput())
+    empty = DT.get_multidim(DT.AbstractDataset[])
     @test isa(empty, Vector)
     @test isempty(empty)
 end

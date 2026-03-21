@@ -72,12 +72,6 @@ ds = get_dataset(dt,
 # Only leftover columns (not assigned to any treatment group)
 ds = get_dataset(dt, TreatmentGroup(dims=1); treatment_ds=false)
 
-# As matrices
-ds = get_dataset(dt; output_type=matrix)
-
-# As DataFrames
-ds = get_dataset(dt; output_type=dataframe)
-
 # Default treatment (aggregate with max, min, mean over whole window)
 tabular_ds = get_tabular(dt)
 
@@ -89,24 +83,6 @@ tabular_ds = get_tabular(dt,
         features=(mean, std)
     )),
 )
-
-# Only leftover columns (not assigned to any treatment group)
-tabular_ds = get_tabular(dt, TreatmentGroup(dims=1); treatment_ds=false)
-
-# As matrices
-tabular_ds = get_tabular(dt; output_type=matrix)
-
-# As DataFrames
-tabular_ds = get_tabular(dt; output_type=dataframe)
-
-# Extract only reduced multidimensional datasets
-multidim_ds = get_multidim(dt)
-
-# Custom treatment groups for multidimensional extraction
-multidim_ds = get_multidim(dt, TreatmentGroup(dims=1, aggrfunc=reducesize()))
-
-# As matrices
-multidim_ds = get_multidim(dt; output_type=matrix)
 ```
 
 ## Getters
@@ -137,15 +113,12 @@ DataTreatment
 get_tabular(
     dt::DataTreatment,
     args...;
-    groupby_split::Bool=true,
-    output_type::Base.Callable=standard,
     kwargs...
 )
 
 get_multidim(
     dt::DataTreatment,
     args...;
-    output_type::Base.Callable=standard,
     kwargs...
 )
 
@@ -154,8 +127,6 @@ get_dataset(
         treatments::Vararg{Base.Callable};
         treatment_ds::Bool,
         leftover_ds::Bool,
-        groupby_split::Bool,
-        output_type::Base.Callable
     )
 get_data(dt::DataTreatment)
 get_target(dt::DataTreatment)

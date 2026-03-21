@@ -58,14 +58,14 @@ dt = DataTreatment(df)
 All transformations are applied lazily when you call `get_dataset`. You pass one or more `TreatmentGroup` directives to control how columns are filtered, windowed, and aggregated.
 
 ```julia
-# Default: aggregate all columns with max, min, mean over a whole window
+# get_dataset: aggregate all columns with max, min, mean over a whole window
 result = get_dataset(dt)
 
-# Return as matrices
-result = get_dataset(dt, output_type=matrix)
+# get_tabular: returns only tabular part of the dataset
+result = get_tabular(dt)
 
-# Return as DataFrames
-result = get_dataset(dt, output_type=dataframe)
+# get_multidim: returns only multidimensional part of the dataset
+result = get_multidim(dt)
 ```
 
 ### 3. Custom treatment groups
@@ -82,8 +82,7 @@ result = get_dataset(
             features=(mean, maximum),
             win=(adaptivewindow(nwindows=5, overlap=0.4),)
         )
-    ),
-    output_type=dataframe
+    )
 )
 ```
 
@@ -107,8 +106,7 @@ result = get_dataset(
             reducefunc=minimum,
             win=(splitwindow(nwindows=3),)
         )
-    ),
-    output_type=dataframe
+    )
 )
 ```
 
@@ -121,7 +119,6 @@ result = get_dataset(
     dt,
     TreatmentGroup(vnames=r"^(V|i)"),
     leftover_ds=false,
-    output_type=dataframe
 )
 ```
 
@@ -140,8 +137,7 @@ result = get_dataset(
         ),
         groupby=:vname,
     ),
-    groupby_split=true,
-    output_type=dataframe
+    groupby_split=true
 )
 ```
 

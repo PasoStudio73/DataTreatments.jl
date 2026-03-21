@@ -193,7 +193,7 @@ end
 end
 
 # ---------------------------------------------------------------------------- #
-#            dataset with only 1D multidimensional features                    #
+#                dataset with only 1D multidimensional features                #
 # ---------------------------------------------------------------------------- #
 @testset "1D Multidimensional datasets" begin
     test_dfs = Dict(
@@ -373,7 +373,7 @@ end
 end
 
 # ---------------------------------------------------------------------------- #
-#                        non-homogeneous dataset                               #
+#                           non-homogeneous dataset                            #
 # ---------------------------------------------------------------------------- #
 @testset "Non-homogeneous dataset (discrete + scalar + 1D + 2D)" begin
     df_clean = DataFrame(
@@ -556,7 +556,7 @@ end
 end
 
 # ---------------------------------------------------------------------------- #
-#            treatment_ds vs leftover_ds keyword arguments                     #
+#               treatment_ds vs leftover_ds keyword arguments                  #
 # ---------------------------------------------------------------------------- #
 @testset "Treatment vs Leftover partitioning" begin
     df = DataFrame(
@@ -647,7 +647,7 @@ end
 end
 
 # ---------------------------------------------------------------------------- #
-#                     getindex on output datasets                              #
+#                         getindex on output datasets                          #
 # ---------------------------------------------------------------------------- #
 @testset "AbstractDataset getindex" begin
     df = DataFrame(
@@ -685,8 +685,20 @@ end
 
 @testset "MultidimDataset getindex" begin
     df = DataFrame(
-        ts1 = [collect(1.0:6.0), collect(2.0:7.0), collect(3.0:8.0), collect(4.0:9.0), collect(5.0:10.0)],
-        ts2 = [collect(2.0:0.5:5.5), collect(1.0:0.5:4.5), collect(3.0:0.5:6.5), collect(4.0:0.5:7.5), collect(5.0:0.5:8.5)],
+        ts1=[
+            collect(1.0:6.0),
+            collect(2.0:7.0),
+            collect(3.0:8.0),
+            collect(4.0:9.0),
+            collect(5.0:10.0)
+        ],
+        ts2=[
+            collect(2.0:0.5:5.5),
+            collect(1.0:0.5:4.5),
+            collect(3.0:0.5:6.5),
+            collect(4.0:0.5:7.5),
+            collect(5.0:0.5:8.5)
+        ],
     )
 
     dt = DataTreatment(df)
@@ -734,12 +746,24 @@ end
 end
 
 # ---------------------------------------------------------------------------- #
-#                     _split_md_by_dims                                        #
+#                             _split_md_by_dims                                #
 # ---------------------------------------------------------------------------- #
 @testset "_split_md_by_dims" begin
     df = DataFrame(
-        ts1 = [collect(1.0:6.0), collect(2.0:7.0), collect(3.0:8.0), collect(4.0:9.0), collect(5.0:10.0)],
-        ts2 = [collect(2.0:0.5:5.5), collect(1.0:0.5:4.5), collect(3.0:0.5:6.5), collect(4.0:0.5:7.5), collect(5.0:0.5:8.5)],
+        ts1 = [
+            collect(1.0:6.0),
+            collect(2.0:7.0),
+            collect(3.0:8.0),
+            collect(4.0:9.0),
+            collect(5.0:10.0)
+        ],
+        ts2 = [
+            collect(2.0:0.5:5.5),
+            collect(1.0:0.5:4.5),
+            collect(3.0:0.5:6.5),
+            collect(4.0:0.5:7.5),
+            collect(5.0:0.5:8.5)
+        ],
         img1 = [create_image(i) for i in 1:5],
         img2 = [create_image(i+10) for i in 1:5],
     )
@@ -763,11 +787,17 @@ end
 end
 
 # ---------------------------------------------------------------------------- #
-#              Computed values validation                                       #
+#                        Computed values validation                            #
 # ---------------------------------------------------------------------------- #
 @testset "Computed values validation" begin
     df = DataFrame(
-        ts1 = [collect(1.0:6.0), collect(2.0:7.0), collect(3.0:8.0), collect(4.0:9.0), collect(5.0:10.0)],
+        ts1 = [
+            collect(1.0:6.0),
+            collect(2.0:7.0),
+            collect(3.0:8.0),
+            collect(4.0:9.0),
+            collect(5.0:10.0)
+        ],
         V1  = [1.0, 2.0, 3.0, 4.0, 5.0],
     )
 
@@ -851,7 +881,13 @@ end
 # ---------------------------------------------------------------------------- #
 @testset "Non-homogeneous element sizes" begin
     df = DataFrame(
-        ts1 = [collect(1.0:6.0), collect(2.0:6.0), collect(3.0:9.0), collect(4.0:11.0), collect(5.0:18.0)],
+        ts1 = [
+            collect(1.0:6.0),
+            collect(2.0:6.0),
+            collect(3.0:9.0),
+            collect(4.0:11.0),
+            collect(5.0:18.0)
+        ],
         ts2 = [collect(2.0:0.5:4.5), collect(1.0:0.5:8.5), collect(3.0:0.5:6.5), collect(4.0:0.5:13.5), collect(5.0:0.5:5.5)],
         img1 = [create_image(i; n=6) for i in 1:5],
         img2 = [create_image(i+10; n=7) for i in 1:5],
@@ -912,7 +948,7 @@ end
 end
 
 # ---------------------------------------------------------------------------- #
-#                  Output format: matrix and dataframe                         #
+#                     Output format: matrix and dataframe                      #
 # ---------------------------------------------------------------------------- #
 @testset "Output format options" begin
     df = DataFrame(
@@ -932,24 +968,6 @@ end
         @test ds isa Vector
         @test all(d -> d isa DT.AbstractDataset, ds)
     end
-
-    @testset "output_type=matrix returns vector of matrices" begin
-        ds = get_dataset(dt; output_type=matrix)
-        @test ds isa Vector
-        @test all(d -> d isa AbstractMatrix, ds)
-    end
-
-    @testset "output_type=dataframe returns vector of DataFrames" begin
-        ds = get_dataset(dt; output_type=dataframe)
-        @test ds isa Vector
-        @test all(d -> d isa DataFrame, ds)
-
-        # DataFrames should have proper column names
-        for d in ds
-            @test ncol(d) > 0
-            @test nrow(d) == 5
-        end
-    end
 end
 
 # ---------------------------------------------------------------------------- #
@@ -968,9 +986,25 @@ end
         V4 = [4.1, NaN, NaN, 7.1, 5.5],
         V5 = [5.0, 6.0, 7.0, 8.0, 1.8],
         ts1 = [NaN, collect(2.0:7.0), missing, collect(4.0:9.0), collect(5.0:10.0)],
-        ts2 = [collect(2.0:0.5:5.5), collect(1.0:0.5:4.5), collect(3.0:0.5:6.5), collect(4.0:0.5:7.5), NaN],
-        ts3 = [[1.0, 1.2, 1.2, 2.6, NaN, 4.0, 4.2], NaN, NaN, missing, [3.0, NaN, 4.4, missing, 5.8, 7.0, 7.2]],
-        ts4 = [[6.0, 5.2, missing, 4.4, 1.2, 3.6, 2.8], missing, [5.0, 4.2, NaN, 3.4, missing, 2.6, 1.8], [8.0, 7.2, missing, 6.4, NaN, 5.6, 4.8], [9.0, NaN, 8.2, missing, 7.4, 6.6, 5.8]],
+        ts2 = [
+            collect(2.0:0.5:5.5),
+            collect(1.0:0.5:4.5),
+            collect(3.0:0.5:6.5),
+            collect(4.0:0.5:7.5),
+            NaN
+        ],
+        ts3 = [
+            [1.0, 1.2, 1.2, 2.6, NaN, 4.0, 4.2],
+            NaN, NaN, missing,
+            [3.0, NaN, 4.4, missing, 5.8, 7.0, 7.2]
+        ],
+        ts4 = [
+            [6.0, 5.2, missing, 4.4, 1.2, 3.6, 2.8],
+            missing,
+            [5.0, 4.2, NaN, 3.4, missing, 2.6, 1.8],
+            [8.0, 7.2, missing, 6.4, NaN, 5.6, 4.8],
+            [9.0, NaN, 8.2, missing, 7.4, 6.6, 5.8]
+        ],
         img1 = [create_image(i) for i in 1:5],
         img2 = [i == 1 ? NaN : create_image(i+10) for i in 1:5],
         img3 = [create_image(i+20) for i in 1:5],
@@ -1113,29 +1147,10 @@ end
             @test md isa MultidimDataset{AggregateFeat{Float32}}
         end
     end
-
-    @testset "Output as matrix" begin
-        dt = DataTreatment(df)
-        ds = get_dataset(dt; output_type=matrix)
-        @test ds isa Vector
-        @test all(d -> d isa AbstractMatrix, ds)
-    end
-
-    @testset "Output as DataFrame" begin
-        dt = DataTreatment(df)
-        ds = get_dataset(dt; output_type=dataframe)
-        @test ds isa Vector
-        @test all(d -> d isa DataFrame, ds)
-
-        for d in ds
-            @test nrow(d) == 5
-            @test ncol(d) > 0
-        end
-    end
 end
 
 # ---------------------------------------------------------------------------- #
-#                         Display and IO                                       #
+#                                Display and IO                                #
 # ---------------------------------------------------------------------------- #
 @testset "Display and IO" begin
     df = DataFrame(
@@ -1183,7 +1198,7 @@ end
 end
 
 # ---------------------------------------------------------------------------- #
-#                            Base methods                                      #
+#                                 Base methods                                 #
 # ---------------------------------------------------------------------------- #
 @testset "DataTreatment Base methods" begin
     df = DataFrame(
@@ -1233,7 +1248,7 @@ end
 end
 
 # ---------------------------------------------------------------------------- #
-#                          Edge cases                                          #
+#                                   Edge cases                                 #
 # ---------------------------------------------------------------------------- #
 @testset "Edge cases" begin
     @testset "Empty result when both treatment_ds and leftover_ds are false" begin
