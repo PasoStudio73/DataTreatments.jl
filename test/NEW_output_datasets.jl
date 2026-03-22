@@ -35,7 +35,7 @@ struct AggregateFeat{T} <: AbstractDataFeature
 end
 
 struct ReduceFeat{T} <: AbstractDataFeature
-    id::Vector
+    id::Int
     vname::String
     dims::Int
     reducefunc::Base.Callable
@@ -46,6 +46,7 @@ struct ReduceFeat{T} <: AbstractDataFeature
     hasnans::Vector{Int}
 end
 
+get_subid(f::AggregateFeat) = f.subid
 get_dims(f::Union{AggregateFeat,ReduceFeat}) = f.dims
 
 # ---------------------------------------------------------------------------- #

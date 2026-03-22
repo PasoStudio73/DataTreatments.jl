@@ -29,6 +29,7 @@ Xts, yts = Artifacts.load(natopsloader)
 
 include("NEW_treatment_group.jl")
 include("NEW_output_datasets.jl")
+include("NEW_groupby.jl")
 include("NEW_load_dataset.jl")
 
 
@@ -101,7 +102,8 @@ ds =load_dataset(
         aggrfunc=aggregate(
             features=(mean, maximum),
             win=(adaptivewindow(nwindows=5, overlap=0.4),)
-        )
+        ),
+        groupby=:feat
     )
 )
 
