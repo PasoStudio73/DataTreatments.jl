@@ -17,15 +17,7 @@ test_suites = [
     ("Dataset Inspect", ["inspecting.jl"]),
     ("Multidim Treatments",  ["multidim_treatment.jl",]),
     ("Treatment Groups",  ["treatment_group.jl",]),
-    # ("DataTreatment", ["datatreatment.jl"]),
-    # ("Groupby", ["groupby.jl"]),
-    # ("Metadatas",  ["metadata.jl",]),
-
-
-    # ("Output Datasets",  ["output_dataset.jl",]),
-
-    # ("Handy Methods", ["methods.jl",]),
-    # ("Usage Examples", ["usage_example.jl",]),
+    ("DataTreatment", ["datatreatment.jl"]),
 ]
 
 @testset "DataTreatments.jl" begin
