@@ -55,7 +55,7 @@ df = build_test_df()
 inspect = DT._inspecting(Matrix(df))
 
 @test_nowarn @inferred DT._inspecting(Matrix(df))
-@test_nowarn @code_warntype DT._inspecting(Matrix(df))
+@test_nowarn InteractiveUtils.@code_warntype DT._inspecting(Matrix(df))
 
 @testset "_inspecting returns expected results" begin
     # Check number of columns
