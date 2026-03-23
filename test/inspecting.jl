@@ -6,6 +6,8 @@ using DataFrames
 using Random
 using CategoricalArrays
 
+using InteractiveUtils
+
 function create_image(seed::Int; n=6)
     Random.seed!(seed)
     rand(Float64, n, n)
