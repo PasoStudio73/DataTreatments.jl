@@ -2,36 +2,12 @@
 #                                    utils                                     #
 # ---------------------------------------------------------------------------- #
 # extract window ranges from intervals and cartesian index
-@inline function get_window_ranges(intervals::Tuple, cartidx::CartesianIndex)
+@inline _get_window_ranges(intervals::Tuple, cartidx::CartesianIndex) =
     ntuple(i -> intervals[i][cartidx[i]], length(intervals))
-end
 
-"""
-    safe_feat(v, f) -> Any
-
-Apply a feature function to a vector while safely handling missing values and NaN entries.
-
-Filters out `missing` values and `NaN` entries before applying the feature function,
-making it robust for incomplete or noisy data. Used in aggregation and size-reduction
-operations on windowed data.
-
-# Arguments
-- `v::AbstractVector`: Input vector that may contain missing values or NaN entries.
-- `f::Callable`: Feature function to apply (e.g., `mean`, `std`, `maximum`).
-
-# Returns
-- Result of applying `f` to the cleaned, materialized vector (typically a scalar).
-
-# Details
-- Skips all `missing` values via `skipmissing()`.
-- Filters out `NaN` values (for floating-point types).
-- The cleaned values are collected into a `Vector` before calling `f`, since some
-  aggregation functions (e.g., `mean`, `std`) require indexable collections.
-- If all values are missing/NaN, `f` receives an empty `Vector`.
-"""
-@inline function safe_feat(v, f)
+# apply a feature function to a vector while safely handling missing values and NaN entries
+@inline _safe_feat(v, f) =
     f(collect(x for x in skipmissing(v) if !(x isa AbstractFloat && isnan(x))))
-end
 
 # ---------------------------------------------------------------------------- #
 #                             aggregate functions                              #
@@ -39,11 +15,11 @@ end
 """
     aggregate(X, idx, float_type; win, features) -> (Xa, nwindows)
 
-Transform a multivariate dataset into a tabular dataset through windowing and
+Transform a multidim dataset into a tabular dataset through windowing and
 feature aggregation.
 
 # Arguments
-- `X::AbstractArray`: The multivariate dataset to aggregate.
+- `X::AbstractArray`: The multidim dataset to aggregate.
 - `idx::AbstractVector{Vector{Int}}`: Valid row indices for each column
   (non-missing, non-NaN elements).
 - `float_type::Type`: The output floating-point type.
@@ -59,13 +35,6 @@ feature aggregation.
 - `Xa::Matrix{Union{Missing,float_type}}`: Tabular matrix where each column
   represents one (feature × window × original column) combination.
 - `nwindows::Vector{Int}`: Number of windows generated per original column.
-
-# Details
-- For valid rows (`rowidx ∈ idx[colidx]`), windows are computed via
-  [`@evalwindow`](@ref) and each `feature` is applied to each window slice
-  through [`safe_feat`](@ref).
-- For invalid rows (missing or NaN source elements), the original value is
-  broadcast across all output slots for that column.
 """
 function aggregate(
     X::AbstractArray,
@@ -73,8 +42,10 @@ function aggregate(
     float_type::Type;
     win::Tuple{Vararg{Base.Callable}},
     features::Tuple{Vararg{Base.Callable}}
-)
-    colwin = [[n > length(win) ? last(win) : win[n] for n in 1:ndims(X[first(idx[i]), i])] for i in axes(X, 2)]
+)::Tuple{Matrix{Union{Missing, Float64}}, Vector{Int64}}
+    colwin = [[n > length(win) ?
+        last(win) :
+        win[n] for n in 1:ndims(X[first(idx[i]), i])] for i in axes(X, 2)]
     nwindows = [prod(hasfield(typeof(w), :nwindows) ? w.nwindows : 1 for w in c) for c in colwin]
     nfeats = length(features)
 
@@ -92,9 +63,11 @@ function aggregate(
                 intervals = @evalwindow X[rowidx, colidx] colwin[colidx]...
                 for feat in features
                     for cartidx in CartesianIndices(length.(intervals))
-                        ranges = get_window_ranges(intervals, cartidx)
+                        ranges = _get_window_ranges(intervals, cartidx)
                         window_view = @views x[ranges...]
-                        Xa[rowidx, outidx] = safe_feat(reshape(window_view, :), feat)
+                        isempty(window_view) && error("Reduce number of windows: " * 
+                            "at least one dimension has no window definitions.")
+                        Xa[rowidx, outidx] = _safe_feat(reshape(window_view, :), feat)
                         outidx += 1
                     end
                 end
@@ -115,13 +88,6 @@ end
     aggregate(; win, features) -> Function
 
 Curried form that returns a closure `(X, idx, float_type) -> aggregate(X, idx, float_type; win, features)`.
-
-# Keyword Arguments
-- `win::Tuple{Vararg{Base.Callable}}`: Window functions. Default: `(wholewindow(),)`.
-- `features::Tuple{Vararg{Base.Callable}}`: Feature functions. Default: `(maximum, minimum, mean)`.
-
-# Returns
-A `Function` suitable for use as the `aggrfunc` parameter of [`TreatmentGroup`](@ref).
 """
 aggregate(;
     win::Tuple{Vararg{Base.Callable}}=(wholewindow(),),
@@ -153,13 +119,6 @@ Reduce the size of a multivariate dataset through windowing and dimension reduct
   where each valid element is an array with one value per window.
 - `0::Int`: Placeholder (unused) to match the return signature of
   [`aggregate`](@ref).
-
-# Details
-- For valid rows (`rowidx ∈ idx[colidx]`), windows are computed via
-  [`@evalwindow`](@ref) and `reducefunc` is applied to each window slice
-  through [`safe_feat`](@ref).
-- For invalid rows, the original value is preserved (missing stays missing,
-  NaN is cast to `float_type`).
 """
 function reducesize(
     X::AbstractArray,
@@ -181,8 +140,11 @@ function reducesize(
                 reduced = Array{float_type}(undef, output_dims...)
 
                 for cartidx in cart_indices
-                    ranges = get_window_ranges(intervals, cartidx)
-                    reduced[cartidx] = safe_feat(reshape(@views(x[ranges...]), :), reducefunc)
+                    ranges = _get_window_ranges(intervals, cartidx)
+                    xwin = x[ranges...]
+                    isempty(xwin) && error("Reduce number of windows: " * 
+                        "at least one dimension has no window definitions.")
+                    reduced[cartidx] = _safe_feat(reshape(@views(xwin), :), reducefunc)
                 end
 
                 Xr[rowidx, colidx] = reduced
@@ -199,13 +161,6 @@ end
     reducesize(; win, reducefunc) -> Function
 
 Curried form that returns a closure `(X, idx, float_type) -> reducesize(X, idx, float_type; win, reducefunc)`.
-
-# Keyword Arguments
-- `win::Tuple{Vararg{Base.Callable}}`: Window functions. Default: `(wholewindow(),)`.
-- `reducefunc::Base.Callable`: Reduction function. Default: `mean`.
-
-# Returns
-A `Function` suitable for use as the `aggrfunc` parameter of [`TreatmentGroup`](@ref).
 """
 reducesize(;
     win::Tuple{Vararg{Base.Callable}}=(wholewindow(),),

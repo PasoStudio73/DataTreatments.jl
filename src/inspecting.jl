@@ -4,6 +4,10 @@
 _isnanval(v) = v isa AbstractFloat && isnan(v)
 _isarray(v) = v isa AbstractArray
 
+_to_str(v) = (ismissing(v) || (v isa AbstractFloat && isnan(v))) ? missing : string(v)
+_discrete_encode(X::Matrix) = [_discrete_encode(x) for x in eachcol(X)]
+_discrete_encode(x::AbstractVector) = [levelcode(cat) for cat in categorical(_to_str.(x))]
+
 # ---------------------------------------------------------------------------- #
 #                              dataset inspecting                              #
 # ---------------------------------------------------------------------------- #

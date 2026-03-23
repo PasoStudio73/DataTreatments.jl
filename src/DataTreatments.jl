@@ -28,10 +28,10 @@ export movingwindow, wholewindow, splitwindow, adaptivewindow
 export @evalwindow
 include("windowing.jl")
 
+include("inspecting.jl")
+
 export aggregate, reducesize
 include("multidim_treatment.jl")
-
-include("inspecting.jl")
 
 # export DataStructure
 # export get_vnames, get_datatype, get_dims
