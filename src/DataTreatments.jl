@@ -33,6 +33,15 @@ include("inspecting.jl")
 export aggregate, reducesize
 include("multidim_treatment.jl")
 
+export TreatmentGroup
+include("treatment_group.jl")
+
+const DefaultAggrFunc = aggregate(win=(wholewindow(),), features=(maximum, minimum, mean))
+const DefaultGrouped = false
+const DefaultTreatmentGroup = TreatmentGroup(aggrfunc=DefaultAggrFunc, grouped=DefaultGrouped)
+
+# include("treatment.jl")
+
 # export DataStructure
 # export get_vnames, get_datatype, get_dims
 # export get_valididxs, get_missingidxs, get_nanidxs

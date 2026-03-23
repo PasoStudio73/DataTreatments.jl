@@ -53,14 +53,14 @@ end
 
 df = build_test_df()
 
-inspect = DT._inspecting(Matrix(df))
+datastruct = DT._inspecting(Matrix(df))
 
 ts = ["ts1","ts2","ts3","ts4"]
 ts_idxs = [7, 10, 11, 13]
-ts_v = inspect.valididxs[ts_idxs]
+ts_v = datastruct.valididxs[ts_idxs]
 img = ["img4","img1","img2","img3"]
 img_idxs = [3, 14, 17, 18]
-img_v = inspect.valididxs[img_idxs]
+img_v = datastruct.valididxs[img_idxs]
 
 a = aggregate(
     Matrix(df[!, ts]),
