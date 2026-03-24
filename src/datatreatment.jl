@@ -11,13 +11,17 @@ end
 get_levels(dt::DataTreatment) = dt.levels
 get_target(dt::DataTreatment) = dt.target
 
-get_discrete(dt::DataTreatment) = get_data(filter(d -> d isa DiscreteDataset, dt.data))
-get_continuous(dt::DataTreatment) = get_data(filter(d -> d isa ContinuousDataset, dt.data))
+get_discrete(dt::DataTreatment)::Matrix{Union{Missing, Float64}} =
+    get_data(filter(d -> d isa DiscreteDataset, dt.data))
+get_continuous(dt::DataTreatment)::Matrix{Union{Missing, Float64}} =
+    get_data(filter(d -> d isa ContinuousDataset, dt.data))
 
-get_aggregated(dt::DataTreatment) = get_data(filter(d -> d isa MultidimDataset &&
-    all(elt -> elt isa AggregateFeat, get_info(d)), dt.data))
-get_reduced(dt::DataTreatment) = get_data(filter(d -> d isa MultidimDataset &&
-    all(elt -> elt isa ReduceFeat, get_info(d)), dt.data))
+get_aggregated(dt::DataTreatment)::Matrix{Union{Missing, Float64}} =
+    get_data(filter(d -> d isa MultidimDataset &&
+        all(elt -> elt isa AggregateFeat, get_info(d)), dt.data))
+get_reduced(dt::DataTreatment)::Matrix{Union{Missing, Float64, Array{Float64}}} =
+    get_data(filter(d -> d isa MultidimDataset &&
+        all(elt -> elt isa ReduceFeat, get_info(d)), dt.data))
 
 # ---------------------------------------------------------------------------- #
 #                                load dataset                                  #
@@ -75,7 +79,7 @@ load_dataset(df::DataFrame, args...; kwargs...) =
 Convenience function to collect all tabular-like datasets from a `DataTreatment` 
 object, including discrete, continuous, and aggregated multidimensional data.
 """
-@inline get_tabular(dt::DataTreatment) =
+@inline get_tabular(dt::DataTreatment)::Matrix{Union{Missing, Float64}} =
     hcat(get_discrete(dt), get_continuous(dt), get_aggregated(dt))
 
 # ---------------------------------------------------------------------------- #
@@ -87,4 +91,5 @@ object, including discrete, continuous, and aggregated multidimensional data.
 Convenience function to collect all reduced multidimensional datasets 
 from a `DataTreatment` object.
 """
-@inline get_multidim(dt::DataTreatment) = get_reduced(dt)
+@inline get_multidim(dt::DataTreatment)::Matrix{Union{Missing, Float64, Array{Float64}}} =
+    get_reduced(dt)
