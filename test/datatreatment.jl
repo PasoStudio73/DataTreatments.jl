@@ -41,12 +41,13 @@ t_regress = [1.2, 3.4, 2.2, 4.8, 0.9]
 
 @test_nowarn @inferred load_dataset(df)
 @test_nowarn InteractiveUtils.@code_warntype load_dataset(df)
-@test_nowarn @inferred get_tabular(dt)
-@test_nowarn InteractiveUtils.@code_warntype get_tabular(dt)
-@test_nowarn @inferred get_multidim(dt)
-@test_nowarn InteractiveUtils.@code_warntype get_multidim(dt)
 
 dt = load_dataset(df)
+
+@test_nowarn @inferred get_tabular(dt)
+@test_nowarn InteractiveUtils.@code_warntype get_tabular(dt)
+
+@test_nowarn get_multidim(dt)
 
 dt = load_dataset(df, t_classif)
 
@@ -78,6 +79,9 @@ dt =load_dataset(
     );
 )
 multidim = get_multidim(dt)
+
+@test_nowarn @inferred get_multidim(dt)
+@test_nowarn InteractiveUtils.@code_warntype get_multidim(dt)
 
 @testset "DataTreatment API" begin
     dt = load_dataset(df, t_classif)
