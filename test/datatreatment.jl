@@ -131,6 +131,6 @@ multidim = get_multidim(dt)
 end
 
 # for aclai
-@btime get_tabular(dt)
+# @btime get_tabular(dt)
 # 68.683 μs (53 allocations: 4.05 KiB)
 # 3.567 μs (49 allocations: 4.09 KiB)
