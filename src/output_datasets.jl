@@ -421,3 +421,13 @@ get_data(d::AbstractDataset) = d.data
 
 get_info(d::Vector{<:AbstractDataset}) = reduce(vcat, get_info.(d))
 get_info(d::AbstractDataset) = d.info
+
+is_tabular(d::AbstractDataset) = isa(
+    d,
+    Union{
+        <:ContinuousDataset,
+        <:DiscreteDataset,
+        <:MultidimDataset{<:AggregateFeat}
+    }
+)
+is_multidim(d::AbstractDataset) = isa(d, MultidimDataset{<:ReduceFeat})

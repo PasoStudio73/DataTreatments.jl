@@ -32,6 +32,10 @@ get_reduced(dt::DataTreatment)::Matrix{Union{Missing, Float64, Array{Float64}}} 
         all(elt -> elt isa ReduceFeat, get_info(d)), dt.data)
     isempty(ds) ? Matrix{Union{Missing, Float64, Array{Float64}}}(undef, 0, 0) : get_data(ds)
 end
+
+is_tabular(dt::DataTreatment) = all(is_tabular.(dt.data))
+is_multidim(dt::DataTreatment) = all(is_multidim.(dt.data))
+
 # ---------------------------------------------------------------------------- #
 #                                load dataset                                  #
 # ---------------------------------------------------------------------------- #
