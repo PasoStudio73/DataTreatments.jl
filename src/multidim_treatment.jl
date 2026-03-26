@@ -42,7 +42,7 @@ function aggregate(
     float_type::Type;
     win::Tuple{Vararg{Base.Callable}},
     features::Tuple{Vararg{Base.Callable}}
-)::Tuple{Matrix{Union{Missing, Float64}}, Vector{Int64}}
+)::Tuple{Matrix{Union{Missing, float_type}}, Vector{float_type}}
     colwin = [[n > length(win) ?
         last(win) :
         win[n] for n in 1:ndims(X[first(idx[i]), i])] for i in axes(X, 2)]
