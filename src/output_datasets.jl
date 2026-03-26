@@ -104,7 +104,7 @@ end
 get_subid(f::AggregateFeat) = f.subid
 get_dims(f::Union{AggregateFeat,ReduceFeat}) = f.dims
 
-get_vnames(d::AbstractDataFeature) = d.vname
+get_vnames(d::AbstractDataFeature)::String = d.vname
 
 # ---------------------------------------------------------------------------- #
 #                                   utils                                      #
@@ -414,12 +414,16 @@ end
 #                                  methods                                     #
 # ---------------------------------------------------------------------------- #
 Base.getindex(ds::MultidimDataset, idxs::AbstractVector{Int}) =
-    MultidimDataset(@view(ds.data[:, idxs]), ds.info[idxs], _reindex_groups(ds.groups, idxs))
+    MultidimDataset(
+        @view(ds.data[:, idxs]),
+        ds.info[idxs],
+        _reindex_groups(ds.groups, idxs)
+    )
 
 get_dims(d::MultidimDataset) = [get_dims(f) for f in d.info]
 
 get_data(d::Vector{<:AbstractDataset}) = reduce(hcat, get_data.(d))
-get_data(d::AbstractDataset) = d.data
+get_data(d::AbstractDataset)::Matrix{Union{Missing, Float64}} = d.data
 
 get_info(d::Vector{<:AbstractDataset}) = reduce(vcat, get_info.(d))
 get_info(d::AbstractDataset) = d.info
@@ -434,4 +438,4 @@ is_tabular(d::AbstractDataset) = isa(
 )
 is_multidim(d::AbstractDataset) = isa(d, MultidimDataset{<:ReduceFeat})
 
-get_vnames(d::AbstractDataset) = get_vnames.(d.info)
+get_vnames(d::AbstractDataset)::Vector{String} = get_vnames.(d.info)

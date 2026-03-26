@@ -13,7 +13,9 @@ nrows(dt::DataTreatment) = size(first(dt.data).data, 1)
 get_levels(dt::DataTreatment) = dt.levels
 get_target(dt::DataTreatment) = dt.target
 
-function get_discrete(dt::DataTreatment)
+function get_discrete(
+    dt::DataTreatment
+)::Tuple{Matrix{Union{Missing, Float64}}, Vector{String}}
     ds = filter(d -> d isa DiscreteDataset, dt.data)
     return if isempty(ds)
         Matrix{Union{Missing,Float64}}(undef, 0, 0), String[]
@@ -22,7 +24,9 @@ function get_discrete(dt::DataTreatment)
     end
 end
 
-get_continuous(dt::DataTreatment) = begin
+function get_continuous(
+    dt::DataTreatment
+)::Tuple{Matrix{Union{Missing, Float64}}, Vector{String}}
     ds = filter(d -> d isa ContinuousDataset, dt.data)
     return if isempty(ds)
         Matrix{Union{Missing,Float64}}(undef, 0, 0), String[]
@@ -31,7 +35,9 @@ get_continuous(dt::DataTreatment) = begin
     end
 end
 
-get_aggregated(dt::DataTreatment) = begin
+function get_aggregated(
+    dt::DataTreatment
+)::Tuple{Matrix{Union{Missing, Float64}}, Vector{String}}
     ds = filter(d -> d isa MultidimDataset &&
         all(elt -> elt isa AggregateFeat, get_info(d)), dt.data)
     return if isempty(ds)
@@ -41,7 +47,9 @@ get_aggregated(dt::DataTreatment) = begin
     end
 end
 
-get_reduced(dt::DataTreatment) = begin
+function get_reduced(
+    dt::DataTreatment
+)::Tuple{Matrix{Union{Missing, Float64}}, Vector{String}}
     ds = filter(d -> d isa MultidimDataset &&
         all(elt -> elt isa ReduceFeat, get_info(d)), dt.data)
     return if isempty(ds)
@@ -116,12 +124,18 @@ object, including discrete, continuous, and aggregated multidimensional data.
 #     isempty(nonempty) ? Matrix{Union{Missing, Float64}}(undef, nrows(dt), 0) : hcat(nonempty...)
 # end
 
+# @inline function get_tabular(dt::DataTreatment)
+#     mats = [get_discrete(dt), get_continuous(dt), get_aggregated(dt)]
+#     (firsts, seconds) = (map(first, mats), map(last, mats))
+#     nonempty = filter(x -> !(isempty(x) || size(x,2) == 0), firsts)
+#     isempty(nonempty) ? Matrix{Union{Missing, Float64}}(undef, nrows(dt), 0) : hcat(nonempty...)
+# end
 @inline function get_tabular(dt::DataTreatment)
-    mats = [get_discrete(dt), get_continuous(dt), get_aggregated(dt)]
-    nonempty = filter(x -> !(isempty(x) || size(x,2) == 0), mats)
-    isempty(nonempty) ? Matrix{Union{Missing, Float64}}(undef, nrows(dt), 0) : hcat(nonempty...)
+    mats = get_discrete(dt), get_continuous(dt), get_aggregated(dt)
+    idxs = findall(x -> !(isempty(x)), map(first, mats))
+    return mats[idxs], mats[idxs]
 end
-
+# 8.069 μs (92 allocations: 12.58 KiB)
 # ---------------------------------------------------------------------------- #
 #                            get multidim method                               #
 # ---------------------------------------------------------------------------- #
