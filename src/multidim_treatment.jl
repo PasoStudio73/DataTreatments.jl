@@ -42,7 +42,9 @@ function aggregate(
     float_type::Type;
     win::Tuple{Vararg{Base.Callable}},
     features::Tuple{Vararg{Base.Callable}}
-)::Tuple{Matrix{Union{Missing, float_type}}, Vector{float_type}}
+)
+    isempty(X) && return (Matrix{Union{Missing,float_type}}(undef, 0, 0), 0)
+
     colwin = [[n > length(win) ?
         last(win) :
         win[n] for n in 1:ndims(X[first(idx[i]), i])] for i in axes(X, 2)]
@@ -127,6 +129,10 @@ function reducesize(
     win::Tuple{Vararg{Base.Callable}},
     reducefunc::Base.Callable,
 )
+    isempty(X) && return (
+        Array{Union{Missing,float_type,Array{float_type}}}(undef, 0, 0), 0
+    )
+
     Xr = Array{Union{Missing,float_type,Array{float_type}}}(undef, size(X))
 
     @inbounds for colidx in axes(X, 2)

@@ -207,9 +207,9 @@ mutable struct DiscreteDataset{T} <: AbstractDataset
         miss = datastruct.missingidxs[ids]
         datatype = datastruct.datatype[ids]
 
-        return new{Union{Missing, Int64}}(
-            stack(codes),
-            [DiscreteFeat{Union{Missing, Int64}}(
+        return new{Union{Missing, Int}}(
+            isempty(codes) ? Matrix{Int}(undef, 0, 0) : stack(codes),
+            [DiscreteFeat{Union{Missing, Int}}(
                 ids[i],
                 vnames[i],
                 levels[i],
@@ -285,6 +285,8 @@ mutable struct ContinuousDataset{T} <: AbstractDataset
         nan = datastruct.nanidxs[ids]
 
         return new{float_type}(
+            isempty(ids) ?
+            Matrix{float_type}(undef, 0, 0) :
             reduce(hcat, [map(x -> ismissing(x) ?
                 missing :
                 float_type(x), @view data[:, id])
@@ -380,23 +382,23 @@ mutable struct MultidimDataset{T} <: AbstractDataset
         data::AbstractArray,
         info::Vector{<:AggregateFeat{T}},
         groups::Union{Nothing,Vector{Vector{Int}}}
-    ) where T = new{AggregateFeat{T}}(data, info, groups)
+    ) where T = new{T}(data, info, groups)
 
     MultidimDataset(
         data::AbstractArray,
         info::Vector{<:ReduceFeat{T}},
         groups::Union{Nothing,Vector{Vector{Int}}}=nothing
-    ) where T = new{ReduceFeat{T}}(data, info, groups)
+    ) where T = new{T}(data, info, groups)
 
     function MultidimDataset(
         ids::Vector{Int},
-        data::AbstractMatrix,
+        data::Matrix,
         vnames::Vector{String},
         datastruct::NamedTuple,
-        aggrfunc::Base.Callable,
-        float_type::Type,
-        groups::Union{Nothing,Symbol,Tuple{Vararg{Symbol}}}
-    )
+        aggrfunc::F,
+        float_type::Type{T},
+        groups::Union{Nothing, Tuple{Vararg{Symbol}}}
+    ) where {T<:AbstractFloat, F<:Base.Callable}
         data = @view data[:, ids]
         vnames = vnames[ids]
         dims = datastruct.dims[ids]
@@ -442,7 +444,7 @@ mutable struct MultidimDataset{T} <: AbstractDataset
 
         grouped = isnothing(groups) ? nothing : _groupby(md_feats, groups)
 
-        new{eltype(md_feats)}(md, md_feats, grouped)
+        new{float_type}(md, md_feats, grouped)
     end
 end
 
@@ -459,6 +461,8 @@ Base.getindex(ds::MultidimDataset, idxs::AbstractVector{Int}) =
         ds.info[idxs],
         _reindex_groups(ds.groups, idxs)
     )
+
+Base.isempty(ds::AbstractDataset) = isempty(ds.data)
 
 get_dims(d::MultidimDataset) = [get_dims(f) for f in d.info]
 
