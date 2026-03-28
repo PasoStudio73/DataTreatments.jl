@@ -147,7 +147,9 @@ function _treatments_ds(
     tc_filtered = filter(!isempty, ds_tc)
     md_filtered = filter(!isempty, ds_md)
 
-    md_split = isempty(md_filtered) ? MultidimDataset[] : reduce(vcat, _split_md_by_dims.(md_filtered))
+    md_split = isempty(md_filtered) ?
+        MultidimDataset[] :
+        reduce(vcat, _split_md_by_dims.(md_filtered))
 
     return td_filtered, tc_filtered, md_split
 end

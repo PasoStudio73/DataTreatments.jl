@@ -103,7 +103,6 @@ struct ReduceFeat{T} <: AbstractDataFeature
     hasnans::Vector{Int}
 end
 
-# Base.eltype(::DiscreteFeat{T}) where T = T
 # Base.eltype(::ContinuousFeat{T}) where T = T
 Base.eltype(::AggregateFeat{T}) where T = T
 Base.eltype(::ReduceFeat{T}) where T = T
@@ -201,19 +200,17 @@ mutable struct DiscreteDataset{T} <: AbstractDataset
         vnames::Vector{String},
         datastruct::NamedTuple
     )
-        # codes, levels = _discrete_encode(@views(data[:, ids]))
         codes = _discrete_encode(@views(data[:, ids]))
         vnames = vnames[ids]
         valid = datastruct.valididxs[ids]
         miss = datastruct.missingidxs[ids]
         datatype = datastruct.datatype[ids]
 
-        return new{Union{Missing, Int}}(
-            isempty(codes) ? Matrix{Int}(undef, 0, 0) : stack(codes),
-            [DiscreteFeat{Union{Missing, Int}}(
+        return new{eltype(codes)}(
+            isempty(codes) ? Matrix{eltype(codes)}(undef, 0, 0) : stack(codes),
+            [DiscreteFeat{eltype(codes)}(
                 ids[i],
                 vnames[i],
-                # levels[i],
                 valid[i],
                 miss[i],
                 datatype[i]
@@ -454,7 +451,7 @@ end
 # ---------------------------------------------------------------------------- #
 Base.eltype(::DiscreteDataset{T}) where T = T
 Base.eltype(::ContinuousDataset{T}) where T = T
-Base.eltype(d::MultidimDataset) = eltype(d.data)
+Base.eltype(::MultidimDataset{T})where T = T
 
 Base.getindex(ds::MultidimDataset, idxs::AbstractVector{Int}) =
     MultidimDataset(

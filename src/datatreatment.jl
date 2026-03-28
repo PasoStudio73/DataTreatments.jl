@@ -3,7 +3,7 @@
 # ---------------------------------------------------------------------------- #
 mutable struct DataTreatment{T}
     data::Vector{AbstractDataset}
-    target::CategoricalVector
+    target::AbstractVector
     # levels::Union{Nothing,AbstractVector}
     treats::Vector{TreatmentGroup}
 end
@@ -18,9 +18,10 @@ function get_discrete(
 )
     ds = collect(filter(d -> d isa DiscreteDataset, dt.data))
     return if isempty(ds)
-        Matrix{Union{Missing,Int}}(undef, 0, 0), String[]
+        Matrix{Union{Missing,CategoricalValue}}(undef, 0, 0), String[]
     else
-        Matrix{Union{Missing,Int}}(get_data(ds)),
+        data = get_data(ds)
+        Matrix{eltype(data)}(data),
         reduce(vcat, get_vnames.(ds))
     end
 end
@@ -76,21 +77,19 @@ is_multidim(dt::DataTreatment) = all(is_multidim.(dt.data))
 function load_dataset(
     data::Matrix,
     vnames::Vector{String}=["V$i" for i in 1:size(data, 2)],
-    target::CategoricalVector=CategoricalVector[],
+    target::Union{Nothing,AbstractVector}=nothing,
     treatments::Vararg{Base.Callable}=DefaultTreatmentGroup;
     treatment_ds::Bool=true,
-    leftover_ds::Bool=true,
+    leftover_ds::Bool=false,
     float_type::Type=Float64
 )
     datastruct = _inspecting(data)
 
-    # ctarget, clevels = if isnothing(target)
-    #     (Int[], nothing)
-    # elseif !isnothing(target) && !(eltype(target) <: Float)
-    #     _discrete_encode(target)
-    # else
-    #     (target, nothing)
-    # end
+    if isnothing(target)
+        target = CategoricalVector[]
+    elseif !isnothing(target) && !(eltype(target) <: AbstractFloat)
+        target = _discrete_encode(target)
+    end
 
     treats = [treat(datastruct, vnames) for treat in treatments]
 
@@ -126,10 +125,8 @@ function load_dataset(
     return DataTreatment{float_type}(ds, target, treats)
 end
 
-function load_dataset(df::DataFrame, target::AbstractVector, args...; kwargs...)
-    _target = _discrete_encode(target)
-    load_dataset(Matrix(df), names(df), _target, args...; kwargs...)
-end
+load_dataset(df::DataFrame, target::AbstractVector, args...; kwargs...) =
+    load_dataset(Matrix(df), names(df), target, args...; kwargs...)
 
 load_dataset(df::DataFrame, args...; kwargs...) =
     load_dataset(Matrix(df), names(df), CategoricalVector[], args...; kwargs...)
