@@ -17,7 +17,7 @@ Metadata for a discrete (categorical) feature in a dataset.
 struct DiscreteFeat{T} <: AbstractDataFeature
     id::Int
     vname::String
-    levels::CategoricalArrays.CategoricalVector
+    # levels::CategoricalArrays.CategoricalVector
     valididxs::Vector{Int}
     missingidxs::Vector{Int}
     datatype::Type
@@ -111,7 +111,7 @@ Base.eltype(::ReduceFeat{T}) where T = T
 get_subid(f::AggregateFeat) = f.subid
 get_dims(f::Union{AggregateFeat,ReduceFeat}) = f.dims
 
-get_vnames(d::AbstractDataFeature)::String = d.vname
+get_vnames(d::AbstractDataFeature) = d.vname
 
 # ---------------------------------------------------------------------------- #
 #                                   utils                                      #
@@ -201,7 +201,8 @@ mutable struct DiscreteDataset{T} <: AbstractDataset
         vnames::Vector{String},
         datastruct::NamedTuple
     )
-        codes, levels = _discrete_encode(@views(data[:, ids]))
+        # codes, levels = _discrete_encode(@views(data[:, ids]))
+        codes = _discrete_encode(@views(data[:, ids]))
         vnames = vnames[ids]
         valid = datastruct.valididxs[ids]
         miss = datastruct.missingidxs[ids]
@@ -212,7 +213,7 @@ mutable struct DiscreteDataset{T} <: AbstractDataset
             [DiscreteFeat{Union{Missing, Int}}(
                 ids[i],
                 vnames[i],
-                levels[i],
+                # levels[i],
                 valid[i],
                 miss[i],
                 datatype[i]
