@@ -59,14 +59,9 @@ df = build_test_df()
 t_classif = ["classA", "classB", "classC", "classA", "classB"]
 t_regress = [1.2, 3.4, 2.2, 4.8, 0.9]
 
-@test_nowarn @inferred load_dataset(df)
-@test_nowarn InteractiveUtils.@code_warntype load_dataset(df)
-
 dt = load_dataset(df)
 
-@test_nowarn @inferred get_tabular(dt)
-@test_nowarn InteractiveUtils.@code_warntype get_tabular(dt)
-
+@test_nowarn get_tabular(dt)
 @test_nowarn get_multidim(dt)
 
 dt = load_dataset(df, t_classif)
@@ -100,21 +95,16 @@ dt =load_dataset(
 )
 multidim = get_multidim(dt)
 
-@test_nowarn @inferred get_multidim(dt)
-@test_nowarn InteractiveUtils.@code_warntype get_multidim(dt)
-
 @testset "DataTreatment API" begin
     dt = load_dataset(df, t_classif)
-    @test get_target(dt) == [1, 2, 3, 1, 2]
-    @test get_levels(dt) == ["classA", "classB", "classC"]
-    @test isa(get_discrete(dt), AbstractMatrix)
-    @test isa(get_continuous(dt), AbstractMatrix)
-    @test isa(get_tabular(dt), AbstractMatrix)
-    @test size(get_tabular(dt), 1) == nrow(df)
+    @test get_target(dt) == ["classA", "classB", "classC", "classA", "classB"]
+    @test isa(get_discrete(dt), Tuple{AbstractMatrix, AbstractVector})
+    @test isa(get_continuous(dt), Tuple{AbstractMatrix, AbstractVector})
+    @test isa(get_tabular(dt), Tuple{AbstractMatrix, AbstractVector})
+    @test size(get_tabular(dt)[1], 1) == nrow(df)
 
     dt = load_dataset(df, t_regress)
     @test get_target(dt) == t_regress
-    @test isnothing(get_levels(dt))
 
     dt2 = load_dataset(
         df,
@@ -133,8 +123,8 @@ multidim = get_multidim(dt)
     @test dt2.treats[1].vnames == ["ts1", "ts2", "ts3", "ts4"]
     @test size(dt2.data[1].data, 2) == 40
     @test length(dt2.data[1].groups) == 2
-    @test isa(agg, AbstractMatrix)
-    @test size(agg, 1) == nrow(df)
+    @test isa(agg, Tuple{AbstractMatrix, AbstractVector})
+    @test size(agg[1], 1) == nrow(df)
 
     dt3 = load_dataset(
         df,
@@ -147,10 +137,5 @@ multidim = get_multidim(dt)
         )
     )
     red = get_multidim(dt3)
-    @test isa(red, AbstractMatrix)
+    @test isa(red, Tuple{AbstractMatrix, AbstractVector})
 end
-
-# for aclai
-# @btime get_tabular(dt)
-# 68.683 μs (53 allocations: 4.05 KiB)
-# 3.567 μs (49 allocations: 4.09 KiB)

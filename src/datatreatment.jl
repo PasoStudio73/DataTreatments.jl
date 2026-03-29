@@ -142,7 +142,7 @@ object, including discrete, continuous, and aggregated multidimensional data.
 """
 @inline function get_tabular(
     dt::DataTreatment{T};
-    force_type::Bool=false,
+    force_type::Bool=false
 ) where {T<:Float}
     mats = get_discrete(dt), get_continuous(dt), get_aggregated(dt)
     idxs = findall(x -> !(isempty(x)), map(first, mats))
@@ -153,9 +153,9 @@ object, including discrete, continuous, and aggregated multidimensional data.
     not_empty = collect(zip(mats[idxs]...))
 
     X = if force_type
-        Matrix{Union{CategoricalValue,T}}(reduce(hcat, not_empty[1]))
+        Matrix{Union{CategoricalValue,Int,T}}(reduce(hcat, not_empty[1]))
     else
-        Matrix{Union{Missing,CategoricalValue,T}}(reduce(hcat, not_empty[1]))
+        Matrix{Union{Missing,CategoricalValue,Int,T}}(reduce(hcat, not_empty[1]))
     end
 
     return X, reduce(vcat, not_empty[2])

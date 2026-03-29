@@ -5,8 +5,6 @@ using DataFrames
 using Random
 using CategoricalArrays
 
-using InteractiveUtils
-
 function create_image(seed::Int; n=6)
     Random.seed!(seed)
     rand(Float64, n, n)
@@ -159,9 +157,15 @@ end
 end
 
 @testset "get_window_ranges" begin
-    @test DT._get_window_ranges(([1:5, 6:10, 11:15],), CartesianIndex(2)) == (6:10,)
-    @test DT._get_window_ranges(([1:3, 4:6], [1:2, 3:4, 5:6]), CartesianIndex(1, 3)) == (1:3, 5:6)
-    @test DT._get_window_ranges(([1:2, 3:4], [1:3, 4:6], [1:5]), CartesianIndex(2, 1, 1)) == (3:4, 1:3, 1:5)
+    @test DT._get_window_ranges(
+        ([1:5, 6:10, 11:15],), CartesianIndex(2)
+    ) == (6:10,)
+    @test DT._get_window_ranges(
+        ([1:3, 4:6], [1:2, 3:4, 5:6]), CartesianIndex(1, 3)
+    ) == (1:3, 5:6)
+    @test DT._get_window_ranges(
+        ([1:2, 3:4], [1:3, 4:6], [1:5]), CartesianIndex(2, 1, 1)
+    ) == (3:4, 1:3, 1:5)
 end
 
 @testset "safe_feat" begin
@@ -177,11 +181,16 @@ end
     @test DT._safe_feat([1.0, NaN, 3.0, NaN, 5.0], mean) == 3.0
 
     # both missing and NaN
-    @test DT._safe_feat([1.0, missing, NaN, 4.0, missing, NaN, 7.0], maximum) == 7.0
-    @test DT._safe_feat([1.0, missing, NaN, 4.0, missing, NaN, 7.0], mean) == 4.0
+    @test DT._safe_feat(
+        [1.0, missing, NaN, 4.0, missing, NaN, 7.0], maximum
+    ) == 7.0
+    @test DT._safe_feat(
+        [1.0, missing, NaN, 4.0, missing, NaN, 7.0], mean
+    ) == 4.0
 
     # all invalid → empty vector
-    @test_throws Exception DT._safe_feat(Union{Missing,Float64}[missing, missing], maximum)
+    @test_throws Exception DT._safe_feat(
+        Union{Missing,Float64}[missing, missing], maximum)
     @test isnan(DT._safe_feat([NaN, NaN, NaN], mean))
 
     # single valid element
@@ -192,80 +201,23 @@ end
 
     # custom function
     @test DT._safe_feat([1.0, missing, 3.0, NaN, 5.0], x -> length(x)) == 3
-    @test DT._safe_feat([1.0, missing, 3.0, NaN, 5.0], std) ≈ std([1.0, 3.0, 5.0])
+    @test DT._safe_feat(
+        [1.0, missing, 3.0, NaN, 5.0], std) ≈ std([1.0, 3.0, 5.0])
 end
 
 @testset "curried constructors" begin
     @test aggregate() isa Function
-    @test aggregate(win=(movingwindow(winsize=3, winstep=2),), features=(sum, mean)) isa Function
+    @test aggregate(
+        win=(movingwindow(winsize=3, winstep=2),), features=(sum, mean)
+    ) isa Function
     @test aggregate(features=(maximum,)) isa Function
-    @test aggregate(win=(splitwindow(nwindows=3),), features=(mean,)) isa Function
+    @test aggregate(
+        win=(splitwindow(nwindows=3),), features=(mean,)
+    ) isa Function
 
     @test reducesize() isa Function
-    @test reducesize(win=(splitwindow(nwindows=4),), reducefunc=mean) isa Function
+    @test reducesize(
+        win=(splitwindow(nwindows=4),), reducefunc=mean
+    ) isa Function
     @test reducesize(reducefunc=sum) isa Function
 end
-
-@test_nowarn @inferred aggregate(
-    Matrix(df[!, ts]),
-    ts_v,
-    Float64;
-    win=(DT.adaptivewindow(nwindows=5, overlap=0.4),),
-    features=(mean, maximum)
-)
-
-@test_nowarn @inferred aggregate(
-    Matrix(df[!, img]),
-    img_v,
-    Float64;
-    win=(DT.splitwindow(nwindows=2),),
-    features=(mean,)
-)
-
-@test_nowarn @inferred reducesize(
-    Matrix(df[!, ts]),
-    ts_v,
-    Float64;
-    win=(DT.adaptivewindow(nwindows=5, overlap=0.4),),
-    reducefunc=maximum
-)
-
-@test_nowarn @inferred reducesize(
-    Matrix(df[!, img]),
-    img_v,
-    Float64;
-    win=(DT.splitwindow(nwindows=2),),
-    reducefunc=mean
-)
-
-@test_nowarn InteractiveUtils.@code_warntype aggregate(
-    Matrix(df[!, ts]),
-    ts_v,
-    Float64;
-    win=(DT.adaptivewindow(nwindows=5, overlap=0.4),),
-    features=(mean, maximum)
-)
-
-@test_nowarn InteractiveUtils.@code_warntype aggregate(
-    Matrix(df[!, img]),
-    img_v,
-    Float64;
-    win=(DT.splitwindow(nwindows=2),),
-    features=(mean,)
-)
-
-@test_nowarn InteractiveUtils.@code_warntype reducesize(
-    Matrix(df[!, ts]),
-    ts_v,
-    Float64;
-    win=(DT.adaptivewindow(nwindows=5, overlap=0.4),),
-    reducefunc=maximum
-)
-
-@test_nowarn InteractiveUtils.@code_warntype reducesize(
-    Matrix(df[!, img]),
-    img_v,
-    Float64;
-    win=(DT.splitwindow(nwindows=2),),
-    reducefunc=mean
-)

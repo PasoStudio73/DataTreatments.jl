@@ -5,8 +5,12 @@ _isnanval(v) = v isa Float && isnan(v)
 _isarray(v) = v isa VecOrMat
 
 _to_str(v) = (ismissing(v) || (v isa Float && isnan(v))) ? missing : string(v)
-_discrete_encode(X::AbstractMatrix) =
-    [categorical(_to_str.(col)) for col in eachcol(X)]
+# _discrete_encode(X::AbstractMatrix) =
+#     [categorical(_to_str.(col)) for col in eachcol(X)]
+function _discrete_encode(X::AbstractMatrix)
+    cats = [categorical(_to_str.(col)) for col in eachcol(X)]
+    return [levelcode.(cat) for cat in cats]
+end
 _discrete_encode(x::AbstractVector) = categorical(_to_str.(x))
 
 # ---------------------------------------------------------------------------- #
