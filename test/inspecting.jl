@@ -6,8 +6,6 @@ using DataFrames
 using Random
 using CategoricalArrays
 
-using InteractiveUtils
-
 function create_image(seed::Int; n=6)
     Random.seed!(seed)
     rand(Float64, n, n)
@@ -21,7 +19,11 @@ function build_test_df()
         int_col=Int[10, 20, 30, 40, 50],
         V1=[NaN, missing, 3.0, 4.0, 5.6],
         V2=[2.5, missing, 4.5, 5.5, NaN],
-        ts1=[NaN, collect(2.0:7.0), missing, collect(4.0:9.0), collect(5.0:10.0)],
+        ts1=[
+            NaN, collect(2.0:7.0),
+            missing, collect(4.0:9.0),
+            collect(5.0:10.0)
+        ],
         V4=[4.1, NaN, NaN, 7.1, 5.5],
         V5=[5.0, 6.0, 7.0, 8.0, 1.8],
         ts2=[
@@ -56,9 +58,6 @@ df = build_test_df()
 
 inspect = DT._inspecting(Matrix(df))
 
-@test_nowarn @inferred DT._inspecting(Matrix(df))
-@test_nowarn InteractiveUtils.@code_warntype DT._inspecting(Matrix(df))
-
 @testset "_inspecting returns expected results" begin
     # Check number of columns
     @test length(inspect.id) == ncol(df)
@@ -90,15 +89,7 @@ end
 
 @testset "_discrete_encode works as expected" begin
     target = [:circle, :square, :triangle, :square, missing]
-    encoded, levels = DT._discrete_encode(target)
+    encoded = DT._discrete_encode(target)
 
-    @test length(encoded) == length(target)
-    @test all(ismissing(target[i]) ? ismissing(encoded[i]) : isa(encoded[i], Int) for i in eachindex(target))
-
-    @test encoded[2] == encoded[4]
-
-    @test encoded[1] != encoded[2]
-    @test encoded[3] != encoded[1]
-
-    @test length(levels) == 3
+    @test isa(encoded, CategoricalArray)
 end

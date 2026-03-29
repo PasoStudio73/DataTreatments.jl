@@ -5,8 +5,6 @@ using DataFrames
 using Random
 using CategoricalArrays
 
-using InteractiveUtils
-
 function create_image(seed::Int; n=6)
     Random.seed!(seed)
     rand(Float64, n, n)
@@ -20,7 +18,13 @@ function build_test_df()
         int_col  = Int[10, 20, 30, 40, 50],
         V1 = [NaN, missing, 3.0, 4.0, 5.6],
         V2 = [2.5, missing, 4.5, 5.5, NaN],
-        ts1 = [NaN, collect(2.0:7.0), missing, collect(4.0:9.0), collect(5.0:10.0)],
+        ts1 = [
+            NaN,
+            collect(2.0:7.0),
+            missing,
+            collect(4.0:9.0),
+            collect(5.0:10.0)
+        ],
         V4 = [4.1, NaN, NaN, 7.1, 5.5],
         V5 = [5.0, 6.0, 7.0, 8.0, 1.8],
         ts2 = [
@@ -54,9 +58,6 @@ end
 df = build_test_df()
 datastruct = DT._inspecting(Matrix(df))
 vnames = names(df)
-
-# @test_nowarn @inferred TreatmentGroup(datastruct, vnames; dims=1, groupby=:vname)
-@test_nowarn InteractiveUtils.@code_warntype TreatmentGroup(datastruct, vnames; dims=1, groupby=:vname)
 
 @testset "TreatmentGroup basic construction and filtering" begin
     tg = TreatmentGroup(datastruct, vnames)

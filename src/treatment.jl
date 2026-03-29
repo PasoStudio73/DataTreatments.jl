@@ -26,9 +26,9 @@ and constructs the appropriate dataset structure for each category.
 # Description
 
 Given a set of column indices and metadata, this function separates columns into:
-- **Discrete data**: Columns whose element type is neither `AbstractFloat` nor `AbstractArray` 
+- **Discrete data**: Columns whose element type is neither `Float` nor `AbstractArray` 
   (e.g., categorical labels, strings, integers). These are stored in a [`DiscreteDataset`](@ref).
-- **Continuous data**: Columns whose element type is a subtype of `AbstractFloat` (scalar numeric values). 
+- **Continuous data**: Columns whose element type is a subtype of `Float` (scalar numeric values). 
   These are stored in a [`ContinuousDataset`](@ref).
 - **Multidimensional data**: Columns whose element type is a subtype of `AbstractArray` 
   (e.g., time series, images, spectrograms). These are stored in a [`MultidimDataset`](@ref), processed according to the aggregation function specified in the `TreatmentGroup`.
@@ -60,27 +60,21 @@ function _build_ds(
     data::Matrix,
     vnames::Vector{String},
     datastruct::NamedTuple,
-    float_type::Type
-)
+    float_type::Type{T}
+) where {T<:Float}
     aggrfunc = get_aggrfunc(treat)
     valtype = datastruct.datatype
-    groups = has_groupby(treat) ? get_groupby(treat) : nothing
+    groups = get_groupby(treat)
 
-    td_ids = ids ∩ findall(T -> !isnothing(T) && !(T <: AbstractFloat) && !(T <: AbstractArray), valtype)
-    tc_ids = ids ∩ findall(T -> !isnothing(T) && T <: AbstractFloat, valtype)
-    md_ids = ids ∩ findall(T -> !isnothing(T) && T <: AbstractArray, valtype)
+    td_ids = ids ∩ findall(T -> !(T <: Float) && !(T <: AbstractArray), valtype)
+    tc_ids = ids ∩ findall(T -> T <: Float, valtype)
+    md_ids = ids ∩ findall(T -> T <: AbstractArray, valtype)
 
-    ds_td = isempty(td_ids) ?
-        nothing :
-        DiscreteDataset(td_ids, data, vnames, datastruct)
-    ds_tc = isempty(tc_ids) ?
-        nothing :
-        ContinuousDataset(tc_ids, data, vnames, datastruct, float_type)
-    ds_md = isempty(md_ids) ?
-        nothing :
+    return (
+        DiscreteDataset(td_ids, data, vnames, datastruct),
+        ContinuousDataset(tc_ids, data, vnames, datastruct, float_type),
         MultidimDataset(md_ids, data, vnames, datastruct, aggrfunc, float_type, groups)
-
-    return ds_td, ds_tc, ds_md
+    )
 end
 
 """
@@ -134,9 +128,9 @@ function _treatments_ds(
     float_type::Type
 )
     ntreats = length(treats)
-    ds_td = Vector{Union{Nothing,DiscreteDataset}}(undef, ntreats)
-    ds_tc = Vector{Union{Nothing,ContinuousDataset}}(undef, ntreats)
-    ds_md = Vector{Union{Nothing,MultidimDataset}}(undef, ntreats)
+    ds_td = Vector{DiscreteDataset}(undef, ntreats)
+    ds_tc = Vector{ContinuousDataset}(undef, ntreats)
+    ds_md = Vector{MultidimDataset}(undef, ntreats)
 
     Threads.@threads for i in eachindex(treats)
         ds_td[i], ds_tc[i], ds_md[i] = _build_ds(
@@ -149,11 +143,13 @@ function _treatments_ds(
         )
     end
 
-    td_filtered = filter(!isnothing, ds_td)
-    tc_filtered = filter(!isnothing, ds_tc)
-    md_filtered = filter(!isnothing, ds_md)
+    td_filtered = filter(!isempty, ds_td)
+    tc_filtered = filter(!isempty, ds_tc)
+    md_filtered = filter(!isempty, ds_md)
 
-    md_split = isempty(md_filtered) ? MultidimDataset[] : reduce(vcat, _split_md_by_dims.(md_filtered))
+    md_split = isempty(md_filtered) ?
+        MultidimDataset[] :
+        reduce(vcat, _split_md_by_dims.(md_filtered))
 
     return td_filtered, tc_filtered, md_split
 end
@@ -219,9 +215,9 @@ function _leftovers_ds(
         float_type
     )
 
-    td_filtered = isnothing(ds_td) ? AbstractDataset[] : AbstractDataset[ds_td]
-    tc_filtered = isnothing(ds_tc) ? AbstractDataset[] : AbstractDataset[ds_tc]
-    md_split = isnothing(ds_md) ? AbstractDataset[] : _split_md_by_dims(ds_md)
+    td_filtered = isempty(ds_td) ? AbstractDataset[] : AbstractDataset[ds_td]
+    tc_filtered = isempty(ds_tc) ? AbstractDataset[] : AbstractDataset[ds_tc]
+    md_split = isempty(ds_md) ? AbstractDataset[] : _split_md_by_dims(ds_md)
 
     return td_filtered, tc_filtered, md_split
 end

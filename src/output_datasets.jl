@@ -9,16 +9,17 @@ Metadata for a discrete (categorical) feature in a dataset.
 # Fields
 - `id::Int`: Unique identifier for the feature (column index in the source data).
 - `vname::String`: Original column name.
-- `levels::CategoricalArrays.CategoricalVector`: The set of categorical levels.
+- `levels::CategoricalArrays.CategoricalVector`: Categorical vector of levels.
 - `valididxs::Vector{Int}`: Indices of valid (non-missing) entries.
 - `missingidxs::Vector{Int}`: Indices of missing entries.
+- `datatype`: Original column datatype
 """
 struct DiscreteFeat{T} <: AbstractDataFeature
     id::Int
     vname::String
-    levels::CategoricalArrays.CategoricalVector
     valididxs::Vector{Int}
     missingidxs::Vector{Int}
+    datatype::Type
 end
 
 """
@@ -101,8 +102,14 @@ struct ReduceFeat{T} <: AbstractDataFeature
     hasnans::Vector{Int}
 end
 
+# Base.eltype(::ContinuousFeat{T}) where T = T
+Base.eltype(::AggregateFeat{T}) where T = T
+Base.eltype(::ReduceFeat{T}) where T = T
+
 get_subid(f::AggregateFeat) = f.subid
 get_dims(f::Union{AggregateFeat,ReduceFeat}) = f.dims
+
+get_vnames(d::AbstractDataFeature) = d.vname
 
 # ---------------------------------------------------------------------------- #
 #                                   utils                                      #
@@ -133,7 +140,10 @@ function _reindex_groups(groups::Vector{Vector{Int}}, idxs::AbstractVector{Int})
     return new_groups
 end
 
-_reindex_groups(groups::Nothing, idxs::AbstractVector{Int}) = Vector{Vector{Int}}()
+_reindex_groups(
+    groups::Nothing,
+    idxs::AbstractVector{Int}
+) = Vector{Vector{Int}}()
 
 # ---------------------------------------------------------------------------- #
 #                           output dataset structs                             #
@@ -141,14 +151,17 @@ _reindex_groups(groups::Nothing, idxs::AbstractVector{Int}) = Vector{Vector{Int}
 """
     DiscreteDataset <: AbstractDataset
 
-Output dataset for **discrete (categorical)** columns collected by `DataTreatment`.
+Output dataset for **discrete (categorical)** columns 
+collected by `DataTreatment`.
 
 # Fields
-- `data::AbstractMatrix`: Encoded integer-coded matrix (one column per discrete feature).
+- `data::AbstractMatrix`: Encoded integer-coded matrix 
+  (one column per discrete feature).
   Each value is either an `Int` level code or `missing`.
-- `info::Vector{<:DiscreteFeat}`: Per-column metadata, including the original column
-  name, categorical levels, validity indices, and an `id` vector tracing the
-  column back to the source dataset and `TreatmentGroup`.
+- `info::Vector{<:DiscreteFeat}`: Per-column metadata, 
+  including the original column name, categorical levels, validity indices, 
+  and an `id` vector tracing the column 
+  back to the source dataset and `TreatmentGroup`.
 
 # Constructors
 
@@ -158,8 +171,9 @@ Output dataset for **discrete (categorical)** columns collected by `DataTreatmen
         vnames::Vector{String},
         datastruct::NamedTuple
     )`  
-  Internal constructor: selects columns `ids` from `data`, encodes them categorically,
-  and builds the corresponding [`DiscreteFeat`](@ref) metadata from `datastruct`.
+  Internal constructor: selects columns `ids` from `data`, 
+  encodes them categorically, and builds the corresponding 
+  [`DiscreteFeat`](@ref) metadata from `datastruct`.
 
 ## Arguments for internal constructor
 - `ids::Vector{Int}`: Column indices to include in this dataset.
@@ -167,13 +181,17 @@ Output dataset for **discrete (categorical)** columns collected by `DataTreatmen
 - `vnames::Vector{String}`: Names of all columns.
 - `datastruct::NamedTuple`: Pre-computed dataset metadata.
 
-See also: [`ContinuousDataset`](@ref), [`MultidimDataset`](@ref), [`DiscreteFeat`](@ref)
+See also: [`ContinuousDataset`](@ref), [`MultidimDataset`](@ref), 
+[`DiscreteFeat`](@ref)
 """
-mutable struct DiscreteDataset <: AbstractDataset
+mutable struct DiscreteDataset{T} <: AbstractDataset
     data::AbstractMatrix
     info::Vector{<:DiscreteFeat}
 
-    DiscreteDataset(data::AbstractMatrix, info::Vector{<:DiscreteFeat}) = new(data, info)
+    DiscreteDataset(
+        data::AbstractMatrix,
+        info::Vector{<:DiscreteFeat{T}}
+    ) where T = new{T}(data, info)
     
     function DiscreteDataset(
         ids::Vector{Int},
@@ -181,15 +199,21 @@ mutable struct DiscreteDataset <: AbstractDataset
         vnames::Vector{String},
         datastruct::NamedTuple
     )
-        T = datastruct.datatype[ids]
+        codes = _discrete_encode(@views(data[:, ids]))
         vnames = vnames[ids]
         valid = datastruct.valididxs[ids]
         miss = datastruct.missingidxs[ids]
-        codes, levels = _discrete_encode(@views(data[:, ids]))
+        datatype = datastruct.datatype[ids]
 
-        return new(
-            stack(codes),
-            [DiscreteFeat{T[i]}(ids[i], vnames[i], levels[i], valid[i], miss[i])
+        return new{eltype(codes)}(
+            isempty(codes) ? Matrix{eltype(codes)}(undef, 0, 0) : stack(codes),
+            [DiscreteFeat{eltype(codes)}(
+                ids[i],
+                vnames[i],
+                valid[i],
+                miss[i],
+                datatype[i]
+            )
                 for i in eachindex(ids)]
         )
     end
@@ -240,8 +264,10 @@ mutable struct ContinuousDataset{T} <: AbstractDataset
     data::AbstractMatrix
     info::Vector{<:ContinuousFeat}
 
-    ContinuousDataset(data::AbstractMatrix, info::Vector{<:ContinuousFeat{T}}) where T =
-        new{T}(data, info)
+    ContinuousDataset(
+        data::AbstractMatrix,
+        info::Vector{<:ContinuousFeat{T}}
+    ) where T = new{T}(data, info)
 
     function ContinuousDataset(
         ids::Vector{Int},
@@ -256,9 +282,20 @@ mutable struct ContinuousDataset{T} <: AbstractDataset
         nan = datastruct.nanidxs[ids]
 
         return new{float_type}(
-            reduce(hcat, [map(x -> ismissing(x) ? missing : float_type(x), @view data[:, id])
-                for id in ids]),
-            [ContinuousFeat{float_type}(ids[i], vnames[i], valid[i], miss[i], nan[i])
+            isempty(ids) ?
+            Matrix{float_type}(undef, 0, 0) :
+            reduce(hcat, [map(x -> ismissing(x) ?
+                missing :
+                float_type(x), @view data[:, id])
+                for id in ids]
+            ),
+            [ContinuousFeat{float_type}(
+                ids[i],
+                vnames[i],
+                valid[i],
+                miss[i],
+                nan[i]
+            )
                 for i in eachindex(ids)]
         )
     end
@@ -333,7 +370,7 @@ operations or auditing the source of each derived feature.
 See also: [`DiscreteDataset`](@ref), [`ContinuousDataset`](@ref),
 [`AggregateFeat`](@ref), [`ReduceFeat`](@ref), [`aggregate`](@ref), [`reducesize`](@ref)
 """
-mutable struct MultidimDataset{T} <: AbstractDataset
+mutable struct MultidimDataset{T,S} <: AbstractDataset
     data::AbstractArray
     info::Vector{<:Union{AggregateFeat,ReduceFeat}}
     groups::Union{Nothing,Vector{Vector{Int}}}
@@ -342,23 +379,23 @@ mutable struct MultidimDataset{T} <: AbstractDataset
         data::AbstractArray,
         info::Vector{<:AggregateFeat{T}},
         groups::Union{Nothing,Vector{Vector{Int}}}
-    ) where T = new{AggregateFeat{T}}(data, info, groups)
+    ) where T = new{T,AggregateFeat}(data, info, groups)
 
     MultidimDataset(
         data::AbstractArray,
         info::Vector{<:ReduceFeat{T}},
         groups::Union{Nothing,Vector{Vector{Int}}}=nothing
-    ) where T = new{ReduceFeat{T}}(data, info, groups)
+    ) where T = new{T,ReduceFeat}(data, info, groups)
 
     function MultidimDataset(
         ids::Vector{Int},
-        data::AbstractMatrix,
+        data::Matrix,
         vnames::Vector{String},
         datastruct::NamedTuple,
-        aggrfunc::Base.Callable,
-        float_type::Type,
-        groups::Union{Nothing,Symbol,Tuple{Vararg{Symbol}}}
-    )
+        aggrfunc::F,
+        float_type::Type{T},
+        groups::Union{Nothing, Tuple{Vararg{Symbol}}}
+    ) where {T<:Float, F<:Base.Callable}
         data = @view data[:, ids]
         vnames = vnames[ids]
         dims = datastruct.dims[ids]
@@ -404,20 +441,52 @@ mutable struct MultidimDataset{T} <: AbstractDataset
 
         grouped = isnothing(groups) ? nothing : _groupby(md_feats, groups)
 
-        new{eltype(md_feats)}(md, md_feats, grouped)
+        new{float_type,eltype(md_feats)}(md, md_feats, grouped)
     end
 end
 
 # ---------------------------------------------------------------------------- #
 #                                  methods                                     #
 # ---------------------------------------------------------------------------- #
+Base.eltype(::DiscreteDataset{T}) where T = T
+Base.eltype(::ContinuousDataset{T}) where T = T
+Base.eltype(::MultidimDataset{T})where T = T
+
 Base.getindex(ds::MultidimDataset, idxs::AbstractVector{Int}) =
-    MultidimDataset(@view(ds.data[:, idxs]), ds.info[idxs], _reindex_groups(ds.groups, idxs))
+    MultidimDataset(
+        @view(ds.data[:, idxs]),
+        ds.info[idxs],
+        _reindex_groups(ds.groups, idxs)
+    )
+
+Base.isempty(ds::AbstractDataset) = isempty(ds.data)
 
 get_dims(d::MultidimDataset) = [get_dims(f) for f in d.info]
 
 get_data(d::Vector{<:AbstractDataset}) = reduce(hcat, get_data.(d))
-get_data(d::AbstractDataset) = d.data
+get_data(d::DiscreteDataset)= d.data
+get_data(d::ContinuousDataset)= d.data
+get_data(d::MultidimDataset)= d.data
 
 get_info(d::Vector{<:AbstractDataset}) = reduce(vcat, get_info.(d))
 get_info(d::AbstractDataset) = d.info
+
+is_tabular(d::AbstractDataset) = d isa Union{
+    ContinuousDataset,
+    DiscreteDataset,
+    MultidimDataset{<:Any, AggregateFeat}
+}
+is_multidim(d::AbstractDataset) = isa(d, MultidimDataset{<:Any, ReduceFeat})
+
+get_vnames(d::AbstractDataset)::Vector{String} = get_vnames.(d.info)
+function get_vnames(
+    ds::MultidimDataset{<:Any,<:AggregateFeat};
+    groupby_split::Bool=false
+)
+    names =
+        ["$(f.vname),$(f.feat),win:$(f.nwin)" for f in ds.info]
+    # groupby_split && has_groups(ds) ?
+    #     [names[g] for g in get_groups(ds)] :
+    #     names
+end
+
