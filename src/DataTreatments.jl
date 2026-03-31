@@ -63,6 +63,7 @@ export get_discrete, get_continuous
 export get_aggregated, get_reduced
 export get_tabular, get_multidim
 export is_tabular, is_multidim
+export has_tabular, has_multidim
 include("datatreatment.jl")
 
 end

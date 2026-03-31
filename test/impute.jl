@@ -1,4 +1,6 @@
 using Test
+using SoleXplorer
+const SX = SoleXplorer
 using DataTreatments
 const DT = DataTreatments
 
@@ -61,41 +63,103 @@ t_regress = [1.2, 3.4, 2.2, 4.8, 0.9]
 
 dt = load_dataset(df)
 
-# using Impute
-
-# data = dt.data[2].data
-
-# Impute.declaremissings(data; values=(NaN, "NULL"))
-
-# # Impute.interp(data)
-
-# Impute.interp(data) |> Impute.locf() |> Impute.nocb()
-
-# using Impute: Interpolate, impute!, impute
-
-# d = dt.data[2].data
-
-# impute!(d, Interpolate(); dims=2)
-
-# impute(data, Interpolate(); dims=2)
-# impute(Impute.declaremissings(data; values=(NaN, "NULL")), Impute.KNN(); dims=2)
-# impute(data, Impute.LOCF(); dims=2)
-# impute(data, Impute.NOCB(); dims=2)
-# impute(data, Impute.Substitute(statistic=Impute.defaultstats); dims=2)
-# impute(data, Impute.Substitute(statistic=mean); dims=2)
-# impute(data, Impute.SVD(); dims=2)
-
+dt = load_dataset(
+    df, t_classif,
+    TreatmentGroup(
+        dims=0,
+    )
+)
+get_discrete(dt)
+get_continuous(dt)
+get_multidim(dt)
+get_tabular(dt)
 
 dt = load_dataset(
-    df,
+    df, t_classif,
+    TreatmentGroup(
+        dims=0,
+        datatype=:discrete
+    ),
+    TreatmentGroup(
+        dims=0,
+        datatype=:continuous
+    )
+)
+get_discrete(dt)
+get_continuous(dt)
+get_multidim(dt)
+get_tabular(dt)
+
+dt = load_dataset(
+    df, t_classif,
+    TreatmentGroup(
+        dims=0,
+        datatype=:continuous
+    )
+)
+get_discrete(dt)
+get_continuous(dt)
+get_multidim(dt)
+get_tabular(dt)
+
+dt = load_dataset(
+    df, t_classif,
+    TreatmentGroup(
+        dims=1,
+    ),
+    TreatmentGroup(
+        dims=2,
+    )
+)
+get_discrete(dt)
+get_continuous(dt)
+get_multidim(dt)
+get_tabular(dt)
+
+dt = load_dataset(
+    df, t_classif,
+    TreatmentGroup(
+        dims=1,
+        aggrfunc=reducesize(
+            reducefunc=mean,
+            win=(splitwindow(nwindows=3),)
+        ),
+    )
+)
+get_discrete(dt)
+get_continuous(dt)
+get_multidim(dt)
+get_tabular(dt)
+
+dt = load_dataset(
+    df, t_classif,
+    TreatmentGroup(
+        dims=2,
+        aggrfunc=reducesize(
+            reducefunc=mean,
+            win=(splitwindow(nwindows=2),)
+        ),
+    )
+)
+get_discrete(dt)
+get_continuous(dt)
+get_multidim(dt)
+get_tabular(dt)
+
+dt = load_dataset(
+    df, t_classif,
     TreatmentGroup(
         dims=0,
         impute=(LOCF(),)
     )
 )
+get_discrete(dt)
+get_continuous(dt)
+get_multidim(dt)
+get_tabular(dt)
 
 dt = load_dataset(
-    df,
+    df, t_classif,
     TreatmentGroup(
         dims=0,
         impute=(LOCF(), NOCB()),
@@ -107,9 +171,93 @@ dt = load_dataset(
         datatype=:continuous
     )
 )
+get_discrete(dt)
+get_continuous(dt)
+get_multidim(dt)
+get_tabular(dt)
 
 dt = load_dataset(
-    df,
+    df, t_classif,
+    TreatmentGroup(
+        dims=0,
+        impute=(Interpolate(), LOCF(), NOCB()),
+        datatype=:continuous
+    )
+)
+get_discrete(dt)
+get_continuous(dt)
+get_multidim(dt)
+get_tabular(dt)
+
+dt = load_dataset(
+    df, t_classif,
+    TreatmentGroup(
+        dims=1,
+        impute=(SVD(),)
+    ),
+    TreatmentGroup(
+        dims=2,
+        impute=(SVD(),)
+    )
+)
+get_discrete(dt)
+get_continuous(dt)
+get_multidim(dt)
+get_tabular(dt)
+
+dt = load_dataset(
+    df, t_classif,
+    TreatmentGroup(
+        dims=1,
+        aggrfunc=reducesize(
+            reducefunc=mean,
+            win=(splitwindow(nwindows=3),)
+        ),
+        impute=(DT.Substitute(statistic=mean),)
+    )
+)
+get_discrete(dt)
+get_continuous(dt)
+get_multidim(dt)
+get_tabular(dt)
+
+dt = load_dataset(
+    df, t_classif,
+    TreatmentGroup(
+        dims=2,
+        aggrfunc=reducesize(
+            reducefunc=mean,
+            win=(splitwindow(nwindows=2),)
+        ),
+        impute=(LOCF(), NOCB())
+    )
+)
+get_discrete(dt)
+get_continuous(dt)
+get_multidim(dt)
+get_tabular(dt)
+
+################################################################################
+dt = SX.setup_dataset(
+    df, t_classif,
+    TreatmentGroup(
+        dims=0,
+        impute=(LOCF(), NOCB()),
+        datatype=:discrete
+    )
+)
+
+dt = SX.setup_dataset(
+    df, t_classif,
+    TreatmentGroup(
+        dims=0,
+        impute=(SVD(),),
+        datatype=:continuous
+    )
+)
+
+dt = SX.setup_dataset(
+    df, t_classif,
     TreatmentGroup(
         dims=0,
         impute=(Interpolate(), LOCF(), NOCB()),
@@ -117,8 +265,8 @@ dt = load_dataset(
     )
 )
 
-dt = load_dataset(
-    df,
+dt = SX.setup_dataset(
+    df, t_classif,
     TreatmentGroup(
         dims=1,
         impute=(SVD(),)
@@ -129,8 +277,9 @@ dt = load_dataset(
     )
 )
 
-dt = load_dataset(
-    df,
+dt = SX.setup_dataset(
+    df, t_classif,
+    model=ModalDecisionTree(),
     TreatmentGroup(
         dims=1,
         aggrfunc=reducesize(
@@ -141,8 +290,9 @@ dt = load_dataset(
     )
 )
 
-dt = load_dataset(
-    df,
+dt = SX.setup_dataset(
+    df, t_classif,
+    model=ModalDecisionTree(),
     TreatmentGroup(
         dims=2,
         aggrfunc=reducesize(
@@ -152,28 +302,4 @@ dt = load_dataset(
         impute=(LOCF(), NOCB())
     )
 )
-
-# using Impute
-
-# data = dt.data[1].data
-
-# Impute.declaremissings(data; values=(NaN, "NULL"))
-
-# # Impute.interp(data)
-
-# Impute.interp(data) |> Impute.locf() |> Impute.nocb()
-
-# using Impute: Interpolate, impute!, impute
-
-# d = dt.data[1].data
-
-# impute!(d, Interpolate(); dims=2)
-
-# impute(data, Interpolate(r=RoundNearest); dims=2)
-# impute(Impute.declaremissings(data; values=(NaN, "NULL")), Impute.KNN(); dims=2)
-# impute(data, Impute.LOCF(); dims=2)
-# impute(data, Impute.NOCB(); dims=2)
-# impute(data, Impute.Substitute(statistic=Impute.defaultstats); dims=2)
-# impute(data, Impute.Substitute(statistic=mean, ); dims=2)
-# impute(data, Impute.SVD(); dims=2)
 

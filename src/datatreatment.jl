@@ -18,9 +18,10 @@ function get_discrete(
     return if isempty(ds)
         Matrix{Union{Missing,CategoricalValue}}(undef, 0, 0), String[]
     else
-        data = get_data(ds)
-        Matrix{eltype(data)}(data),
-        reduce(vcat, get_vnames.(ds))
+        # data = get_data(ds)
+        # Matrix{eltype(data)}(data),
+        # reduce(vcat, get_vnames.(ds))
+        get_data(ds), reduce(vcat, get_vnames.(ds))
     end
 end
 
@@ -31,8 +32,7 @@ function get_continuous(
     return if isempty(ds)
         Matrix{T}(undef, 0, 0), String[]
     else
-        # Matrix{Union{Missing,T}}(get_data(ds)), reduce(vcat, get_vnames.(ds))
-        Matrix{T}(get_data(ds)), reduce(vcat, get_vnames.(ds))
+        get_data(ds), reduce(vcat, get_vnames.(ds))
     end
 end
 
@@ -62,6 +62,9 @@ end
 
 is_tabular(dt::DataTreatment) = all(is_tabular.(dt.data))
 is_multidim(dt::DataTreatment) = all(is_multidim.(dt.data))
+
+has_tabular(dt::DataTreatment) = any(is_tabular.(dt.data))
+has_multidim(dt::DataTreatment) = any(is_multidim.(dt.data))
 
 # ---------------------------------------------------------------------------- #
 #                                load dataset                                  #
@@ -161,8 +164,8 @@ from a `DataTreatment` object.
     kwargs...
 ) where {T<:Float}
     data = get_reduced(dt; kwargs...)
-    Impute.declaremissings(data; values=(NaN, "NULL"))
-    any(ismissing.(data)) || (data = disallowmissing(data))
+    # Impute.declaremissings(data; values=(NaN, "NULL"))
+    # any(ismissing.(data)) || (data = disallowmissing(data))
 
-    return data
+    # return data
 end
