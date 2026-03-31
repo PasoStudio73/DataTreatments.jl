@@ -145,16 +145,6 @@ _reindex_groups(
     idxs::AbstractVector{Int}
 ) = Vector{Vector{Int}}()
 
-function _impute(data::Matrix, impute::Tuple{Vararg{<:Impute.Imputor}})
-    Impute.declaremissings(data; values=(NaN, "NULL"))
-    for im in impute
-        Impute.impute!(data, im; dims=2)
-    end
-    any(ismissing.(data)) || (data = disallowmissing(data))
-
-    return data
-end
-
 # ---------------------------------------------------------------------------- #
 #                           output dataset structs                             #
 # ---------------------------------------------------------------------------- #
@@ -431,6 +421,8 @@ mutable struct MultidimDataset{T,S} <: AbstractDataset
         hasnan = datastruct.hasnans[ids]
 
         md, nwindows = aggrfunc(data, valid, float_type)
+
+        isnothing(impute) || (md = _impute(md, impute))
 
         md_feats = if hasfield(typeof(aggrfunc), :features)
             tuples = Iterators.flatten((

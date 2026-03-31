@@ -112,7 +112,8 @@ dt = load_dataset(
     df,
     TreatmentGroup(
         dims=0,
-        impute=(Interpolate(), LOCF(), NOCB())
+        impute=(Interpolate(), LOCF(), NOCB()),
+        datatype=:continuous
     )
 )
 
@@ -132,11 +133,23 @@ dt = load_dataset(
     df,
     TreatmentGroup(
         dims=1,
-        impute=(Interpolate(), LOCF(), NOCB())
-    ),
+        aggrfunc=reducesize(
+            reducefunc=mean,
+            win=(splitwindow(nwindows=3),)
+        ),
+        impute=(Impute.Substitute(statistic=mean),)
+    )
+)
+
+dt = load_dataset(
+    df,
     TreatmentGroup(
         dims=2,
-        impute=(Interpolate(), LOCF(), NOCB())
+        aggrfunc=reducesize(
+            reducefunc=mean,
+            win=(splitwindow(nwindows=2),)
+        ),
+        impute=(LOCF(), NOCB())
     )
 )
 

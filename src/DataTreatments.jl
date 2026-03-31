@@ -36,6 +36,8 @@ export movingwindow, wholewindow, splitwindow, adaptivewindow
 export @evalwindow
 include("windowing.jl")
 
+include("impute.jl")
+
 include("inspecting.jl")
 
 export aggregate, reducesize
