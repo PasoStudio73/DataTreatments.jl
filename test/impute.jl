@@ -4,9 +4,19 @@ const SX = SoleXplorer
 using DataTreatments
 const DT = DataTreatments
 
+using MLJ
 using DataFrames
 using Random
 using CategoricalArrays
+
+Xc, yc = @load_iris
+Xc = DataFrame(Xc)
+
+Xr, yr = @load_boston
+Xr = DataFrame(Xr)
+
+natopsloader = SX.NatopsLoader()
+Xts, yts = SX.load(natopsloader)
 
 function create_image(seed::Int; n=6)
     Random.seed!(seed)
@@ -241,8 +251,7 @@ get_tabular(dt)
 dt = SX.setup_dataset(
     df, t_classif,
     TreatmentGroup(
-        dims=0,
-        impute=(LOCF(), NOCB()),
+        impute=(LOCF(), NOCB(), Interpolate()),
         datatype=:discrete
     )
 )
@@ -250,7 +259,6 @@ dt = SX.setup_dataset(
 dt = SX.setup_dataset(
     df, t_classif,
     TreatmentGroup(
-        dims=0,
         impute=(SVD(),),
         datatype=:continuous
     )
@@ -303,3 +311,16 @@ dt = SX.setup_dataset(
     )
 )
 
+################################################################################
+dt = SX.setup_dataset(Xc, yc)
+dt = SX.setup_dataset(Xr, yr)
+dt = SX.setup_dataset(
+    Xts,
+    yts,
+    model=ModalDecisionTree(),
+    TreatmentGroup(
+        aggrfunc=reducesize(
+            reducefunc=mean,
+            win=(splitwindow(nwindows=2),)
+        ),)
+)

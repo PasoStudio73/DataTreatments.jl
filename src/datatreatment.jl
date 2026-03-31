@@ -146,8 +146,9 @@ object, including discrete, continuous, and aggregated multidimensional data.
 
     X = collect(zip(mats[idxs]...))
     Tnew = unique(eltype.(X[1]))
+    data = Matrix{Union{Tnew...}}(reduce(hcat, X[1]))
 
-    return (Matrix{Union{Tnew...}}(reduce(hcat, X[1])), reduce(vcat, X[2]))
+    return (data, reduce(vcat, X[2]))
 end
 
 # ---------------------------------------------------------------------------- #
@@ -163,9 +164,8 @@ from a `DataTreatment` object.
     dt::DataTreatment{T};
     kwargs...
 ) where {T<:Float}
-    data = get_reduced(dt; kwargs...)
-    # Impute.declaremissings(data; values=(NaN, "NULL"))
-    # any(ismissing.(data)) || (data = disallowmissing(data))
+    data, vnames = get_reduced(dt; kwargs...)
+    any(ismissing.(data)) || (data = disallowmissing(data))
 
-    # return data
+    return data, vnames
 end
