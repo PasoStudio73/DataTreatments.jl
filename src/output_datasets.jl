@@ -632,17 +632,17 @@ mutable struct MultidimDataset{T,S} <: AbstractDataset
 
         md, nwindows = aggrfunc(data, valid, float_type)
 
-        isnothing(impute) || (md = _impute(md, impute))
+        if !isnothing(impute) && !isempty(md)
+            md = _impute(md, impute)
+        end
 
         md_feats, md, grouped = if hasfield(typeof(aggrfunc), :features)
-            grouped = isnothing(groups) ? nothing : _groupby(md_feats, groups)
-
             tuples = Iterators.flatten((
                 ((c, f, n) for f in _get_features(aggrfunc) for n in 1:nwindows[c])
                 for c in eachindex(ids)
             ))
 
-            [AggregateFeat{float_type}(
+            md_feats = [AggregateFeat{float_type}(
                 ids[c],
                 j,
                 vnames[c],
@@ -654,14 +654,22 @@ mutable struct MultidimDataset{T,S} <: AbstractDataset
                 nan[c],
                 hasmiss[c],
                 hasnan[c]
-            ) for (j, (c, f, n)) in enumerate(tuples)],
-            md,
-            grouped
-        else
-            if !isnothing(norm)
-                md = normalize(md, NaNSafe{norm{float_type}}; dims=1)
+            ) for (j, (c, f, n)) in enumerate(tuples)]
+
+            grouped = isnothing(groups) ?
+                _groupby(md_feats, (:vname,)) :
+                _groupby(md_feats, groups)
+
+            if !isnothing(norm) && !isempty(md)
+                Impute.replace!(md; values=NaN)
+                for i in grouped
+                    md[:,i] = normalize(md[:,i], NaNSafe{norm{float_type}})
+                end
             end
-            [ReduceFeat{AbstractArray{float_type}}(
+
+            md_feats, md, grouped
+        else
+            md_feats = [ReduceFeat{AbstractArray{float_type}}(
                 ids[i],
                 vnames[c],
                 dims[c],
@@ -669,10 +677,14 @@ mutable struct MultidimDataset{T,S} <: AbstractDataset
                 valid[c],
                 miss[c],
                 nan[c],
-                hasmiss[c],hasnan[c])
-                for (i, c) in enumerate(axes(md,2))],
-                md,
-                nothing
+                hasmiss[c],hasnan[c]
+            ) for (i, c) in enumerate(axes(md,2))]
+
+            if !isnothing(norm) && !isempty(md)
+                md = normalize(md, NaNSafe{norm{float_type}}; dims=1)
+            end
+
+            md_feats, md, nothing
         end
 
         new{float_type,eltype(md_feats)}(md, md_feats, grouped)
