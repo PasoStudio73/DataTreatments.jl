@@ -372,11 +372,25 @@ Source DataFrame (mixed types)
  │  missing   │   987.5  │   NaN     │
  │  19.8      │  1001.2  │   60.1    │
  └────────────┴──────────┴───────────┘
+         │
+         ▼  normalize! (if norm != nothing)  e.g. NaNSafe{MinMaxNormalization{Float64}}
+ ┌────────────┬──────────┬───────────┐
+ │  col_4     │  col_5   │  col_6    │   data::Matrix{Float64}  (column-wise)
+ ├────────────┼──────────┼───────────┤
+ │   0.82     │   1.00   │   0.72    │
+ │  missing   │   0.00   │   NaN     │
+ │   0.00     │   0.54   │   1.00    │
+ └────────────┴──────────┴───────────┘
 
- info = [ContinuousFeat(id=4, vname="temperature", nanidxs=[],      missingidxs=[2], ...),
-         ContinuousFeat(id=5, vname="pressure",    nanidxs=[],      missingidxs=[],  ...),
-         ContinuousFeat(id=6, vname="humidity",    nanidxs=[2],     missingidxs=[],  ...)]
+ info = [ContinuousFeat(id=4, vname="temperature", nanidxs=[],  missingidxs=[2], ...),
+         ContinuousFeat(id=5, vname="pressure",    nanidxs=[],  missingidxs=[],  ...),
+         ContinuousFeat(id=6, vname="humidity",    nanidxs=[2], missingidxs=[],  ...)]
 ```
+
+!!! note "Normalization order"
+    Imputation (if any) is applied **before** normalization.
+    NaN values produced by missing imputation are handled transparently via
+    `NaNSafe{norm{T}}`, which ignores NaNs when computing statistics.
 
 # Type Parameter
 - `T`: The floating-point type used for numeric conversion (e.g., `Float64`, `Float32`).
@@ -384,10 +398,10 @@ Source DataFrame (mixed types)
 # Constructors
 
 - `ContinuousDataset(data, info)`: Direct constructor from pre-built matrix and metadata.
-- `ContinuousDataset(ids, data, vnames, datastruct, impute, float_type)`:
+- `ContinuousDataset(ids, data, vnames, datastruct, impute, norm, float_type)`:
   Internal constructor — selects columns `ids` from `data`, converts each element
-  to `float_type` (preserving `missing`), optionally applies `impute`, and builds
-  [`ContinuousFeat`](@ref) metadata from `datastruct`.
+  to `float_type` (preserving `missing`), optionally applies `impute` and/or
+  `norm`, and builds [`ContinuousFeat`](@ref) metadata from `datastruct`.
 
 ## Arguments for internal constructor
 - `ids::Vector{Int}`: Column indices to include.
@@ -395,6 +409,9 @@ Source DataFrame (mixed types)
 - `vnames::Vector{String}`: Names of all columns.
 - `datastruct::NamedTuple`: Pre-computed dataset metadata from `_inspecting`.
 - `impute`: `nothing` or a tuple of `Impute.Imputor`s to fill missing values.
+- `norm`: `nothing` or a `Type{<:AbstractNormalization}` (e.g., `MinMax`,
+  `ZScore`) applied column-wise after imputation. NaN values
+  are handled via `NaNSafe{norm{T}}`.
 - `float_type::Type`: Target floating-point type for numeric conversion.
 
 See also: [`DiscreteDataset`](@ref), [`MultidimDataset`](@ref), [`ContinuousFeat`](@ref)
@@ -469,8 +486,8 @@ via feature functions applied over sliding windows.
 ```
 Source column "signal" (dims=1000)
  ┌────────────────────────────────────┐
- │ Row 1: [0.1, 0.2, ..., 0.9]       │
- │ Row 2: [0.3, 0.4, ..., 0.8]       │
+ │ Row 1: [0.1, 0.2, ..., 0.9]        │
+ │ Row 2: [0.3, 0.4, ..., 0.8]        │
  │ Row 3: missing                     │
  └────────────────────────────────────┘
          │
@@ -480,6 +497,15 @@ Source column "signal" (dims=1000)
  ├──────────┼─────────┼──────────┼─────────┤  (tabular, nrows × n_feats×nwins)
  │  0.312   │  0.098  │  0.601   │  0.112  │
  │  0.421   │  0.077  │  0.699   │  0.085  │
+ │ missing  │ missing │ missing  │ missing │
+ └──────────┴─────────┴──────────┴─────────┘
+         │
+         ▼  normalize! (if norm != nothing)  e.g. NaNSafe{MinMaxNormalization{Float64}}
+ ┌──────────┬─────────┬──────────┬─────────┐
+ │mean,win1 │std,win1 │mean,win2 │std,win2 │  (column-wise normalization)
+ ├──────────┼─────────┼──────────┼─────────┤
+ │  0.00    │  0.28   │  0.00    │  0.00   │
+ │  1.00    │  0.00   │  1.00    │  1.00   │
  │ missing  │ missing │ missing  │ missing │
  └──────────┴─────────┴──────────┴─────────┘
  info = [AggregateFeat(subid=1, feat=mean, nwin=1, ...),
@@ -509,6 +535,13 @@ Source column "audio" (dims=10000)
  │ Row 2: [0.31, 0.49, ..., 0.50]  (256)  │
  │ Row 3: missing                         │
  └────────────────────────────────────────┘
+         │
+         ▼  normalize! (if norm != nothing)  applied element-wise per array
+ ┌────────────────────────────────────────┐
+ │ Row 1: [0.00, 0.23, ..., 1.00]  (256)  │
+ │ Row 2: [0.00, 0.19, ..., 0.96]  (256)  │
+ │ Row 3: missing                         │
+ └────────────────────────────────────────┘
  info = [ReduceFeat(id=5, vname="audio", dims=10000, reducefunc=..., ...)]
 ```
 
@@ -518,14 +551,20 @@ Source column "audio" (dims=10000)
 
 ```
 MultidimDataset{T, S}
-├── data    ::AbstractArray                         # processed data matrix
+├── data    ::AbstractArray                              # processed data matrix
 ├── info    ::Vector{<:Union{AggregateFeat,ReduceFeat}}  # per-column metadata
-└── groups  ::Union{Nothing, Vector{Vector{Int}}}  # optional column groupings
+└── groups  ::Union{Nothing, Vector{Vector{Int}}}        # optional column groupings
              │
              └─ e.g. groups = [[1,2,3,4], [5,6,7,8]]
                 means columns 1-4 belong to group 1 (source col A),
                 and columns 5-8 belong to group 2 (source col B)
 ```
+
+!!! note "Normalization order"
+    Processing steps are applied in this order:
+    1. `aggrfunc`  — aggregation or downsampling
+    2. `impute`    — fill missing values (if provided)
+    3. `norm`      — column-wise normalization via `NaNSafe{norm{T}}` (if provided)
 
 # Type Parameters
 - `T`: Element type of the inner arrays (e.g., `Float64`).
@@ -535,9 +574,9 @@ MultidimDataset{T, S}
 
 - `MultidimDataset(data, info::Vector{<:AggregateFeat}, groups)`: Direct constructor for aggregated data.
 - `MultidimDataset(data, info::Vector{<:ReduceFeat}, groups)`: Direct constructor for reduced data.
-- `MultidimDataset(ids, data, vnames, datastruct, aggrfunc, impute, float_type, groups)`:
+- `MultidimDataset(ids, data, vnames, datastruct, aggrfunc, impute, norm, float_type, groups)`:
   Internal constructor — selects columns `ids`, applies `aggrfunc`, optionally
-  applies `impute`, and builds the corresponding metadata from `datastruct`.
+  applies `impute` and/or `norm`, and builds the corresponding metadata from `datastruct`.
 
 ## Arguments for internal constructor
 - `ids::Vector{Int}`: Column indices to include.
@@ -546,6 +585,8 @@ MultidimDataset{T, S}
 - `datastruct::NamedTuple`: Pre-computed metadata from `_inspecting`.
 - `aggrfunc::Base.Callable`: Strategy struct (e.g., `aggregate(...)` or `reducesize(...)`).
 - `impute`: `nothing` or a tuple of `Impute.Imputor`s.
+- `norm`: `nothing` or a `Type{<:AbstractNormalization}` (e.g., `MinMax`,
+  `ZScore`) applied column-wise after imputation via `NaNSafe{norm{T}}`.
 - `float_type::Type{T}`: Target floating-point type.
 - `groups`: `nothing` to disable grouping, or a `Tuple{Vararg{Symbol}}` to enable it.
 
@@ -593,7 +634,9 @@ mutable struct MultidimDataset{T,S} <: AbstractDataset
 
         isnothing(impute) || (md = _impute(md, impute))
 
-        md_feats = if hasfield(typeof(aggrfunc), :features)
+        md_feats, md, grouped = if hasfield(typeof(aggrfunc), :features)
+            grouped = isnothing(groups) ? nothing : _groupby(md_feats, groups)
+
             tuples = Iterators.flatten((
                 ((c, f, n) for f in _get_features(aggrfunc) for n in 1:nwindows[c])
                 for c in eachindex(ids)
@@ -611,8 +654,13 @@ mutable struct MultidimDataset{T,S} <: AbstractDataset
                 nan[c],
                 hasmiss[c],
                 hasnan[c]
-            ) for (j, (c, f, n)) in enumerate(tuples)]
+            ) for (j, (c, f, n)) in enumerate(tuples)],
+            md,
+            grouped
         else
+            if !isnothing(norm)
+                md = normalize(md, NaNSafe{norm{float_type}}; dims=1)
+            end
             [ReduceFeat{AbstractArray{float_type}}(
                 ids[i],
                 vnames[c],
@@ -622,10 +670,10 @@ mutable struct MultidimDataset{T,S} <: AbstractDataset
                 miss[c],
                 nan[c],
                 hasmiss[c],hasnan[c])
-                for (i, c) in enumerate(axes(md,2))]
+                for (i, c) in enumerate(axes(md,2))],
+                md,
+                nothing
         end
-
-        grouped = isnothing(groups) ? nothing : _groupby(md_feats, groups)
 
         new{float_type,eltype(md_feats)}(md, md_feats, grouped)
     end

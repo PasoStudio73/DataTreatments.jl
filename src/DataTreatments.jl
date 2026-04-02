@@ -40,10 +40,9 @@ include("windowing.jl")
 
 include("impute.jl")
 
-import Normalization: @_Normalization
 export ZScore, MinMax, Center, Sigmoid, UnitEnergy, UnitPower
 export Scale, ScaleMad, ScaleFirst, PNorm1, PNorm, PNormInf
-export Robust
+export MissingSafe, Robust
 include("normalization.jl")
 
 include("inspecting.jl")

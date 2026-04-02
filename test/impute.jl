@@ -32,7 +32,7 @@ function build_test_df()
         V1=[NaN, missing, 3.0, 4.0, 5.6],
         V2=[2.5, missing, 4.5, 5.5, NaN],
         ts1=[
-            NaN, collect(2.0:7.0),
+            missing, collect(2.0:7.0),
             missing, collect(4.0:9.0),
             collect(5.0:10.0)
         ],
@@ -43,11 +43,11 @@ function build_test_df()
             collect(1.0:0.5:4.5),
             collect(3.0:0.5:6.5),
             collect(4.0:0.5:7.5),
-            NaN
+            missing
         ],
         ts3=[
             [1.0, 1.2, 1.2, 2.6, NaN, 4.0, 4.2],
-            NaN, NaN, missing,
+            missing, missing, missing,
             [3.0, NaN, 4.4, missing, 5.8, 7.0, 7.2]
         ],
         V3=[3.2, 4.2, 5.2, missing, 2.4],
@@ -326,6 +326,7 @@ dt = SX.setup_dataset(
 )
 
 ################################################################################
+
 dt = load_dataset(
     df, t_classif,
     TreatmentGroup(
@@ -334,4 +335,56 @@ dt = load_dataset(
         norm=MinMax
     )
 )
-a=get_continuous(dt)[1]
+data = get_continuous(dt)[1]
+
+dt = load_dataset(
+    df, t_classif,
+    TreatmentGroup(
+        dims=1,
+        aggrfunc=reducesize(
+            reducefunc=mean,
+            win=(splitwindow(nwindows=2),)
+        ),
+        norm=MinMax
+    )
+)
+data = get_multidim(dt)[1]
+
+dt = load_dataset(
+    df, t_classif,
+    TreatmentGroup(
+        dims=2,
+        aggrfunc=reducesize(
+            reducefunc=mean,
+            win=(splitwindow(nwindows=2),)
+        ),
+        norm=MinMax
+    )
+)
+data = get_multidim(dt)[1]
+
+dt = load_dataset(
+    df, t_classif,
+    TreatmentGroup(
+        dims=1,
+        aggrfunc=DT.aggregate(
+            features=(mean, maximum),
+            win=(splitwindow(nwindows=2),)
+        ),
+        norm=MinMax
+    )
+)
+data = get_tabular(dt)[1]
+
+dt = load_dataset(
+    df, t_classif,
+    TreatmentGroup(
+        dims=2,
+        aggrfunc=DT.aggregate(
+            features=(mean, maximum),
+            win=(splitwindow(nwindows=2),)
+        ),
+        norm=MinMax
+    )
+)
+data = get_tabular(dt)[1]
