@@ -238,6 +238,60 @@ _reindex_groups(
     idxs::AbstractVector{Int}
 ) = Vector{Vector{Int}}()
 
+"""
+    _reindex_feat(f, keep) -> AbstractDataFeature
+
+Return a copy of feature metadata `f` with all row-index vectors
+filtered/remapped to the new row set `keep`.
+"""
+function _reindex_feat(f::DiscreteFeat{T}, keep::AbstractVector{Int}) where T
+    old_to_new = Dict(old => new for (new, old) in enumerate(keep))
+    keep_set   = Set(keep)
+    DiscreteFeat{T}(
+        f.id, f.vname,
+        [old_to_new[i] for i in f.valididxs   if i in keep_set],
+        [old_to_new[i] for i in f.missingidxs  if i in keep_set],
+        f.datatype
+    )
+end
+
+function _reindex_feat(f::ContinuousFeat{T}, keep::AbstractVector{Int}) where T
+    old_to_new = Dict(old => new for (new, old) in enumerate(keep))
+    keep_set   = Set(keep)
+    ContinuousFeat{T}(
+        f.id, f.vname,
+        [old_to_new[i] for i in f.valididxs   if i in keep_set],
+        [old_to_new[i] for i in f.missingidxs  if i in keep_set],
+        [old_to_new[i] for i in f.nanidxs      if i in keep_set],
+    )
+end
+
+function _reindex_feat(f::AggregateFeat{T}, keep::AbstractVector{Int}) where T
+    old_to_new = Dict(old => new for (new, old) in enumerate(keep))
+    keep_set   = Set(keep)
+    AggregateFeat{T}(
+        f.id, f.subid, f.vname, f.dims, f.feat, f.nwin,
+        [old_to_new[i] for i in f.valididxs   if i in keep_set],
+        [old_to_new[i] for i in f.missingidxs  if i in keep_set],
+        [old_to_new[i] for i in f.nanidxs      if i in keep_set],
+        [old_to_new[i] for i in f.hasmissing   if i in keep_set],
+        [old_to_new[i] for i in f.hasnans      if i in keep_set],
+    )
+end
+
+function _reindex_feat(f::ReduceFeat{T}, keep::AbstractVector{Int}) where T
+    old_to_new = Dict(old => new for (new, old) in enumerate(keep))
+    keep_set   = Set(keep)
+    ReduceFeat{T}(
+        f.id, f.vname, f.dims, f.reducefunc,
+        [old_to_new[i] for i in f.valididxs   if i in keep_set],
+        [old_to_new[i] for i in f.missingidxs  if i in keep_set],
+        [old_to_new[i] for i in f.nanidxs      if i in keep_set],
+        [old_to_new[i] for i in f.hasmissing   if i in keep_set],
+        [old_to_new[i] for i in f.hasnans      if i in keep_set],
+    )
+end
+
 # ---------------------------------------------------------------------------- #
 #                           output dataset structs                             #
 # ---------------------------------------------------------------------------- #
@@ -733,7 +787,7 @@ is_tabular(d::AbstractDataset) = d isa Union{
 }
 is_multidim(d::AbstractDataset) = isa(d, MultidimDataset{<:Any, ReduceFeat})
 
-get_vnames(d::AbstractDataset)::Vector{String} = get_vnames.(d.info)
+get_vnames(d::AbstractDataset) = get_vnames.(d.info)
 
 function get_vnames(
     ds::MultidimDataset{<:Any,<:AggregateFeat};

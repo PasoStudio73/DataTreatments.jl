@@ -332,12 +332,10 @@ dt = load_dataset(
     TreatmentGroup(
         dims=0,
         datatype=:continuous,
-        # norm=MinMax
+        norm=DT.MinMax
     )
 )
 data = get_continuous(dt)[1]
-
-MinMax(dt)
 
 dt = load_dataset(
     df, t_classif,
@@ -347,7 +345,7 @@ dt = load_dataset(
             reducefunc=mean,
             win=(splitwindow(nwindows=2),)
         ),
-        norm=MinMax
+        norm=DT.MinMax
     )
 )
 data = get_multidim(dt)[1]
@@ -360,7 +358,7 @@ dt = load_dataset(
             reducefunc=mean,
             win=(splitwindow(nwindows=2),)
         ),
-        norm=MinMax
+        norm=DT.MinMax
     )
 )
 data = get_multidim(dt)[1]
@@ -373,7 +371,7 @@ dt = load_dataset(
             features=(mean, maximum),
             win=(splitwindow(nwindows=2),)
         ),
-        norm=MinMax
+        norm=DT.MinMax
     )
 )
 data = get_tabular(dt)[1]
@@ -386,7 +384,7 @@ dt = load_dataset(
             features=(mean, maximum),
             win=(splitwindow(nwindows=2),)
         ),
-        norm=MinMax
+        norm=DT.MinMax
     )
 )
 data = get_tabular(dt)[1]

@@ -140,6 +140,50 @@ multidim = get_multidim(dt)
     @test isa(red, Tuple{AbstractMatrix, AbstractVector})
 end
 
+@testset "load_dataset(dt::DataTreatment) round-trip" begin
+    df = build_test_df()
+    t_classif = ["classA", "classB", "classC", "classA", "classB"]
+
+    # Basic round-trip: no treatments
+    dt_orig = load_dataset(df, t_classif)
+    dt_rt = load_dataset(dt_orig)
+
+    @test isa(dt_rt, DT.DataTreatment)
+    @test get_target(dt_rt) == get_target(dt_orig)
+    @test nrows(dt_rt) == nrows(dt_orig)
+
+    # Column count should be preserved
+    orig_tab = get_tabular(dt_orig)
+    rt_tab   = get_tabular(dt_rt)
+    @test size(orig_tab[1]) == size(rt_tab[1])
+    @test orig_tab[2] == rt_tab[2]
+
+    # Round-trip preserves float_type kwarg
+    dt_f32 = load_dataset(dt_orig; float_type=Float32)
+    @test dt_f32 isa DT.DataTreatment{Float32}
+
+    # Round-trip with explicit DefaultTreatmentGroup
+    dt_explicit = load_dataset(dt_orig, DT.DefaultTreatmentGroup)
+    @test isa(dt_explicit, DT.DataTreatment)
+    @test nrows(dt_explicit) == nrows(dt_orig)
+
+    # Round-trip with a custom treatment
+    dt_custom = load_dataset(
+        df,
+        TreatmentGroup(
+            dims=1,
+            aggrfunc=DT.aggregate(
+                features=(mean, maximum),
+                win=(adaptivewindow(nwindows=5, overlap=0.4),)
+            ),
+            groupby=:feat
+        )
+    )
+    dt_rt_custom = load_dataset(dt_custom)
+    @test isa(dt_rt_custom, DT.DataTreatment)
+    @test nrows(dt_rt_custom) == nrows(dt_custom)
+end
+
 n_rows = 100
 n_cols = 10
 
@@ -172,53 +216,16 @@ end
 vnames = ["V$i" for i in 1:n_cols]
 target = categorical(rand(["A","B"], n_rows))
 
-dt = load_dataset(data, vnames, target)
+@testset "missing and nan filter" begin
+    dt = load_dataset(data, vnames, target)
 
-filter_missing!(dt, 0.5, include_nans=true, dims=2)
-filter_missing!(dt, 0.5, include_nans=true, dims=1)
+    dt_filt = filter_missing(dt, 0.7, include_nans=true, dims=2)
+    dt_filt = filter_missing(dt_filt, 0.7, include_nans=true, dims=1)
 
-@test size(dt.data[1].data) == (99, 9)
+    @test size(dt_filt.data[1].data) == (99, 9)
 
-filter_missing!(dt, 0.3, include_nans=true, dims=2)
-filter_missing!(dt, 0.3, include_nans=true, dims=1)
+    dt_filt = filter_missing(dt_filt, 0.3, include_nans=true, dims=2)
+    dt_filt = filter_missing(dt_filt, 0.45, include_nans=true, dims=1)
 
-@test size(dt.data[1].data) == (98, 8)
-
-
-function filter_missing(
-    dt::DataTreatment{T},
-    perc::AbstractFloat;
-    include_nans::Bool=true,
-    dims::Int=2
-) where T
-    @assert 0.0 ≤ perc ≤ 1.0 "perc must be between 0.0 and 1.0, got $perc"
-
-    dt.data = map(dt.data) do d
-        missings = DataTreatments.get_missingidxs.(d.info)
-        missings = include_nans && !isa(d, DT.DiscreteDataset) ?
-            union.(missings, DataTreatments.get_nanidxs.(d.info)) :
-            missings
-
-        n = nrows(d)
-
-        if dims == 1  # row-wise
-            # nc = ncols(d)
-            # row_badcount = zeros(Int, n)
-            # foreach(idxs -> (row_badcount[idxs] .+= 1), missings)
-            # keep = (row_badcount ./ nc) .≤ perc
-            # typeof(d).name.wrapper(d.data[keep, :], d.info)
-        else          # col-wise
-            keep = (length.(missings) ./ n) .≤ perc
-            isa(d, DT.MultidimDataset{<:Any, DT.AggregateFeat}) ?
-                typeof(d).name.wrapper(d.data[:, keep], d.info[keep], d.groups) :
-                typeof(d).name.wrapper(d.data[:, keep], d.info[keep])
-        end
-    end
-
-    return dt
+    @test size(dt_filt.data[1].data) == (98, 8)
 end
-
-d=dt.data[1]
-d=dt.data[3]
-
-missings = DataTreatments.get_missingidxs.(d.info)

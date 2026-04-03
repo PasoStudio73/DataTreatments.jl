@@ -69,6 +69,7 @@ end
 nrows(dt::DataTreatment) = size(first(dt.data).data, 1)
 
 get_target(dt::DataTreatment) = dt.target
+get_treats(dt::DataTreatment) = dt.treats
 
 function get_discrete(
     dt::DataTreatment
@@ -187,7 +188,7 @@ function load_dataset(
     kwargs...
 ) where T
     data = reduce(hcat, d.data for d in dt.data)
-    vnames = get_vnames.(reduce(vcat, d.info for d in dt.data))
+    vnames = reduce(vcat, get_vnames(d) for d in dt.data)
     target = get_target(dt)
 
     load_dataset(data, vnames, target, treatments...; kwargs...)
@@ -249,7 +250,7 @@ function filter_missing(
 ) where T
     @assert 0.0 ≤ perc ≤ 1.0 "perc must be between 0.0 and 1.0, got $perc"
 
-    dt.data = map(dt.data) do d
+    data = map(dt.data) do d
         missings = get_missingidxs.(d.info)
         missings = include_nans && !isa(d, DiscreteDataset) ?
             union.(missings, get_nanidxs.(d.info)) :
@@ -258,11 +259,17 @@ function filter_missing(
         n = nrows(d)
 
         if dims == 1  # row-wise
-            # nc = ncols(d)
-            # row_badcount = zeros(Int, n)
-            # foreach(idxs -> (row_badcount[idxs] .+= 1), missings)
-            # keep = (row_badcount ./ nc) .≤ perc
-            # typeof(d).name.wrapper(d.data[keep, :], d.info)
+            nc = ncols(d)
+            row_badcount = zeros(Int, n)
+            foreach(idxs -> (row_badcount[idxs] .+= 1), missings)
+            keep = findall((row_badcount ./ nc) .≤ perc)
+            new_info = _reindex_feat.(d.info, Ref(keep))
+
+            isa(d, MultidimDataset{<:Any, AggregateFeat}) ?
+                typeof(d).name.wrapper(d.data[keep, :], new_info, d.groups) :
+            isa(d, MultidimDataset{<:Any, ReduceFeat}) ?
+                typeof(d).name.wrapper(d.data[keep, :], new_info, d.groups) :
+                typeof(d).name.wrapper(d.data[keep, :], new_info)
         else          # col-wise
             keep = (length.(missings) ./ n) .≤ perc
             isa(d, MultidimDataset{<:Any, AggregateFeat}) ?
@@ -271,6 +278,6 @@ function filter_missing(
         end
     end
 
-    return dt
+    return DataTreatment{T}(data, get_target(dt), get_treats(dt))
 end
 
