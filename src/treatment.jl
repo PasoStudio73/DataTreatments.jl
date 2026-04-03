@@ -57,7 +57,7 @@ See also: [`DiscreteDataset`](@ref), [`ContinuousDataset`](@ref),
 function _build_ds(
     ids::Vector{Int},
     treat::TreatmentGroup,
-    data::Matrix,
+    data::AbstractMatrix,
     vnames::Vector{String},
     datastruct::NamedTuple,
     float_type::Type{T}
@@ -147,7 +147,7 @@ See also: [`TreatmentGroup`](@ref), [`DiscreteDataset`](@ref), [`ContinuousDatas
 [`MultidimDataset`](@ref), [`_split_md_by_dims`](@ref)
 """
 function _treatments_ds(
-    data::Matrix,
+    data::AbstractMatrix,
     vnames::Vector{String},
     datastruct::NamedTuple,
     treats::Vector{<:TreatmentGroup},

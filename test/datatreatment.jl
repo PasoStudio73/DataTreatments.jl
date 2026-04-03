@@ -139,3 +139,86 @@ multidim = get_multidim(dt)
     red = get_multidim(dt3)
     @test isa(red, Tuple{AbstractMatrix, AbstractVector})
 end
+
+n_rows = 100
+n_cols = 10
+
+# helper to sprinkle missing/NaN at given fraction
+function make_col(n, frac)
+    col = Vector{Union{Missing,Float64}}(rand(n))
+    n_bad = round(Int, frac * n)
+    idxs = randperm(n)[1:n_bad]
+    for i in idxs
+        col[i] = iseven(i) ? missing : NaN
+    end
+    return col
+end
+
+# build columns: 8 clean-ish (< 40%), 1 at ~40%, 1 at ~90%
+cols = [make_col(n_rows, 0.05) for _ in 1:8]
+push!(cols, make_col(n_rows, 0.40))   # col 9  → 40% bad
+push!(cols, make_col(n_rows, 0.90))   # col 10 → 90% bad
+
+data = Matrix(hcat(cols...))          # n_rows × n_cols
+
+# build rows: make row 5 → ~90% bad, row 20 → ~40% bad
+for j in 1:round(Int, 0.90 * n_cols)
+    data[5,  j] = iseven(j) ? missing : NaN
+end
+for j in 1:round(Int, 0.40 * n_cols)
+    data[20, j] = iseven(j) ? missing : NaN
+end
+
+vnames = ["V$i" for i in 1:n_cols]
+target = categorical(rand(["A","B"], n_rows))
+
+dt = load_dataset(data, vnames, target)
+
+filter_missing!(dt, 0.5, include_nans=true, dims=2)
+filter_missing!(dt, 0.5, include_nans=true, dims=1)
+
+@test size(dt.data[1].data) == (99, 9)
+
+filter_missing!(dt, 0.3, include_nans=true, dims=2)
+filter_missing!(dt, 0.3, include_nans=true, dims=1)
+
+@test size(dt.data[1].data) == (98, 8)
+
+
+function filter_missing(
+    dt::DataTreatment{T},
+    perc::AbstractFloat;
+    include_nans::Bool=true,
+    dims::Int=2
+) where T
+    @assert 0.0 ≤ perc ≤ 1.0 "perc must be between 0.0 and 1.0, got $perc"
+
+    dt.data = map(dt.data) do d
+        missings = DataTreatments.get_missingidxs.(d.info)
+        missings = include_nans && !isa(d, DT.DiscreteDataset) ?
+            union.(missings, DataTreatments.get_nanidxs.(d.info)) :
+            missings
+
+        n = nrows(d)
+
+        if dims == 1  # row-wise
+            # nc = ncols(d)
+            # row_badcount = zeros(Int, n)
+            # foreach(idxs -> (row_badcount[idxs] .+= 1), missings)
+            # keep = (row_badcount ./ nc) .≤ perc
+            # typeof(d).name.wrapper(d.data[keep, :], d.info)
+        else          # col-wise
+            keep = (length.(missings) ./ n) .≤ perc
+            isa(d, DT.MultidimDataset{<:Any, DT.AggregateFeat}) ?
+                typeof(d).name.wrapper(d.data[:, keep], d.info[keep], d.groups) :
+                typeof(d).name.wrapper(d.data[:, keep], d.info[keep])
+        end
+    end
+
+    return dt
+end
+
+d=dt.data[1]
+d=dt.data[3]
+
+missings = DataTreatments.get_missingidxs.(d.info)

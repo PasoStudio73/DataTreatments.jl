@@ -64,13 +64,14 @@ include("groupby.jl")
 
 export DataTreatment
 export load_dataset
-export nrows
+export nrows, ncols
 export get_target, get_levels
 export get_discrete, get_continuous
 export get_aggregated, get_reduced
 export get_tabular, get_multidim
 export is_tabular, is_multidim
 export has_tabular, has_multidim
+export filter_missing
 include("datatreatment.jl")
 
 end

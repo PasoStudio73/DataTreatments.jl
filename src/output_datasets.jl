@@ -201,6 +201,8 @@ get_subid(f::AggregateFeat) = f.subid
 get_dims(f::Union{AggregateFeat,ReduceFeat}) = f.dims
 
 get_vnames(d::AbstractDataFeature) = d.vname
+get_missingidxs(d::AbstractDataFeature) = d.missingidxs
+get_nanidxs(d::AbstractDataFeature) = d.nanidxs
 
 # ---------------------------------------------------------------------------- #
 #                                   utils                                      #
@@ -612,7 +614,7 @@ mutable struct MultidimDataset{T,S} <: AbstractDataset
 
     function MultidimDataset(
         ids::Vector{Int},
-        data::Matrix,
+        data::AbstractMatrix,
         vnames::Vector{String},
         datastruct::NamedTuple,
         aggrfunc::F,
@@ -697,6 +699,13 @@ end
 Base.eltype(::DiscreteDataset{T}) where T = T
 Base.eltype(::ContinuousDataset{T}) where T = T
 Base.eltype(::MultidimDataset{T})where T = T
+
+nrows(d::AbstractDataset) = size(d.data, 1)
+ncols(d::AbstractDataset) = size(d.data, 2)
+Base.ndims(d::AbstractDataset) = ndims(d.data)
+Base.size(d::AbstractDataset) = size(d.data)
+Base.size(d::AbstractDataset, i::Int) = size(d.data, i)
+Base.length(d::AbstractDataset) = length(d.data)
 
 Base.getindex(ds::MultidimDataset, idxs::AbstractVector{Int}) =
     MultidimDataset(

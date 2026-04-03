@@ -332,10 +332,12 @@ dt = load_dataset(
     TreatmentGroup(
         dims=0,
         datatype=:continuous,
-        norm=MinMax
+        # norm=MinMax
     )
 )
 data = get_continuous(dt)[1]
+
+MinMax(dt)
 
 dt = load_dataset(
     df, t_classif,

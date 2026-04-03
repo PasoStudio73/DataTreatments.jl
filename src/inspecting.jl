@@ -34,7 +34,7 @@ For each column:
 - `hasmissing::Vector{Vector{Int}}`: Indices of array elements that internally contain `missing` values.
 - `hasnans::Vector{Vector{Int}}`: Indices of array elements that internally contain `NaN` values.
 """
-function _inspecting(data::Matrix)
+function _inspecting(data::AbstractMatrix)
         ncols = size(data, 2)
         id = collect(1:ncols)
 

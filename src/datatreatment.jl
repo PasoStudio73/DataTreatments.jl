@@ -126,14 +126,14 @@ has_multidim(dt::DataTreatment) = any(is_multidim.(dt.data))
 #                                load dataset                                  #
 # ---------------------------------------------------------------------------- #
 function load_dataset(
-    data::Matrix,
+    data::AbstractMatrix{T},
     vnames::Vector{String}=["V$i" for i in 1:size(data, 2)],
     target::Union{Nothing,AbstractVector}=nothing,
     treatments::Vararg{Base.Callable}=DefaultTreatmentGroup;
     treatment_ds::Bool=true,
     leftover_ds::Bool=false,
     float_type::Type=Float64
-)
+) where T
     datastruct = _inspecting(data)
 
     if isnothing(target)
@@ -181,6 +181,18 @@ load_dataset(df::DataFrame, target::AbstractVector, args...; kwargs...) =
 load_dataset(df::DataFrame, args...; kwargs...) =
     load_dataset(Matrix(df), names(df), CategoricalVector[], args...; kwargs...)
 
+function load_dataset(
+    dt::DataTreatment{T},
+    treatments::Vararg{Base.Callable}=DefaultTreatmentGroup;
+    kwargs...
+) where T
+    data = reduce(hcat, d.data for d in dt.data)
+    vnames = get_vnames.(reduce(vcat, d.info for d in dt.data))
+    target = get_target(dt)
+
+    load_dataset(data, vnames, target, treatments...; kwargs...)
+end
+
 # ---------------------------------------------------------------------------- #
 #                             get tabular method                               #
 # ---------------------------------------------------------------------------- #
@@ -225,3 +237,40 @@ from a `DataTreatment` object.
 
     return data, vnames
 end
+
+# ---------------------------------------------------------------------------- #
+#                         filter missing by percentage                         #
+# ---------------------------------------------------------------------------- #
+function filter_missing(
+    dt::DataTreatment{T},
+    perc::AbstractFloat;
+    include_nans::Bool=true,
+    dims::Int=2
+) where T
+    @assert 0.0 ≤ perc ≤ 1.0 "perc must be between 0.0 and 1.0, got $perc"
+
+    dt.data = map(dt.data) do d
+        missings = get_missingidxs.(d.info)
+        missings = include_nans && !isa(d, DiscreteDataset) ?
+            union.(missings, get_nanidxs.(d.info)) :
+            missings
+
+        n = nrows(d)
+
+        if dims == 1  # row-wise
+            # nc = ncols(d)
+            # row_badcount = zeros(Int, n)
+            # foreach(idxs -> (row_badcount[idxs] .+= 1), missings)
+            # keep = (row_badcount ./ nc) .≤ perc
+            # typeof(d).name.wrapper(d.data[keep, :], d.info)
+        else          # col-wise
+            keep = (length.(missings) ./ n) .≤ perc
+            isa(d, MultidimDataset{<:Any, AggregateFeat}) ?
+                typeof(d).name.wrapper(d.data[:, keep], d.info[keep], d.groups) :
+                typeof(d).name.wrapper(d.data[:, keep], d.info[keep])
+        end
+    end
+
+    return dt
+end
+
