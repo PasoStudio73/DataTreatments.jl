@@ -250,19 +250,22 @@ function filter_missing(
 ) where T
     @assert 0.0 ≤ perc ≤ 1.0 "perc must be between 0.0 and 1.0, got $perc"
 
-    data = map(dt.data) do d
-        missings = get_missingidxs.(d.info)
-        missings = include_nans && !isa(d, DiscreteDataset) ?
-            union.(missings, get_nanidxs.(d.info)) :
-            missings
+    if dims == 1  # row-wise: global keep mask across ALL sub-datasets
+        n = nrows(dt)
+        total_cols = sum(ncols(d) for d in dt.data)
+        row_badcount = zeros(Int, n)
 
-        n = nrows(d)
-
-        if dims == 1  # row-wise
-            nc = ncols(d)
-            row_badcount = zeros(Int, n)
+        for d in dt.data
+            missings = get_missingidxs.(d.info)
+            missings = include_nans && !isa(d, DiscreteDataset) ?
+                union.(missings, get_nanidxs.(d.info)) :
+                missings
             foreach(idxs -> (row_badcount[idxs] .+= 1), missings)
-            keep = findall((row_badcount ./ nc) .≤ perc)
+        end
+
+        keep = findall((row_badcount ./ total_cols) .≤ perc)
+
+        data = map(dt.data) do d
             new_info = _reindex_feat.(d.info, Ref(keep))
 
             isa(d, MultidimDataset{<:Any, AggregateFeat}) ?
@@ -270,14 +273,29 @@ function filter_missing(
             isa(d, MultidimDataset{<:Any, ReduceFeat}) ?
                 typeof(d).name.wrapper(d.data[keep, :], new_info, d.groups) :
                 typeof(d).name.wrapper(d.data[keep, :], new_info)
-        else          # col-wise
+        end
+
+        target = get_target(dt)
+        target = isempty(target) ? target : target[keep]
+
+        return DataTreatment{T}(data, target, get_treats(dt))
+
+    else  # col-wise: independent per sub-dataset (no row consistency issue)
+        data = map(dt.data) do d
+            missings = get_missingidxs.(d.info)
+            missings = include_nans && !isa(d, DiscreteDataset) ?
+                union.(missings, get_nanidxs.(d.info)) :
+                missings
+
+            n = nrows(d)
             keep = (length.(missings) ./ n) .≤ perc
+
             isa(d, MultidimDataset{<:Any, AggregateFeat}) ?
                 typeof(d).name.wrapper(d.data[:, keep], d.info[keep], d.groups) :
                 typeof(d).name.wrapper(d.data[:, keep], d.info[keep])
         end
-    end
 
-    return DataTreatment{T}(data, get_target(dt), get_treats(dt))
+        return DataTreatment{T}(data, get_target(dt), get_treats(dt))
+    end
 end
 
