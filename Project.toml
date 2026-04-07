@@ -17,11 +17,11 @@ NormalizationExt = "Normalization"
 
 [compat]
 Catch22 = "0.7"
-CategoricalArrays = "1"
+CategoricalArrays = "0.10, 1"
 DataFrames = "1"
 Impute = "0.6"
 Normalization = "0.9"
-Reexport = "1.2"
+Reexport = "1"
 Statistics = "1"
 julia = "1"
 
