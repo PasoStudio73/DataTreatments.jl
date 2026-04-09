@@ -216,6 +216,7 @@ object, including discrete, continuous, and aggregated multidimensional data.
     X = collect(zip(mats[idxs]...))
     Tnew = unique(eltype.(X[1]))
     data = Matrix{Union{Tnew...}}(reduce(hcat, X[1]))
+    any(ismissing.(data)) || (data = disallowmissing(data))
 
     return (data, reduce(vcat, X[2]))
 end
