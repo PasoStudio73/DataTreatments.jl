@@ -41,10 +41,12 @@ function aggregate(
     X::AbstractArray,
     idx::AbstractVector{Vector{Int}},
     float_type::Type;
-    win::Tuple{Vararg{Base.Callable}},
+    win::Union{Base.Callable,Tuple{Vararg{Base.Callable}}},
     features::Tuple{Vararg{Base.Callable}}
 )
     isempty(X) && return (Matrix{Union{Missing,float_type}}(undef, 0, 0), 0)
+
+    win isa Base.Callable && (win=(win,))
 
     colwin = [[n > length(win) ?
         last(win) :
@@ -102,7 +104,7 @@ end
 Curried form that returns a closure `(X, idx, float_type) -> aggregate(X, idx, float_type; win, features)`.
 """
 aggregate(;
-    win::Tuple{Vararg{Base.Callable}}=(wholewindow(),),
+    win::Union{Base.Callable,Tuple{Vararg{Base.Callable}}}=wholewindow(),
     features::Tuple{Vararg{Base.Callable}}=(maximum, minimum, mean)
 ) = (x, i, ft) -> aggregate(x, i, ft; win, features)
 
@@ -136,12 +138,14 @@ function reducesize(
     X::AbstractArray,
     idx::AbstractVector{Vector{Int}},
     float_type::DataType;
-    win::Tuple{Vararg{Base.Callable}},
+    win::Union{Base.Callable,Tuple{Vararg{Base.Callable}}},
     reducefunc::Base.Callable,
 )
     isempty(X) && return (
         Array{Union{Missing,Array{float_type}}}(undef, 0, 0), 0
     )
+
+    win isa Base.Callable && (win=(win,))
 
     Xr = Array{Union{Missing,Array{float_type}}}(undef, size(X))
 
@@ -182,6 +186,6 @@ end
 Curried form that returns a closure `(X, idx, float_type) -> reducesize(X, idx, float_type; win, reducefunc)`.
 """
 reducesize(;
-    win::Tuple{Vararg{Base.Callable}}=(wholewindow(),),
+    win::Union{Base.Callable,Tuple{Vararg{Base.Callable}}}=wholewindow(),
     reducefunc::Base.Callable=mean
 ) = (x, i, ft) -> reducesize(x, i, ft; win, reducefunc)
