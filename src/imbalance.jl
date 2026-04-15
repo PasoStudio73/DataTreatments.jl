@@ -1,0 +1,268 @@
+# ---------------------------------------------------------------------------- #
+#                       oversampling imbalance structs                         #
+# ---------------------------------------------------------------------------- #
+struct RandomOversampler{T} <: AbstractBalance
+    balance::Base.Callable
+    ratios::Union{Real,Dict}
+    rng::AbstractRNG
+    try_preserve_type::Bool
+
+    function RandomOversampler(;
+        ratios::T=1.0,
+        rng::AbstractRNG=TaskLocalRNG(),
+        try_preserve_type::Bool=true
+    ) where {T<:Union{Real,Dict}}
+        new{T}(
+            random_oversample,
+            ratios,
+            rng,
+            try_preserve_type
+        )
+    end
+end
+
+struct RandomWalkOversampler{T} <: AbstractBalance
+    balance::Base.Callable
+    ratios::Union{Real,Dict}
+    rng::AbstractRNG
+    try_preserve_type::Bool
+
+    function RandomWalkOversampler(;
+        ratios::T=1.0,
+        rng::AbstractRNG=TaskLocalRNG(),
+        try_preserve_type::Bool=true
+    ) where {T<:Union{Real,Dict}}
+        new{T}(
+            random_walk_oversample,
+            ratios,
+            rng,
+            try_preserve_type
+        )
+    end
+end
+
+struct ROSE{T} <: AbstractBalance
+    balance::Base.Callable
+    s::AbstractFloat
+    ratios::T
+    rng::AbstractRNG
+    try_preserve_type::Bool
+
+    function ROSE(;
+        s::AbstractFloat=1.0,
+        ratios::T=1.0,
+        rng::AbstractRNG=TaskLocalRNG(),
+        try_preserve_type::Bool=true
+    ) where {T<:Union{Real,Dict}}
+        new{T}(
+            rose,
+            s,
+            ratios,
+            rng,
+            try_preserve_type
+        )
+    end
+end
+
+struct SMOTE{T} <: AbstractBalance
+    balance::Base.Callable
+    k::Int
+    ratios::T
+    rng::AbstractRNG
+    try_preserve_type::Bool
+
+    function SMOTE(;
+        k::Int=5,
+        ratios::T=1.0,
+        rng::AbstractRNG=TaskLocalRNG(),
+        try_preserve_type::Bool=true
+    ) where {T<:Union{Real,Dict}}
+        new{T}(
+            smote,
+            k,
+            ratios,
+            rng,
+            try_preserve_type
+        )
+    end
+end
+
+struct BorderlineSMOTE1{T} <: AbstractBalance
+    balance::Base.Callable
+    m::Int
+    k::Int
+    ratios::T
+    rng::AbstractRNG
+    try_preserve_type::Bool
+    verbosity::Int
+
+    function BorderlineSMOTE1(;
+        m::Int=5,
+        k::Int=5,
+        ratios::T=1.0,
+        rng::AbstractRNG=TaskLocalRNG(),
+        try_preserve_type::Bool=true,
+        verbosity::Int=0
+    ) where {T<:Union{Real,Dict}}
+        new{T}(
+            borderline_smote1,
+            m,
+            k,
+            ratios,
+            rng,
+            try_preserve_type,
+            verbosity
+        )
+    end
+end
+
+struct SMOTEN{T} <: AbstractBalance
+    balance::Base.Callable
+    k::Int
+    ratios::T
+    rng::AbstractRNG
+    try_preserve_type::Bool
+
+    function SMOTEN(;
+        k::Int=5,
+        ratios::T=1.0,
+        rng::AbstractRNG=TaskLocalRNG(),
+        try_preserve_type::Bool=true
+    ) where {T<:Union{Real,Dict}}
+        new{T}(
+            smoten,
+            k,
+            ratios,
+            rng,
+            try_preserve_type
+        )
+    end
+end
+
+struct SMOTENC{T} <: AbstractBalance
+    balance::Base.Callable
+    k::Int
+    knn_tree::AbstractString
+    ratios::T
+    rng::AbstractRNG
+    try_preserve_type::Bool
+
+    function SMOTENC(;
+        k::Int=5,
+        knn_tree::AbstractString="Brute",
+        ratios::T=1.0,
+        rng::AbstractRNG=TaskLocalRNG(),
+        try_preserve_type::Bool=true
+    ) where {T<:Union{Real,Dict}}
+        new{T}(
+            smotenc,
+            k,
+            knn_tree,
+            ratios,
+            rng,
+            try_preserve_type
+        )
+    end
+end
+
+# ---------------------------------------------------------------------------- #
+#                      undersampling imbalance structs                         #
+# ---------------------------------------------------------------------------- #
+struct RandomUndersampler{T} <: AbstractBalance
+    balance::Base.Callable
+    ratios::Union{Real,Dict}
+    rng::AbstractRNG
+    try_preserve_type::Bool
+
+    function RandomUndersampler(;
+        ratios::T=1.0,
+        rng::AbstractRNG=TaskLocalRNG(),
+        try_preserve_type::Bool=true
+    ) where {T<:Union{Real,Dict}}
+        new{T}(
+            random_undersample,
+            ratios,
+            rng,
+            try_preserve_type
+        )
+    end
+end
+
+struct ClusterUndersampler{T} <: AbstractBalance
+    balance::Base.Callable
+    mode::AbstractString
+    maxiter::Int
+    ratios::Union{Real,Dict}
+    rng::AbstractRNG
+    try_preserve_type::Bool
+
+    function ClusterUndersampler(;
+        mode::AbstractString="nearest", 
+        maxiter::Int=100, 
+        ratios::T=1.0,
+        rng::AbstractRNG=TaskLocalRNG(),
+        try_preserve_type::Bool=true
+    ) where {T<:Union{Real,Dict}}
+        new{T}(
+            cluster_undersample,
+            mode,
+            maxiter,
+            ratios,
+            rng,
+            try_preserve_type
+        )
+    end
+end
+
+struct ENNUndersampler{T} <: AbstractBalance
+    balance::Base.Callable
+    k::Int
+    keep_condition::AbstractString
+    force_min_ratios::Bool
+    min_ratios::Union{Real,Dict}
+    rng::AbstractRNG
+    try_preserve_type::Bool
+
+    function ENNUndersampler(;
+        k::Int=5,
+        keep_condition::AbstractString="mode", 
+        force_min_ratios::Bool=false, 
+        min_ratios::T=1.0,
+        rng::AbstractRNG=TaskLocalRNG(),
+        try_preserve_type::Bool=true
+    ) where {T<:Union{Real,Dict}}
+        new{T}(
+            enn_undersample,
+            k,
+            keep_condition,
+            force_min_ratios,
+            min_ratios,
+            rng,
+            try_preserve_type
+        )
+    end
+end
+
+struct TomekUndersampler{T} <: AbstractBalance
+    balance::Base.Callable
+    force_min_ratios::Bool
+    min_ratios::Union{Real,Dict}
+    rng::AbstractRNG
+    try_preserve_type::Bool
+
+    function TomekUndersampler(;
+        force_min_ratios::Bool=false, 
+        min_ratios::T=1.0,
+        rng::AbstractRNG=TaskLocalRNG(),
+        try_preserve_type::Bool=true
+    ) where {T<:Union{Real,Dict}}
+        new{T}(
+            tomek_undersample,
+            force_min_ratios,
+            min_ratios,
+            rng,
+            try_preserve_type
+        )
+    end
+end
+
