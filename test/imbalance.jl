@@ -1,45 +1,164 @@
-using MLJ, Imbalance
+using Test
 
-SMOTE = @load SMOTE pkg=Imbalance verbosity=0
-TomekUndersampler = @load TomekUndersampler pkg=Imbalance verbosity=0
-DecisionTreeClassifier = @load DecisionTreeClassifier pkg=DecisionTree verbosity=0
+using DataTreatments
+const DT = DataTreatments
 
-oversampler = SMOTE(k=5, ratios=1.0, rng=42)
-undersampler = TomekUndersampler(min_ratios=0.5, rng=42)
+using MLJ
+using DataFrames
 
-model = DecisionTreeClassifier()
+Xc, yc = @load_iris
+Xc = DataFrame(Xc)
 
-balanced_model = BalancedModel(model=model, 
-                               balancer1=oversampler, balancer2=undersampler)
+# create imbalanced dataset
+X = vcat(Xc[1:25, :], Xc[51:100, :], Xc[101:135, :])
+y = vcat(yc[1:25], yc[51:100], yc[101:135])
 
-num_rows = 500
-num_features = 2
-# generating continuous features given mean and std
-X, y = generate_imbalanced_data(
-	num_rows,
-	num_features;
-	means = [1.0, 4.0, [7.0 9.0]],
-	stds = [1.0, [0.5 0.8], 2.0],
-	class_probs=[0.5, 0.2, 0.3],
-	type="Matrix",
-	rng = 42,
-)
-checkbalance(y)
+@testset "Imbalance structs" begin
+    @testset "RandomOversampler" begin
+        dt = load_dataset(
+            X, y;
+            balance=DT.RandomOversampler()
+        )
+        t = DT.get_target(dt)
+        @test length(t) ≥ length(y)
+    end
 
-m = machine(balanced_model, X, y)
+    @testset "RandomWalkOversampler" begin
+        dt = load_dataset(
+            X, y;
+            balance=DT.RandomWalkOversampler()
+        )
+        t = DT.get_target(dt)
+        @test length(t) ≥ length(y)
+    end
 
-Xm = m.args[1].data
-ym = m.args[2].data
-checkbalance(ym)
+    @testset "ROSE" begin
+        dt = load_dataset(
+            X, y;
+            balance=DT.ROSE()
+        )
+        t = DT.get_target(dt)
+        @test length(t) ≥ length(y)
+    end
 
-x1,y1 = smote(X,y,k=5, ratios=0.75, rng=42)
-x2,y2 = smote(X,y,k=5, ratios=0.75, rng=42)
-y1==y2
-checkbalance(y1)
-# test2 = tomek_undersample(min_ratios=0.5, rng=42)
+    @testset "SMOTE" begin
+        dt = load_dataset(
+            X, y;
+            balance=DT.SMOTE(k=5)
+        )
+        t = DT.get_target(dt)
+        @test length(t) ≥ length(y)
+    end
 
-a=load_dataset(X,["1","2"],y; balance=(SMOTE(k=5, ratios=0.75, rng=42)))
+    @testset "BorderlineSMOTE1" begin
+        dt = load_dataset(
+            X, y;
+            balance=DT.BorderlineSMOTE1()
+        )
+        t = DT.get_target(dt)
+        @test length(t) ≥ length(y)
+    end
 
-function q(i::Int)
-    @show i
+    @testset "SMOTENC" begin
+        dt = load_dataset(
+            X, y;
+            balance=DT.SMOTENC()
+        )
+        t = DT.get_target(dt)
+        @test length(t) ≥ length(y)
+    end
+
+    # -------------------------------------------------------------------- #
+    #                 undersampling via load_dataset                        #
+    # -------------------------------------------------------------------- #
+    @testset "RandomUndersampler" begin
+        dt = load_dataset(
+            X, y;
+            balance=DT.RandomUndersampler()
+        )
+        t = DT.get_target(dt)
+        @test length(t) ≤ length(y)
+    end
+
+    @testset "ClusterUndersampler" begin
+        dt = load_dataset(
+            X, y;
+            balance=DT.ClusterUndersampler()
+        )
+        t = DT.get_target(dt)
+        @test length(t) ≤ length(y)
+    end
+
+    @testset "ENNUndersampler" begin
+        dt = load_dataset(
+            X, y;
+            balance=DT.ENNUndersampler()
+        )
+        t = DT.get_target(dt)
+        @test length(t) ≤ length(y)
+    end
+
+    @testset "TomekUndersampler" begin
+        dt = load_dataset(
+            X, y;
+            balance=DT.TomekUndersampler()
+        )
+        t = DT.get_target(dt)
+        @test length(t) ≤ length(y)
+    end
+
+    # -------------------------------------------------------------------- #
+    #                     chained balance (tuple)                          #
+    # -------------------------------------------------------------------- #
+    @testset "Chained SMOTE + TomekUndersampler" begin
+        dt = load_dataset(
+            X, y;
+            balance=(
+                DT.SMOTE(k=5),
+                DT.TomekUndersampler(),
+            )
+        )
+        t = DT.get_target(dt)
+        @test length(t) > 0
+    end
+
+    @testset "Chained ROSE + ENNUndersampler" begin
+        dt = load_dataset(
+            X, y;
+            balance=(
+                DT.ROSE(),
+                DT.ENNUndersampler(),
+            )
+        )
+        t = DT.get_target(dt)
+        @test length(t) > 0
+    end
+
+    # -------------------------------------------------------------------- #
+    #                       only dicrete dataset                           #
+    # -------------------------------------------------------------------- #
+    Xd = DataFrame(
+        f1 = categorical(round.(Int, X[:, 1] .* 10)),
+        f2 = categorical(round.(Int, X[:, 2] .* 10)),
+        f3 = categorical(round.(Int, X[:, 3] .* 10)),
+        f4 = categorical(round.(Int, X[:, 4] .* 10)),
+    )
+
+    @testset "SMOTEN" begin
+        dt = load_dataset(
+            Xd, y;
+            balance=DT.SMOTEN()
+        )
+        t = DT.get_target(dt)
+        @test length(t) ≥ length(y)
+    end
+
+    # -------------------------------------------------------------------- #
+    #                       no balance (nothing)                           #
+    # -------------------------------------------------------------------- #
+    @testset "No balance" begin
+        dt = load_dataset(X, y; balance=nothing)
+        t = DT.get_target(dt)
+        @test length(t) == length(y)
+    end
 end

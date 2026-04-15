@@ -33,12 +33,17 @@ struct RandomWalkOversampler{T} <: AbstractBalance
         try_preserve_type::Bool=true
     ) where {T<:Union{Real,Dict}}
         new{T}(
-            random_walk_oversample,
+            _random_walk_oversample,
             ratios,
             rng,
             try_preserve_type
         )
     end
+end
+
+function _random_walk_oversample(X, y; kwargs...)
+    cat_inds = X isa AbstractMatrix{<:Union{Int,Union{Missing,Int}}} ? collect(1:size(X, 2)) : Int[]
+    random_walk_oversample(X, y, cat_inds; kwargs...)
 end
 
 struct ROSE{T} <: AbstractBalance
@@ -130,13 +135,21 @@ struct SMOTEN{T} <: AbstractBalance
         try_preserve_type::Bool=true
     ) where {T<:Union{Real,Dict}}
         new{T}(
-            smoten,
+            _smoten,
             k,
             ratios,
             rng,
             try_preserve_type
         )
     end
+end
+
+function _smoten(X, y; kwargs...)
+    @show typeof(X)
+    return X isa AbstractMatrix{<:Union{Int,Union{Missing,Int}}} ?
+        smoten(X, y; kwargs...) :
+        error("SMOTEN works only on discrete datasets, consider using " *
+        "SMOTE or SMOTENC instead.")
 end
 
 struct SMOTENC{T} <: AbstractBalance
@@ -155,7 +168,7 @@ struct SMOTENC{T} <: AbstractBalance
         try_preserve_type::Bool=true
     ) where {T<:Union{Real,Dict}}
         new{T}(
-            smotenc,
+            _smotenc,
             k,
             knn_tree,
             ratios,
@@ -163,6 +176,11 @@ struct SMOTENC{T} <: AbstractBalance
             try_preserve_type
         )
     end
+end
+
+function _smotenc(X, y; kwargs...)
+    cat_inds = X isa AbstractMatrix{<:Union{Int,Union{Missing,Int}}} ? collect(1:size(X, 2)) : Int[]
+    smotenc(X, y, cat_inds; kwargs...)
 end
 
 # ---------------------------------------------------------------------------- #
@@ -194,22 +212,19 @@ struct ClusterUndersampler{T} <: AbstractBalance
     maxiter::Int
     ratios::Union{Real,Dict}
     rng::Int
-    try_preserve_type::Bool
 
     function ClusterUndersampler(;
         mode::AbstractString="nearest", 
         maxiter::Int=100, 
         ratios::T=1.0,
         rng::Int=42,
-        try_preserve_type::Bool=true
     ) where {T<:Union{Real,Dict}}
         new{T}(
             cluster_undersample,
             mode,
             maxiter,
             ratios,
-            rng,
-            try_preserve_type
+            rng
         )
     end
 end
