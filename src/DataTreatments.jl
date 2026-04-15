@@ -19,6 +19,7 @@ using Normalization
 # ---------------------------------------------------------------------------- #
 abstract type AbstractDataset end
 abstract type AbstractDataFeature end
+abstract type AbstractBalance end
 
 const Float = Union{Float32,Float64}
 
@@ -63,8 +64,11 @@ include("treatment.jl")
 include("groupby.jl")
 
 export DataTreatment
-export load_dataset
 export nrows, ncols
+export get_target, get_treats
+export load_dataset
+include("load_dataset.jl")
+
 export get_target, get_levels
 export get_discrete, get_continuous
 export get_aggregated, get_reduced
