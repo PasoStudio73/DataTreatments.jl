@@ -43,26 +43,26 @@ const Float = Union{Float32,Float64}
 # feature extraction via Catch22
 # export user friendly Catch22 nicknames
 export mode_5, mode_10, embedding_dist, acf_timescale, acf_first_min, ami2,
-       trev, outlier_timing_pos, outlier_timing_neg, whiten_timescale,
-       forecast_error, ami_timescale, high_fluctuation, stretch_decreasing,
-       stretch_high, entropy_pairs, rs_range, dfa, low_freq_power, centroid_freq,
-       transition_variance, periodicity, base_set, catch9, catch22_set, complete_set
+    trev, outlier_timing_pos, outlier_timing_neg, whiten_timescale,
+    forecast_error, ami_timescale, high_fluctuation, stretch_decreasing,
+    stretch_high, entropy_pairs, rs_range, dfa, low_freq_power,
+    centroid_freq, transition_variance, periodicity,
+    base_set, catch9, catch22_set, complete_set
 include("featureset.jl")
 
-export movingwindow, wholewindow, splitwindow, adaptivewindow
-export @evalwindow
+export movingwindow, wholewindow, splitwindow, adaptivewindow, @evalwindow
 include("windowing.jl")
 
 include("impute.jl")
 
-export RandomOversampler, RandomWalkOversampler, ROSE, SMOTE
-export BorderlineSMOTE1, SMOTEN, SMOTENC, RandomUndersampler
-export ClusterUndersampler, ENNUndersampler, TomekUndersampler
+export RandomOversampler, RandomWalkOversampler, ROSE, SMOTE,
+    BorderlineSMOTE1, SMOTEN, SMOTENC, RandomUndersampler,
+    ClusterUndersampler, ENNUndersampler, TomekUndersampler
 include("imbalance.jl")
 
-export ZScore, MinMax, Center, Sigmoid, UnitEnergy, UnitPower
-export Scale, ScaleMad, ScaleFirst, PNorm1, PNorm, PNormInf
-export MissingSafe, Robust
+export ZScore, MinMax, Center, Sigmoid, UnitEnergy, UnitPower,
+    Scale, ScaleMad, ScaleFirst, PNorm1, PNorm, PNormInf,
+    MissingSafe, Robust
 include("normalization.jl")
 
 include("inspecting.jl")
@@ -73,27 +73,25 @@ include("multidim_treatment.jl")
 export TreatmentGroup
 include("treatment_group.jl")
 
-const DefaultAggrFunc = aggregate(win=(wholewindow(),), features=(maximum, minimum, mean))
+const DefaultAggrFunc =
+    aggregate(win=(wholewindow(),), features=(maximum, minimum, mean))
 const DefaultGrouped = false
-const DefaultTreatmentGroup = TreatmentGroup(aggrfunc=DefaultAggrFunc, grouped=DefaultGrouped)
+const DefaultTreatmentGroup =
+    TreatmentGroup(aggrfunc=DefaultAggrFunc, grouped=DefaultGrouped)
 
 include("output_datasets.jl")
 include("treatment.jl")
 
 include("groupby.jl")
 
-export DataTreatment
-export nrows, ncols
-export get_target, get_treats, get_balance
-export load_dataset
+export DataTreatment,
+    nrows, ncols, get_target, get_treats, get_balance, load_dataset
 include("load_dataset.jl")
 
-export get_discrete, get_continuous
-export get_aggregated, get_reduced
-export get_tabular, get_multidim
-export is_tabular, is_multidim
-export has_tabular, has_multidim
-export filter_missing
+export get_discrete, get_continuous, get_aggregated, get_reduced,
+    get_tabular, get_multidim, is_tabular, is_multidim,
+    has_tabular, has_multidim,
+    filter_missing
 include("datatreatment.jl")
 
 end
