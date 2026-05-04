@@ -59,16 +59,16 @@ df = build_test_df()
 t_classif = ["classA", "classB", "classC", "classA", "classB"]
 t_regress = [1.2, 3.4, 2.2, 4.8, 0.9]
 
-dt = load_dataset(df)
+dt = DT.load_dataset(df)
 
-@test_nowarn get_tabular(dt)
-@test_nowarn get_multidim(dt)
+@test_nowarn DT.get_tabular(dt)
+@test_nowarn DT.get_multidim(dt)
 
-dt = load_dataset(df, t_classif)
+dt = DT.load_dataset(df, t_classif)
 
-dt = load_dataset(df, t_regress)
+dt = DT.load_dataset(df, t_regress)
 
-dt =load_dataset(
+dt = DT.load_dataset(
     df,
     TreatmentGroup(
         dims=1,
@@ -79,11 +79,16 @@ dt =load_dataset(
         groupby=:feat
     )
 )
+@test get_tabular(dt)[1] isa Matrix
+@test get_tabular(dt)[2] isa Vector{String}
 
-dt = load_dataset(df)
-tabular = get_tabular(dt)
+dt = DT.load_dataset(df)
+@test get_tabular(dt)[1] isa Matrix
+@test get_tabular(dt)[2] isa Vector{String}
+@test DT.is_tabular(dt) == true
+@test DT.is_multidim(dt) == false
 
-dt =load_dataset(
+dt =DT.load_dataset(
     df,
     TreatmentGroup(
         dims=1,
@@ -94,19 +99,23 @@ dt =load_dataset(
     );
 )
 multidim = get_multidim(dt)
+@test multidim[1] isa Matrix{Union{Missing, Array{Float64}}}
+@test multidim[2] isa Vector
+@test DT.is_tabular(dt) == false
+@test DT.is_multidim(dt) == true
 
 @testset "DataTreatment API" begin
-    dt = load_dataset(df, t_classif)
+    dt = DT.load_dataset(df, t_classif)
     @test get_target(dt) == ["classA", "classB", "classC", "classA", "classB"]
     @test isa(get_discrete(dt), Tuple{AbstractMatrix, AbstractVector})
     @test isa(get_continuous(dt), Tuple{AbstractMatrix, AbstractVector})
     @test isa(get_tabular(dt), Tuple{AbstractMatrix, AbstractVector})
     @test size(get_tabular(dt)[1], 1) == nrow(df)
 
-    dt = load_dataset(df, t_regress)
+    dt = DT.load_dataset(df, t_regress)
     @test get_target(dt) == t_regress
 
-    dt2 = load_dataset(
+    dt2 = DT.load_dataset(
         df,
         TreatmentGroup(
             dims=1,
@@ -126,7 +135,7 @@ multidim = get_multidim(dt)
     @test isa(agg, Tuple{AbstractMatrix, AbstractVector})
     @test size(agg[1], 1) == nrow(df)
 
-    dt3 = load_dataset(
+    dt3 = DT.load_dataset(
         df,
         TreatmentGroup(
             dims=1,
@@ -140,13 +149,13 @@ multidim = get_multidim(dt)
     @test isa(red, Tuple{AbstractMatrix, AbstractVector})
 end
 
-@testset "load_dataset(dt::DataTreatment) round-trip" begin
+@testset "DT.load_dataset(dt::DataTreatment) round-trip" begin
     df = build_test_df()
     t_classif = ["classA", "classB", "classC", "classA", "classB"]
 
     # Basic round-trip: no treatments
-    dt_orig = load_dataset(df, t_classif)
-    dt_rt = load_dataset(dt_orig)
+    dt_orig = DT.load_dataset(df, t_classif)
+    dt_rt = DT.load_dataset(dt_orig)
 
     @test isa(dt_rt, DT.DataTreatment)
     @test get_target(dt_rt) == get_target(dt_orig)
@@ -159,16 +168,16 @@ end
     @test orig_tab[2] == rt_tab[2]
 
     # Round-trip preserves float_type kwarg
-    dt_f32 = load_dataset(dt_orig; float_type=Float32)
+    dt_f32 = DT.load_dataset(dt_orig; float_type=Float32)
     @test dt_f32 isa DT.DataTreatment{Float32}
 
     # Round-trip with explicit DefaultTreatmentGroup
-    dt_explicit = load_dataset(dt_orig, DT.DefaultTreatmentGroup)
+    dt_explicit = DT.load_dataset(dt_orig, DT.DefaultTreatmentGroup)
     @test isa(dt_explicit, DT.DataTreatment)
     @test nrows(dt_explicit) == nrows(dt_orig)
 
     # Round-trip with a custom treatment
-    dt_custom = load_dataset(
+    dt_custom = DT.load_dataset(
         df,
         TreatmentGroup(
             dims=1,
@@ -179,7 +188,7 @@ end
             groupby=:feat
         )
     )
-    dt_rt_custom = load_dataset(dt_custom)
+    dt_rt_custom = DT.load_dataset(dt_custom)
     @test isa(dt_rt_custom, DT.DataTreatment)
     @test nrows(dt_rt_custom) == nrows(dt_custom)
 end
@@ -217,7 +226,7 @@ vnames = ["V$i" for i in 1:n_cols]
 target = categorical(rand(["A","B"], n_rows))
 
 @testset "missing and nan filter" begin
-    dt = load_dataset(data, vnames, target)
+    dt = DT.load_dataset(data, vnames, target)
 
     dt_filt = filter_missing(dt, 0.7, include_nans=true, dims=2)
     dt_filt = filter_missing(dt_filt, 0.7, include_nans=true, dims=1)
