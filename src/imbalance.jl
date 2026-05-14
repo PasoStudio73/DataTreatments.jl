@@ -145,7 +145,6 @@ struct SMOTEN{T} <: AbstractBalance
 end
 
 function _smoten(X, y; kwargs...)
-    @show typeof(X)
     return X isa AbstractMatrix{<:Union{Int,Union{Missing,Int}}} ?
         smoten(X, y; kwargs...) :
         error("SMOTEN works only on discrete datasets, consider using " *
