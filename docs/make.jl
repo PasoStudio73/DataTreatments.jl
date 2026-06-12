@@ -22,6 +22,7 @@ makedocs(;
         "Treatments" => "treatment.md",
         "Imputation" => "impute.md",
         "Imbalance" => "imbalance.md",
+        "Normalization" => "normalization.md",
         "FeatureSet" => "featureset.md",
         "Windowing" => "windowing.md",
     ],
