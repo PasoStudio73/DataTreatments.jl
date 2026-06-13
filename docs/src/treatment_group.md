@@ -16,14 +16,6 @@ selection is empty or mixed).
 
 ---
 
-## Struct
-
-```@docs
-TreatmentGroup
-```
-
----
-
 ## Constructors
 
 ### DataStructure constructor
@@ -97,24 +89,7 @@ without having the `DataStructure` available yet.
 
 ---
 
-## Getter Methods
-
-```@docs
-get_idxs
-get_dims(::TreatmentGroup)
-get_vnames(::TreatmentGroup)
-get_aggrfunc
-get_groupby
-has_groupby
-```
-
----
-
 ## Overlap Resolution
-
-```@docs
-get_idxs(tgs::Vector{<:TreatmentGroup})
-```
 
 When multiple `TreatmentGroup`s select overlapping columns, the overlap must be
 resolved before building output datasets. The `get_idxs` method on a vector of
@@ -176,4 +151,3 @@ Anonymous callables are displayed as `"anonymous callable"`.
 - [`DataStructure`](@ref) — pre-computed dataset metadata used for column selection.
 - [`aggregate`](@ref) — aggregation function for multidimensional columns.
 - [`reducesize`](@ref) — reduction function for multidimensional columns.
-- [Output Datasets](@ref output_dataset) — the dataset types produced after processing.

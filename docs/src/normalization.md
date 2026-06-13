@@ -24,8 +24,8 @@ extended to handle arrays whose elements are themselves arrays (e.g.
 
 ```julia
 X = [rand(10) for _ in 1:5, _ in 1:3]  # 5×3 matrix of time series
-T = fit(ZScore, X)                       # fit globally
-Y = normalize(X, T)                      # normalised copy
+T = fit(ZScore, X) # fit globally
+Y = normalize(X, T) # normalised copy
 ```
 
 ## Normalizers from Normalization.jl
@@ -61,13 +61,6 @@ DataTreatments.ScaleFirst
 DataTreatments.PNorm1
 DataTreatments.PNorm
 DataTreatments.PNormInf
-```
-
-### Internal extension API
-
-```@docs
-NormalizationExt._missingsafe
-NormalizationExt.__mapdims!
 ```
 
 ## Usage examples

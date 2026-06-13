@@ -53,12 +53,6 @@ reducesize(X::AbstractArray, idx::AbstractVector{Vector{Int}}, float_type::DataT
 
 ## Utility Functions
 
-### safe\_feat
-
-```@docs
-safe_feat
-```
-
 ### get\_window\_ranges
 
 ```julia
@@ -82,4 +76,3 @@ get_window_ranges(intervals, CartesianIndex(2, 1))  # → (4:6, 1:5)
 
 - [Windowing](@ref windowing) — window functions used by `aggregate` and `reducesize`.
 - [`TreatmentGroup`](@ref) — configuration object where `aggrfunc` is specified.
-- [Output Datasets](@ref output_dataset) — dataset types produced after treatment.

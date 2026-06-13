@@ -140,9 +140,9 @@ X_ts, ts_names = get_reduced(dt)
 ### Target and metadata getters
 
 ```julia
-y       = get_target(dt)    # encoded label vector
-treats  = get_treats(dt)    # Vector{TreatmentGroup}
-balance = get_balance(dt)   # AbstractBalance or nothing
+y = get_target(dt) # encoded label vector
+treats = get_treats(dt) # Vector{TreatmentGroup}
+balance = get_balance(dt) # AbstractBalance or nothing
 ```
 
 ---
@@ -196,48 +196,29 @@ using DataTreatments, Normalization, Impute
 
 # 1. build treatment directives
 t_num = TreatmentGroup(
-    datatype = :continuous,
-    impute   = (LOCF(), NOCB()),
-    norm     = ZScore,
+    datatype=:continuous,
+    impute=(LOCF(), NOCB()),
+    norm=ZScore,
 )
 
 t_ts = TreatmentGroup(
-    name_expr = r"^sensor_",
-    datatype  = :multidim,
-    aggrfunc  = aggregate(
-        win      = slidingwindows(3),
-        features = (mean, std),
+    name_expr=r"^sensor_",
+    datatype=:multidim,
+    aggrfunc=aggregate(
+        win=slidingwindows(3),
+        features=(mean, std),
     ),
-    norm = MinMax,
+    norm=MinMax,
 )
 
 # 2. build DataTreatment
 dt = load_dataset(df, y, t_num, t_ts;
-    balance = SMOTE(k=5))
+    balance=SMOTE(k=5))
 
 # 3. drop low-quality columns
 dt = filter_missing(dt, 0.2)
 
 # 4. extract features for a tabular model
 X, names = get_tabular(dt)
-y        = get_target(dt)
-```
-
----
-
-## API reference
-
-```@docs
-DataTreatment
-get_tabular
-get_multidim
-get_discrete
-get_continuous
-get_aggregated
-get_reduced
-is_tabular
-is_multidim
-has_tabular
-has_multidim
-filter_missing
+y = get_target(dt)
 ```
