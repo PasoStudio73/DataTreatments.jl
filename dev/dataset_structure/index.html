@@ -1,352 +1,321 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Dataset Structure · DataTreatments.jl</title><meta name="title" content="Dataset Structure · DataTreatments.jl"/><meta property="og:title" content="Dataset Structure · DataTreatments.jl"/><meta property="twitter:title" content="Dataset Structure · DataTreatments.jl"/><meta name="description" content="Documentation for DataTreatments.jl."/><meta property="og:description" content="Documentation for DataTreatments.jl."/><meta property="twitter:description" content="Documentation for DataTreatments.jl."/><meta property="og:url" content="https://PasoStudio73.github.io/DataTreatments.jl/dataset_structure/"/><meta property="twitter:url" content="https://PasoStudio73.github.io/DataTreatments.jl/dataset_structure/"/><link rel="canonical" href="https://PasoStudio73.github.io/DataTreatments.jl/dataset_structure/"/><script data-outdated-warner src="../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../search_index.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../"><img src="../assets/logo.png" alt="DataTreatments.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href="../">DataTreatments.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../">Home</a></li><li class="is-active"><a class="tocitem" href>Dataset Structure</a><ul class="internal"><li><a class="tocitem" href="#Type-Hierarchy-Overview"><span>Type Hierarchy Overview</span></a></li><li><a class="tocitem" href="#Full-Pipeline"><span>Full Pipeline</span></a></li><li><a class="tocitem" href="#Treatment-Directives"><span>Treatment Directives</span></a></li><li><a class="tocitem" href="#Metadata-Feature-Structs"><span>Metadata Feature Structs</span></a></li><li><a class="tocitem" href="#Dataset-Structs"><span>Dataset Structs</span></a></li><li><a class="tocitem" href="#Top-level-Container:-DataTreatment{T}"><span>Top-level Container: <code>DataTreatment{T}</code></span></a></li></ul></li><li><a class="tocitem" href="../treatment_group/">Treatment Groups</a></li><li><a class="tocitem" href="../treatment/">Treatments</a></li><li><a class="tocitem" href="../featureset/">FeatureSet</a></li><li><a class="tocitem" href="../windowing/">Windowing</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>Dataset Structure</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Dataset Structure</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/PasoStudio73/DataTreatments.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/PasoStudio73/DataTreatments.jl/blob/main/docs/src/dataset_structure.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Data-Structures"><a class="docs-heading-anchor" href="#Data-Structures">Data Structures</a><a id="Data-Structures-1"></a><a class="docs-heading-anchor-permalink" href="#Data-Structures" title="Permalink"></a></h1><p>This page describes the complete type hierarchy used to represent processed datasets in <code>DataTreatments.jl</code>, from low-level metadata features up to the top-level <code>DataTreatment</code> container.</p><hr/><h2 id="Type-Hierarchy-Overview"><a class="docs-heading-anchor" href="#Type-Hierarchy-Overview">Type Hierarchy Overview</a><a id="Type-Hierarchy-Overview-1"></a><a class="docs-heading-anchor-permalink" href="#Type-Hierarchy-Overview" title="Permalink"></a></h2><pre><code class="nohighlight hljs">AbstractDataFeature
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Dataset Structure · DataTreatments.jl</title><meta name="title" content="Dataset Structure · DataTreatments.jl"/><meta property="og:title" content="Dataset Structure · DataTreatments.jl"/><meta property="twitter:title" content="Dataset Structure · DataTreatments.jl"/><meta name="description" content="Documentation for DataTreatments.jl."/><meta property="og:description" content="Documentation for DataTreatments.jl."/><meta property="twitter:description" content="Documentation for DataTreatments.jl."/><meta property="og:url" content="https://PasoStudio73.github.io/DataTreatments.jl/dataset_structure/"/><meta property="twitter:url" content="https://PasoStudio73.github.io/DataTreatments.jl/dataset_structure/"/><link rel="canonical" href="https://PasoStudio73.github.io/DataTreatments.jl/dataset_structure/"/><script data-outdated-warner src="../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../search_index.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../"><img src="../assets/logo.png" alt="DataTreatments.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href="../">DataTreatments.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../">Home</a></li><li class="is-active"><a class="tocitem" href>Dataset Structure</a><ul class="internal"><li><a class="tocitem" href="#Type-Hierarchy-Overview"><span>Type Hierarchy Overview</span></a></li><li><a class="tocitem" href="#Entry-point:-load_dataset"><span>Entry point: <code>load_dataset</code></span></a></li><li><a class="tocitem" href="#Treatment-Directives"><span>Treatment Directives</span></a></li><li><a class="tocitem" href="#Metadata-Feature-Structs"><span>Metadata Feature Structs</span></a></li><li><a class="tocitem" href="#Dataset-Structs"><span>Dataset Structs</span></a></li><li><a class="tocitem" href="#Top-level-Container:-DataTreatment{T}"><span>Top-level Container: <code>DataTreatment{T}</code></span></a></li><li><a class="tocitem" href="#Accessor-Reference"><span>Accessor Reference</span></a></li></ul></li><li><a class="tocitem" href="../datatreatment/">DataTreatment</a></li><li><a class="tocitem" href="../treatment_group/">Treatment Groups</a></li><li><a class="tocitem" href="../treatment/">Treatments</a></li><li><a class="tocitem" href="../impute/">Imputation</a></li><li><a class="tocitem" href="../imbalance/">Imbalance</a></li><li><a class="tocitem" href="../normalization/">Normalization</a></li><li><a class="tocitem" href="../featureset/">FeatureSet</a></li><li><a class="tocitem" href="../windowing/">Windowing</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>Dataset Structure</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Dataset Structure</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/PasoStudio73/DataTreatments.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/PasoStudio73/DataTreatments.jl/blob/main/docs/src/dataset_structure.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Data-Structures"><a class="docs-heading-anchor" href="#Data-Structures">Data Structures</a><a id="Data-Structures-1"></a><a class="docs-heading-anchor-permalink" href="#Data-Structures" title="Permalink"></a></h1><p>This page describes the complete type hierarchy used to represent processed datasets in <code>DataTreatments.jl</code>, from low-level metadata features up to the top-level <code>DataTreatment</code> container, and how <a href="#DataTreatments.load_dataset"><code>load_dataset</code></a> drives the full pipeline.</p><hr/><h2 id="Type-Hierarchy-Overview"><a class="docs-heading-anchor" href="#Type-Hierarchy-Overview">Type Hierarchy Overview</a><a id="Type-Hierarchy-Overview-1"></a><a class="docs-heading-anchor-permalink" href="#Type-Hierarchy-Overview" title="Permalink"></a></h2><pre><code class="nohighlight hljs">AbstractDataFeature
 ├── DiscreteFeat{T}       # metadata for a categorical column
 ├── ContinuousFeat{T}     # metadata for a numeric scalar column
-├── AggregateFeat{T}      # metadata for a time-series → scalar aggregation
-└── ReduceFeat{T}         # metadata for a time-series → smaller array reduction
+├── AggregateFeat{T}      # metadata for a ts → scalar aggregation
+└── ReduceFeat{T}         # metadata for a ts → smaller array reduction
 
 AbstractDataset
-├── DiscreteDataset{T}                    # integer-coded categorical matrix
-├── ContinuousDataset{T}                  # float matrix
+├── DiscreteDataset{T}       # integer-coded categorical matrix
+├── ContinuousDataset{T}     # float matrix
 └── MultidimDataset{T, S}
-     ├── S = AggregateFeat  →  tabular scalar output
-     └── S = ReduceFeat     →  reduced array output
+     ├── S = AggregateFeat   →  tabular scalar output
+     └── S = ReduceFeat      →  reduced array output
 
-DataTreatment{T}          # top-level container (produced by load_dataset)
+DataTreatment{T}          # top-level container (load_dataset output)
 ├── data    ::Vector{AbstractDataset}
 ├── target  ::AbstractVector
-└── treats  ::Vector{TreatmentGroup}</code></pre><hr/><h2 id="Full-Pipeline"><a class="docs-heading-anchor" href="#Full-Pipeline">Full Pipeline</a><a id="Full-Pipeline-1"></a><a class="docs-heading-anchor-permalink" href="#Full-Pipeline" title="Permalink"></a></h2><pre><code class="nohighlight hljs">Raw DataFrame / Matrix
-        │
-        ▼  load_dataset(data, vnames, target, treatments...; float_type=Float64)
-        │
-        ├─ _inspecting(data)  →  datastruct::NamedTuple
-        │   (inspect all columns: types, missing, NaN, dims, ...)
-        │
-        ├─ encode target  →  CategoricalVector
-        │
-        ├─ for each TreatmentGroup:
-        │   ├── classify columns  →  discrete_ids, continuous_ids, multidim_ids
-        │   │
-        │   ├── DiscreteDataset(discrete_ids, ...)
-        │   │    └── _discrete_encode  →  integer-coded matrix
-        │   │
-        │   ├── ContinuousDataset(continuous_ids, ...)
-        │   │    └── cast to float_type  →  float matrix
-        │   │
-        │   └── MultidimDataset(multidim_ids, ..., aggrfunc)
-        │        ├── aggrfunc = aggregate(...)   →  scalar columns (AggregateFeat)
-        │        └── aggrfunc = reducesize(...)  →  smaller arrays (ReduceFeat)
-        │
-        └─▶  DataTreatment{T}(ds, target, treats)</code></pre><hr/><h2 id="Treatment-Directives"><a class="docs-heading-anchor" href="#Treatment-Directives">Treatment Directives</a><a id="Treatment-Directives-1"></a><a class="docs-heading-anchor-permalink" href="#Treatment-Directives" title="Permalink"></a></h2><h3 id="TreatmentGroup"><a class="docs-heading-anchor" href="#TreatmentGroup"><code>TreatmentGroup</code></a><a id="TreatmentGroup-1"></a><a class="docs-heading-anchor-permalink" href="#TreatmentGroup" title="Permalink"></a></h3><article><details class="docstring" open="true"><summary id="DataTreatments.TreatmentGroup"><a class="docstring-binding" href="#DataTreatments.TreatmentGroup"><code>DataTreatments.TreatmentGroup</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">TreatmentGroup</code></pre><p>A user-defined directive that specifies <strong>which columns to select</strong> from a dataset and <strong>how to process</strong> them inside <code>load_dataset</code>.</p><p>Each <code>TreatmentGroup</code> encodes two orthogonal concerns:</p><ol><li><strong>Column selection</strong> — filter columns by name, dimensionality, or data type.</li><li><strong>Processing directives</strong> — how to handle multidimensional columns, missing values, normalization, and output grouping.</li></ol><p>Multiple <code>TreatmentGroup</code>s can be passed to <code>load_dataset</code>; each produces its own set of <a href="@ref"><code>AbstractDataset</code></a> entries inside the resulting <a href="#DataTreatments.DataTreatment"><code>DataTreatment</code></a>.</p><hr/><p><strong>Column Selection</strong></p><p>Columns are included when <strong>all</strong> active filters match:</p><table><tr><th style="text-align: right">Field</th><th style="text-align: right">Type</th><th style="text-align: right">Effect</th></tr><tr><td style="text-align: right"><code>dims</code></td><td style="text-align: right"><code>Int</code></td><td style="text-align: right">Keep only columns whose array length equals <code>dims</code>; <code>-1</code> disables this filter</td></tr><tr><td style="text-align: right"><code>name_expr</code></td><td style="text-align: right"><code>Regex</code> / <code>Base.Callable</code> / <code>Vector{String}</code></td><td style="text-align: right">Keep columns whose name matches the pattern/predicate/list</td></tr><tr><td style="text-align: right"><code>datatype</code></td><td style="text-align: right"><code>Symbol</code></td><td style="text-align: right"><code>:discrete</code>, <code>:continuous</code>, <code>:multidim</code>, or <code>:all</code></td></tr></table><pre><code class="language-julia hljs">All columns in the dataset
+├── treats  ::Vector{TreatmentGroup}
+└── balance ::Union{Nothing, AbstractBalance,
+                    Tuple{Vararg{&lt;:AbstractBalance}}}</code></pre><hr/><h2 id="Entry-point:-load_dataset"><a class="docs-heading-anchor" href="#Entry-point:-load_dataset">Entry point: <code>load_dataset</code></a><a id="Entry-point:-load_dataset-1"></a><a class="docs-heading-anchor-permalink" href="#Entry-point:-load_dataset" title="Permalink"></a></h2><article><details class="docstring" open="true"><summary id="DataTreatments.load_dataset"><a class="docstring-binding" href="#DataTreatments.load_dataset"><code>DataTreatments.load_dataset</code></a> — <span class="docstring-category">Function</span></summary><section><div><pre><code class="language-julia hljs">load_dataset(data, [vnames], [target], treatments...;
+             float_type=Float64, balance=nothing,
+             treatment_ds=true, leftover_ds=false)
+load_dataset(df::DataFrame, [target], treatments...; kwargs...)
+load_dataset(dt::DataTreatment, treatments...; kwargs...)</code></pre><p>Build a <a href="#DataTreatments.DataTreatment"><code>DataTreatment</code></a> from a raw data source by inspecting columns, applying treatment groups, and optionally rebalancing classes.</p><hr/><p><strong>Dispatch 1 — Matrix source</strong></p><pre><code class="language-julia hljs">load_dataset(
+    data      :: AbstractMatrix,
+    vnames    :: Vector{String}  = [&quot;V1&quot;, &quot;V2&quot;, ...],
+    target    :: Union{Nothing, AbstractVector} = nothing,
+    treatments:: Vararg{Base.Callable} = DefaultTreatmentGroup;
+    float_type :: Type   = Float64,
+    balance    :: Union{Nothing, AbstractBalance,
+                        Tuple{Vararg{&lt;:AbstractBalance}}} = nothing,
+    treatment_ds :: Bool = true,
+    leftover_ds  :: Bool = false,
+)</code></pre><p>Core method. All other dispatches delegate here.</p><p><strong>Arguments</strong></p><ul><li><code>data</code>: Input matrix. Columns may be scalar, categorical, or array-valued (time series).</li><li><code>vnames</code>: Column names. Defaults to <code>[&quot;V1&quot;, &quot;V2&quot;, ...]</code>.</li><li><code>target</code>: Optional label vector. Categorical labels are automatically encoded via <code>_discrete_encode</code>. Float targets are passed through unchanged. Pass <code>nothing</code> (default) for unsupervised use.</li><li><code>treatments</code>: One or more <a href="#TreatmentGroup"><code>TreatmentGroup</code></a> callables that classify and process columns. Defaults to <code>DefaultTreatmentGroup</code>.</li></ul><p><strong>Keyword Arguments</strong></p><ul><li><code>float_type::Type=Float64</code>: Floating-point type for all numeric output (<code>Float32</code> or <code>Float64</code>).</li><li><code>balance</code>: Rebalancing strategy applied after dataset construction. Accepts:<ul><li><code>nothing</code> (default) — no rebalancing.</li><li>A single <code>AbstractBalance</code> (e.g. <code>SMOTE()</code>).</li><li>A <code>Tuple</code> of <code>AbstractBalance</code> objects applied in order: <code>(SMOTE(), TomekUndersampler())</code>.</li></ul>Requires a non-empty <code>target</code>.</li><li><code>treatment_ds::Bool=true</code>: If <code>true</code>, build datasets from columns matched by the treatment groups.</li><li><code>leftover_ds::Bool=false</code>: If <code>true</code>, also build datasets from columns not matched by any treatment group.</li></ul><hr/><p><strong>Dispatch 2 — DataFrame source</strong></p><pre><code class="language-julia hljs">load_dataset(df::DataFrame, target::AbstractVector, args...; kwargs...)
+load_dataset(df::DataFrame, args...; kwargs...)</code></pre><p>Convenience wrappers that extract <code>Matrix(df)</code> and <code>names(df)</code> and forward to Dispatch 1. The targetless overload passes an empty <code>CategoricalVector[]</code> as <code>target</code>.</p><p><strong>Arguments</strong></p><ul><li><code>df</code>: Source <code>DataFrame</code>. Column names are taken from <code>names(df)</code>.</li><li><code>target</code>: Label vector (optional). Omit for unsupervised use.</li><li><code>args...</code>, <code>kwargs...</code>: Forwarded to Dispatch 1.</li></ul><hr/><p><strong>Dispatch 3 — Re-treat an existing DataTreatment</strong></p><pre><code class="language-julia hljs">load_dataset(dt::DataTreatment, treatments...; kwargs...)</code></pre><p>Reconstructs the raw matrix from all datasets stored in <code>dt</code> and applies a fresh set of treatment groups. Useful for re-processing already-treated data with different parameters.</p><p>Internally:</p><pre><code class="language-julia hljs">data   = hcat(d.data   for d in dt.data)
+vnames = vcat(vnames(d) for d in dt.data)
+target = get_target(dt)
+→ load_dataset(data, vnames, target, treatments...; kwargs...)</code></pre><p><strong>Arguments</strong></p><ul><li><code>dt</code>: A previously built <a href="#DataTreatments.DataTreatment"><code>DataTreatment</code></a>.</li><li><code>treatments</code>: New treatment group callables.</li><li><code>kwargs...</code>: Forwarded to Dispatch 1.</li></ul><hr/><p><strong>Pipeline summary</strong></p><pre><code class="language-julia hljs">data / df / dt
+      │
+      ▼  _inspecting(data)
+      │   → per-column metadata (type, missing, NaN, dims)
+      │
+      ▼  encode target  →  CategoricalVector
+      │
+      ▼  for each TreatmentGroup:
+      │   ├─ classify → discrete_ids, continuous_ids, multidim_ids
+      │   ├─ DiscreteDataset(...)
+      │   ├─ ContinuousDataset(...)
+      │   └─ MultidimDataset(..., aggrfunc)
+      │
+      ▼  if balance provided:
+      │   └─ Threads.@threads for each dataset:
+      │       (data, target) = bal₁ ∘ … ∘ balₙ(data, target)
+      │
+      └─ DataTreatment{float_type}(ds, target, treats, balance)</code></pre><p><strong>Returns</strong></p><ul><li><a href="#DataTreatments.DataTreatment"><code>DataTreatment{T}</code></a> where <code>T = float_type</code>.</li></ul><p><strong>Examples</strong></p><pre><code class="language-julia hljs"># from a DataFrame with classification target
+dt = load_dataset(df, y, TreatmentGroup(dims=0))
+
+# from a DataFrame, chain oversampling + undersampling
+dt = load_dataset(df, y;
+    balance=(SMOTE(k=5), TomekUndersampler()))
+
+# re-treat with different parameters
+dt2 = load_dataset(dt, TreatmentGroup(dims=1, impute=(LOCF(),)))</code></pre><p><strong>See Also</strong></p><p><a href="#DataTreatments.DataTreatment"><code>DataTreatment</code></a>, <a href="#TreatmentGroup"><code>TreatmentGroup</code></a>, <a href="@ref"><code>AbstractBalance</code></a></p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/PasoStudio73/DataTreatments.jl/blob/d37fb000ca5bee5d48f03811e1a1d9a7728e7e5d/src/load_dataset.jl#L119-L264">source</a></section></details></article><h3 id="Supported-input-sources"><a class="docs-heading-anchor" href="#Supported-input-sources">Supported input sources</a><a id="Supported-input-sources-1"></a><a class="docs-heading-anchor-permalink" href="#Supported-input-sources" title="Permalink"></a></h3><table><tr><th style="text-align: left">Dispatch</th><th style="text-align: left">Input</th><th style="text-align: left">Notes</th></tr><tr><td style="text-align: left">Dispatch 1</td><td style="text-align: left"><code>AbstractMatrix</code></td><td style="text-align: left">core method</td></tr><tr><td style="text-align: left">Dispatch 2</td><td style="text-align: left"><code>DataFrame</code></td><td style="text-align: left">extracts matrix + column names</td></tr><tr><td style="text-align: left">Dispatch 3</td><td style="text-align: left"><code>DataTreatment</code></td><td style="text-align: left">re-treats existing output</td></tr></table><h3 id="Full-pipeline"><a class="docs-heading-anchor" href="#Full-pipeline">Full pipeline</a><a id="Full-pipeline-1"></a><a class="docs-heading-anchor-permalink" href="#Full-pipeline" title="Permalink"></a></h3><pre><code class="nohighlight hljs">data / df / dt
+      │
+      ▼  _inspecting(data)
+      │   → per-column metadata (type, missing, NaN, dims)
+      │
+      ▼  encode target  →  CategoricalVector
+      │
+      ▼  for each TreatmentGroup:
+      │   ├─ classify → discrete_ids, continuous_ids, multidim_ids
+      │   │
+      │   ├─ DiscreteDataset(discrete_ids, ...)
+      │   │    └─ _discrete_encode  →  integer-coded matrix
+      │   │
+      │   ├─ ContinuousDataset(continuous_ids, ...)
+      │   │    └─ cast to float_type  →  float matrix
+      │   │
+      │   └─ MultidimDataset(multidim_ids, ..., aggrfunc)
+      │        ├─ aggregate(...)  →  scalar cols (AggregateFeat)
+      │        └─ reducesize(...) →  array cols  (ReduceFeat)
+      │
+      ▼  if balance provided:
+      │   └─ for each dataset:
+      │       (data, target) = bal₁ ∘ … ∘ balₙ(data, target)
+      │
+      └─ DataTreatment{float_type}(ds, target, treats, balance)</code></pre><h3 id="Re-treating-an-existing-DataTreatment"><a class="docs-heading-anchor" href="#Re-treating-an-existing-DataTreatment">Re-treating an existing <code>DataTreatment</code></a><a id="Re-treating-an-existing-DataTreatment-1"></a><a class="docs-heading-anchor-permalink" href="#Re-treating-an-existing-DataTreatment" title="Permalink"></a></h3><pre><code class="language-julia hljs">dt2 = load_dataset(dt, TreatmentGroup(dims=1, impute=(LOCF(),)))</code></pre><p>Internally reconstructs the raw matrix from <code>dt.data</code> and <code>get_target(dt)</code>, then runs the full pipeline with the new treatment groups.</p><hr/><h2 id="Treatment-Directives"><a class="docs-heading-anchor" href="#Treatment-Directives">Treatment Directives</a><a id="Treatment-Directives-1"></a><a class="docs-heading-anchor-permalink" href="#Treatment-Directives" title="Permalink"></a></h2><h3 id="TreatmentGroup"><a class="docs-heading-anchor" href="#TreatmentGroup"><code>TreatmentGroup</code></a><a id="TreatmentGroup-1"></a><a class="docs-heading-anchor-permalink" href="#TreatmentGroup" title="Permalink"></a></h3><article><details class="docstring" open="true"><summary id="DataTreatments.TreatmentGroup"><a class="docstring-binding" href="#DataTreatments.TreatmentGroup"><code>DataTreatments.TreatmentGroup</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">TreatmentGroup</code></pre><p>A user-defined directive that specifies <strong>which columns to select</strong> from a dataset and <strong>how to process</strong> them inside <a href="#DataTreatments.load_dataset"><code>load_dataset</code></a>.</p><p>Each <code>TreatmentGroup</code> encodes two orthogonal concerns:</p><ol><li><strong>Column selection</strong> — filter columns by name, dimensionality, or data type.</li><li><strong>Processing directives</strong> — how to handle multidimensional columns, missing values, normalization, and output grouping.</li></ol><p>Multiple <code>TreatmentGroup</code>s can be passed to <code>load_dataset</code>; each produces its own set of <a href="@ref"><code>AbstractDataset</code></a> entries inside the resulting <a href="#DataTreatments.DataTreatment"><code>DataTreatment</code></a>.</p><hr/><p><strong>Column Selection</strong></p><p>Columns are included when <strong>all</strong> active filters match:</p><table><tr><th style="text-align: left">Field</th><th style="text-align: left">Type</th><th style="text-align: left">Default</th></tr><tr><td style="text-align: left"><code>dims</code></td><td style="text-align: left"><code>Int</code></td><td style="text-align: left"><code>-1</code></td></tr><tr><td style="text-align: left"><code>name_expr</code></td><td style="text-align: left"><code>Regex</code> / <code>Base.Callable</code> / <code>Vector</code></td><td style="text-align: left"><code>r&quot;.*&quot;</code></td></tr><tr><td style="text-align: left"><code>datatype</code></td><td style="text-align: left"><code>Symbol</code></td><td style="text-align: left"><code>:all</code></td></tr></table><ul><li><code>dims</code>: Keep only columns whose array length equals <code>dims</code>. <code>-1</code> disables the filter.</li><li><code>name_expr</code>: Keep columns whose name matches the regex, satisfies the predicate, or is in the string vector.</li><li><code>datatype</code>: One of <code>:discrete</code>, <code>:continuous</code>, <code>:multidim</code>, or <code>:all</code>.</li></ul><pre><code class="language-julia hljs">All columns in the dataset
         │
         ├─ dims filter        (skip if dims == -1)
         ├─ datatype filter    (skip if datatype == :all)
         └─ name_expr filter   (skip if name_expr == r&quot;.*&quot;)
                 │
                 ▼
-        ids ::Vector{Int}   ← indices of the surviving columns</code></pre><hr/><p><strong>Processing Directives</strong></p><p>Once columns are selected, the following fields govern how they are processed:</p><table><tr><th style="text-align: right">Field</th><th style="text-align: right">Type</th><th style="text-align: right">Effect</th></tr><tr><td style="text-align: right"><code>aggrfunc</code></td><td style="text-align: right"><code>Base.Callable</code></td><td style="text-align: right">Applied to multidimensional columns: <code>aggregate(...)</code> → scalar matrix; <code>reducesize(...)</code> → smaller arrays</td></tr><tr><td style="text-align: right"><code>grouped</code></td><td style="text-align: right"><code>Bool</code></td><td style="text-align: right"><code>false</code> (default): process each column independently; <code>true</code>: process all selected columns jointly</td></tr><tr><td style="text-align: right"><code>groupby</code></td><td style="text-align: right"><code>Nothing</code> / <code>Tuple{Vararg{Symbol}}</code></td><td style="text-align: right">Partition output features by <code>:vname</code>, window index, or feature type</td></tr><tr><td style="text-align: right"><code>impute</code></td><td style="text-align: right"><code>Nothing</code> / <code>Tuple{Vararg{Imputor}}</code></td><td style="text-align: right">Imputation strategy applied after encoding/aggregation</td></tr><tr><td style="text-align: right"><code>norm</code></td><td style="text-align: right"><code>Nothing</code> / <code>Type{&lt;:AbstractNormalization}</code></td><td style="text-align: right">Normalization applied to the output matrix</td></tr></table><hr/><p><strong>Fields</strong></p><pre><code class="language-julia hljs">TreatmentGroup
-├── ids       ::Vector{Int}                                  # selected column indices
-├── dims      ::Int                                          # dimensionality filter used
-├── vnames    ::Vector{String}                               # names of selected columns
-├── aggrfunc  ::Base.Callable                                # multidim processing strategy
-├── grouped   ::Bool                                         # joint vs columnwise processing
-├── groupby   ::Union{Nothing,Tuple{Vararg{Symbol}}}         # output feature partitioning
-├── impute    ::Union{Nothing,Tuple{Vararg{Imputor}}}        # imputation strategy
-├── norm      ::Union{Nothing,Type{&lt;:AbstractNormalization}} # normalization
-└── datatype  ::Type                                         # typejoin of selected column types</code></pre><hr/><p><strong>Usage</strong></p><p><code>TreatmentGroup</code> is most conveniently created in <strong>curried form</strong> and passed directly to <a href="@ref"><code>load_dataset</code></a>:</p><pre><code class="language-julia hljs"># Select all continuous columns and normalize them
-t1 = TreatmentGroup(datatype=:continuous, norm=MinMaxNormalization)
+        ids ::Vector{Int}</code></pre><hr/><p><strong>Processing Directives</strong></p><table><tr><th style="text-align: left">Field</th><th style="text-align: left">Type</th><th style="text-align: left">Default</th></tr><tr><td style="text-align: left"><code>aggrfunc</code></td><td style="text-align: left"><code>Base.Callable</code></td><td style="text-align: left">see below</td></tr><tr><td style="text-align: left"><code>grouped</code></td><td style="text-align: left"><code>Bool</code></td><td style="text-align: left"><code>false</code></td></tr><tr><td style="text-align: left"><code>groupby</code></td><td style="text-align: left"><code>Nothing</code> / <code>Tuple{Vararg{Symbol}}</code></td><td style="text-align: left"><code>nothing</code></td></tr><tr><td style="text-align: left"><code>impute</code></td><td style="text-align: left"><code>Nothing</code> / <code>Tuple{Vararg{Imputor}}</code></td><td style="text-align: left"><code>nothing</code></td></tr><tr><td style="text-align: left"><code>norm</code></td><td style="text-align: left"><code>Nothing</code> / <code>Type{&lt;:AbstractNormalization}</code></td><td style="text-align: left"><code>nothing</code></td></tr></table><ul><li><code>aggrfunc</code>: Applied to multidimensional columns.<ul><li><a href="../treatment/#DataTreatments.aggregate-Tuple{}"><code>aggregate</code></a><code>(...)</code> → scalar tabular output.</li><li><a href="../treatment/#DataTreatments.reducesize-Tuple{}"><code>reducesize</code></a><code>(...)</code> → smaller array output.</li><li>Default: <code>aggregate(win=(wholewindow(),), features=(maximum, minimum, mean))</code>.</li></ul></li><li><code>grouped</code>: If <code>true</code>, all selected columns are processed jointly rather than independently.</li><li><code>groupby</code>: Partition output features by <code>:vname</code>, window index, or feature type. Accepts a single <code>Symbol</code> or a <code>Tuple{Vararg{Symbol}}</code>.</li><li><code>impute</code>: Imputation chain applied after encoding or aggregation (e.g. <code>(LOCF(), NOCB())</code>).</li><li><code>norm</code>: Normalization type applied to the output matrix (e.g. <code>MinMax</code>, <code>ZScore</code>).</li></ul><hr/><p><strong>Fields</strong></p><pre><code class="language-julia hljs">TreatmentGroup
+├── ids      ::Vector{Int}
+├── dims     ::Int
+├── vnames   ::Vector{String}
+├── aggrfunc ::Base.Callable
+├── grouped  ::Bool
+├── groupby  ::Union{Nothing,Tuple{Vararg{Symbol}}}
+├── impute   ::Union{Nothing,Tuple{Vararg{Imputor}}}
+├── norm     ::Union{Nothing,Type{&lt;:AbstractNormalization}}
+└── datatype ::Type</code></pre><hr/><p><strong>Constructors</strong></p><p><strong>Direct constructor</strong></p><pre><code class="language-julia hljs">TreatmentGroup(datastruct, vnames; kwargs...)</code></pre><p>Called internally by <code>load_dataset</code>. Runs the three column filters on <code>datastruct</code> (output of <code>_inspecting</code>) and builds the group.</p><p><strong>Curried constructor</strong></p><pre><code class="language-julia hljs">TreatmentGroup(; kwargs...)</code></pre><p>Returns a <code>(datastruct, vnames) -&gt; TreatmentGroup</code> closure. This is the form expected by <code>load_dataset</code>:</p><pre><code class="language-julia hljs">dt = load_dataset(df, y, TreatmentGroup(datatype=:continuous))</code></pre><hr/><p><strong>Output mapping</strong></p><pre><code class="language-julia hljs">TreatmentGroup
+        │
+        ├─ discrete columns
+        │    └─▶ DiscreteDataset{T}
+        │
+        ├─ continuous columns
+        │    └─▶ ContinuousDataset{T}
+        │
+        └─ multidim columns
+             ├─ aggrfunc = aggregate(...)
+             │    └─▶ MultidimDataset{T, AggregateFeat}
+             └─ aggrfunc = reducesize(...)
+                  └─▶ MultidimDataset{T, ReduceFeat}</code></pre><hr/><p><strong>Examples</strong></p><pre><code class="language-julia hljs"># normalize all continuous columns with MinMax
+t1 = TreatmentGroup(datatype=:continuous, norm=MinMax)
 
-# Select time-series columns matching &quot;signal_*&quot;, aggregate with mean/std over 3 windows
+# aggregate signal columns with mean/std over 3 sliding windows
 t2 = TreatmentGroup(
-    name_expr  = r&quot;^signal_&quot;,
-    datatype   = :multidim,
-    aggrfunc   = aggregate(win=slidingwindows(3), features=(mean, std)),
-    groupby    = :vname
+    name_expr = r&quot;^signal_&quot;,
+    datatype  = :multidim,
+    aggrfunc  = aggregate(
+        win      = slidingwindows(3),
+        features = (mean, std),
+    ),
+    groupby = :vname,
 )
 
-# Select audio columns and downsample to 256 points
+# downsample audio columns to 256 points
 t3 = TreatmentGroup(
     name_expr = r&quot;^audio_&quot;,
     datatype  = :multidim,
-    aggrfunc  = reducesize(256)
+    aggrfunc  = reducesize(256),
 )
 
-dt = load_dataset(df, target, t1, t2, t3)</code></pre><hr/><p><strong>How Each Group Maps to Output Datasets</strong></p><pre><code class="language-julia hljs">TreatmentGroup (user directive)
+dt = load_dataset(df, target, t1, t2, t3)</code></pre><p><strong>See Also</strong></p><p><a href="#DataTreatments.load_dataset"><code>load_dataset</code></a>, <a href="#DataTreatments.DataTreatment"><code>DataTreatment</code></a>, <a href="#DataTreatments.DiscreteDataset"><code>DiscreteDataset</code></a>, <a href="#DataTreatments.ContinuousDataset"><code>ContinuousDataset</code></a>, <a href="#DataTreatments.MultidimDataset"><code>MultidimDataset</code></a>, <a href="../treatment/#DataTreatments.aggregate-Tuple{}"><code>aggregate</code></a>, <a href="../treatment/#DataTreatments.reducesize-Tuple{}"><code>reducesize</code></a></p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/PasoStudio73/DataTreatments.jl/blob/d37fb000ca5bee5d48f03811e1a1d9a7728e7e5d/src/treatment_group.jl#L14-L187">source</a></section></details></article><h4 id="Column-selection-filters"><a class="docs-heading-anchor" href="#Column-selection-filters">Column selection filters</a><a id="Column-selection-filters-1"></a><a class="docs-heading-anchor-permalink" href="#Column-selection-filters" title="Permalink"></a></h4><pre><code class="nohighlight hljs">All columns in the dataset
         │
-        ├─ selected discrete columns
-        │       └─▶ DiscreteDataset{T}
+        ├─ dims filter
+        │   keep columns with array length == dims
+        │   (skip if dims == -1)
         │
-        ├─ selected continuous columns
-        │       └─▶ ContinuousDataset{T}
+        ├─ datatype filter
+        │   :discrete   → !(T &lt;: Float) &amp;&amp; !(T &lt;: AbstractArray)
+        │   :continuous → T &lt;: Float
+        │   :multidim   → T &lt;: AbstractArray
+        │   :all        → any type (skip filter)
         │
-        └─ selected multidim columns
-                ├─ aggrfunc = aggregate(...)
-                │       └─▶ MultidimDataset{T, AggregateFeat}  (tabular)
-                └─ aggrfunc = reducesize(...)
-                        └─▶ MultidimDataset{T, ReduceFeat}     (array)</code></pre><p>The curried form <code>TreatmentGroup(; kwargs...)</code> returns a <code>(datastruct, vnames) -&gt; TreatmentGroup</code> closure, which is the expected input signature for <code>load_dataset</code>.</p><p>See also: <a href="@ref"><code>load_dataset</code></a>, <a href="#DataTreatments.DataTreatment"><code>DataTreatment</code></a>, <a href="#DataTreatments.DiscreteDataset"><code>DiscreteDataset</code></a>, <a href="#DataTreatments.ContinuousDataset"><code>ContinuousDataset</code></a>, <a href="#DataTreatments.MultidimDataset"><code>MultidimDataset</code></a>, <a href="../treatment/#DataTreatments.aggregate-Tuple{}"><code>aggregate</code></a>, <a href="../treatment/#DataTreatments.reducesize-Tuple{}"><code>reducesize</code></a></p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/PasoStudio73/DataTreatments.jl/blob/9fafc1da0c04ccc1780680e5ce17a91c14dec9dc/src/treatment_group.jl#L14-L138">source</a></section></details></article><h4 id="Column-Selection-Filters"><a class="docs-heading-anchor" href="#Column-Selection-Filters">Column Selection Filters</a><a id="Column-Selection-Filters-1"></a><a class="docs-heading-anchor-permalink" href="#Column-Selection-Filters" title="Permalink"></a></h4><pre><code class="nohighlight hljs">All columns in the dataset
-        │
-        ├─ dims filter        keep columns with array length == dims
-        │                     (skip if dims == -1)
-        │
-        ├─ datatype filter    :discrete  → !(T &lt;: Float) &amp;&amp; !(T &lt;: AbstractArray)
-        │                     :continuous → T &lt;: Float
-        │                     :multidim  → T &lt;: AbstractArray
-        │                     :all       → any type  (skip filter)
-        │
-        └─ name_expr filter   Regex      → match(name_expr, name) !== nothing
-                              Callable   → name_expr(name)
-                              Vector     → name ∈ name_expr
-                              (skip if name_expr == r&quot;.*&quot;)
-                                    │
-                                    ▼
-                            ids ::Vector{Int}</code></pre><h4 id="From-Directive-to-Output-Datasets"><a class="docs-heading-anchor" href="#From-Directive-to-Output-Datasets">From Directive to Output Datasets</a><a id="From-Directive-to-Output-Datasets-1"></a><a class="docs-heading-anchor-permalink" href="#From-Directive-to-Output-Datasets" title="Permalink"></a></h4><pre><code class="nohighlight hljs">TreatmentGroup
-│   ids = [1, 3, 5, 7, 8]   ← column indices surviving all filters
+        └─ name_expr filter
+            Regex    → match(name_expr, name) !== nothing
+            Callable → name_expr(name)
+            Vector   → name ∈ name_expr
+            (skip if name_expr == r&quot;.*&quot;)
+                    │
+                    ▼
+            ids ::Vector{Int}</code></pre><h4 id="From-directive-to-output-datasets"><a class="docs-heading-anchor" href="#From-directive-to-output-datasets">From directive to output datasets</a><a id="From-directive-to-output-datasets-1"></a><a class="docs-heading-anchor-permalink" href="#From-directive-to-output-datasets" title="Permalink"></a></h4><pre><code class="nohighlight hljs">TreatmentGroup
+│   ids = [1, 3, 5, 7, 8]
 │
 ├─ discrete ids   → [1, 3]
-│       └─▶ DiscreteDataset{T}
-│            ├── data :: Matrix{Union{Int,Missing}}  (integer-coded)
-│            └── info :: Vector{DiscreteFeat}
+│   └─▶ DiscreteDataset{T}
+│        ├── data :: Matrix{Union{Int,Missing}}
+│        └── info :: Vector{DiscreteFeat}
 │
 ├─ continuous ids → [5]
-│       └─▶ ContinuousDataset{T}
-│            ├── data :: Matrix{Union{Missing,T}}
-│            └── info :: Vector{ContinuousFeat}
+│   └─▶ ContinuousDataset{T}
+│        ├── data :: Matrix{Union{Missing,T}}
+│        └── info :: Vector{ContinuousFeat}
 │
 └─ multidim ids  → [7, 8]
-        │
-        ├─ aggrfunc = aggregate(win=slidingwindows(2), features=(mean, std))
-        │       └─▶ MultidimDataset{T, AggregateFeat}
-        │            ├── data :: Matrix{T}              (nrows × n_feats×nwins)
-        │            ├── info :: Vector{AggregateFeat}
-        │            └── groups :: Vector{Vector{Int}}  (if groupby != nothing)
-        │
-        └─ aggrfunc = reducesize(256)
-                └─▶ MultidimDataset{T, ReduceFeat}
-                     ├── data :: Matrix{AbstractArray{T}}
-                     ├── info :: Vector{ReduceFeat}
-                     └── groups :: nothing</code></pre><h4 id="Multiple-TreatmentGroups"><a class="docs-heading-anchor" href="#Multiple-TreatmentGroups">Multiple <code>TreatmentGroup</code>s</a><a id="Multiple-TreatmentGroups-1"></a><a class="docs-heading-anchor-permalink" href="#Multiple-TreatmentGroups" title="Permalink"></a></h4><pre><code class="nohighlight hljs">load_dataset(df, target, t1, t2, t3)
-│
-├─ t1 = TreatmentGroup(datatype=:continuous, norm=MinMaxNormalization)
-│        └─▶ ContinuousDataset  (all continuous columns, normalized)
-│
-├─ t2 = TreatmentGroup(name_expr=r&quot;^signal_&quot;, aggrfunc=aggregate(...), groupby=:vname)
-│        └─▶ MultidimDataset{T, AggregateFeat}  (signal_* columns → scalar features)
-│
-└─ t3 = TreatmentGroup(name_expr=r&quot;^audio_&quot;, aggrfunc=reducesize(256))
-         └─▶ MultidimDataset{T, ReduceFeat}     (audio_* columns → downsampled arrays)
+    │
+    ├─ aggrfunc = aggregate(...)
+    │   └─▶ MultidimDataset{T, AggregateFeat}
+    │        ├── data   :: Matrix{T}
+    │        ├── info   :: Vector{AggregateFeat}
+    │        └── groups :: Vector{Vector{Int}}
+    │
+    └─ aggrfunc = reducesize(...)
+        └─▶ MultidimDataset{T, ReduceFeat}
+             ├── data   :: Matrix{AbstractArray{T}}
+             ├── info   :: Vector{ReduceFeat}
+             └── groups :: nothing</code></pre><h4 id="Multiple-TreatmentGroups"><a class="docs-heading-anchor" href="#Multiple-TreatmentGroups">Multiple <code>TreatmentGroup</code>s</a><a id="Multiple-TreatmentGroups-1"></a><a class="docs-heading-anchor-permalink" href="#Multiple-TreatmentGroups" title="Permalink"></a></h4><pre><code class="language-julia hljs">dt = load_dataset(df, y, t1, t2, t3)</code></pre><pre><code class="nohighlight hljs">t1 = TreatmentGroup(datatype=:continuous, norm=MinMax)
+      └─▶ ContinuousDataset
+
+t2 = TreatmentGroup(name_expr=r&quot;^signal_&quot;,
+                    aggrfunc=aggregate(...), groupby=:vname)
+      └─▶ MultidimDataset{T, AggregateFeat}
+
+t3 = TreatmentGroup(name_expr=r&quot;^audio_&quot;,
+                    aggrfunc=reducesize(256))
+      └─▶ MultidimDataset{T, ReduceFeat}
 
 DataTreatment.data = [
-    ContinuousDataset,                   # from t1
-    MultidimDataset{AggregateFeat},      # from t2
-    MultidimDataset{ReduceFeat}          # from t3
-]</code></pre><hr/><h2 id="Metadata-Feature-Structs"><a class="docs-heading-anchor" href="#Metadata-Feature-Structs">Metadata Feature Structs</a><a id="Metadata-Feature-Structs-1"></a><a class="docs-heading-anchor-permalink" href="#Metadata-Feature-Structs" title="Permalink"></a></h2><p>These structs carry per-column diagnostic information (valid/missing/NaN indices, source column id, etc.). One is created for each output column.</p><h3 id="DiscreteFeat{T}"><a class="docs-heading-anchor" href="#DiscreteFeat{T}"><code>DiscreteFeat{T}</code></a><a id="DiscreteFeat{T}-1"></a><a class="docs-heading-anchor-permalink" href="#DiscreteFeat{T}" title="Permalink"></a></h3><article><details class="docstring" open="true"><summary id="DataTreatments.DiscreteFeat"><a class="docstring-binding" href="#DataTreatments.DiscreteFeat"><code>DataTreatments.DiscreteFeat</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">DiscreteFeat{T} &lt;: AbstractDataFeature</code></pre><p>Metadata for a <strong>discrete (categorical)</strong> feature in a dataset.</p><p><strong>Structure</strong></p><pre><code class="language-julia hljs">DiscreteFeat{T}
-├── id          ::Int           # column index in the source data
-├── vname       ::String        # original column name
-├── valididxs   ::Vector{Int}   # row indices with valid (non-missing) values
-├── missingidxs ::Vector{Int}   # row indices with missing values
-└── datatype    ::Type          # original column datatype</code></pre><p><strong>Example</strong></p><p>Given a column <code>&quot;color&quot;</code> at position <code>3</code> in the source data with 10 rows, where rows 4 and 7 are missing:</p><pre><code class="language-julia hljs">Source data column &quot;color&quot; (id=3)
-Row:  1       2       3       4        5       6       7        8       9       10
-Val: &quot;red&quot;  &quot;blue&quot; &quot;green&quot; missing  &quot;red&quot;  &quot;blue&quot;  missing  &quot;green&quot; &quot;red&quot;  &quot;blue&quot;
+    ContinuousDataset,             # from t1
+    MultidimDataset{AggregateFeat},# from t2
+    MultidimDataset{ReduceFeat},   # from t3
+]</code></pre><h4 id="Class-balancing"><a class="docs-heading-anchor" href="#Class-balancing">Class balancing</a><a id="Class-balancing-1"></a><a class="docs-heading-anchor-permalink" href="#Class-balancing" title="Permalink"></a></h4><p>Balancing is applied after all datasets are built, once per dataset:</p><pre><code class="language-julia hljs"># single strategy
+dt = load_dataset(df, y, t1; balance=SMOTE(k=5))
+
+# chained strategies
+dt = load_dataset(df, y, t1;
+    balance=(SMOTE(k=5), TomekUndersampler()))</code></pre><p>See <a href="../imbalance/#imbalance">Imbalance</a> for available strategies.</p><hr/><h2 id="Metadata-Feature-Structs"><a class="docs-heading-anchor" href="#Metadata-Feature-Structs">Metadata Feature Structs</a><a id="Metadata-Feature-Structs-1"></a><a class="docs-heading-anchor-permalink" href="#Metadata-Feature-Structs" title="Permalink"></a></h2><p>One struct is created per output column and carries diagnostic information (valid/missing/NaN indices, source column id, etc.).</p><h3 id="DiscreteFeat{T}"><a class="docs-heading-anchor" href="#DiscreteFeat{T}"><code>DiscreteFeat{T}</code></a><a id="DiscreteFeat{T}-1"></a><a class="docs-heading-anchor-permalink" href="#DiscreteFeat{T}" title="Permalink"></a></h3><article><details class="docstring" open="true"><summary id="DataTreatments.DiscreteFeat"><a class="docstring-binding" href="#DataTreatments.DiscreteFeat"><code>DataTreatments.DiscreteFeat</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">DiscreteFeat{T} &lt;: AbstractDataFeature</code></pre><p>Metadata for a <strong>discrete (categorical)</strong> feature in a dataset.</p><p><strong>Fields</strong></p><ul><li><code>id::Int</code>: Column index in the source data.</li><li><code>vname::String</code>: Original column name.</li><li><code>valididxs::Vector{Int}</code>: Row indices with valid (non-missing) values.</li><li><code>missingidxs::Vector{Int}</code>: Row indices with <code>missing</code> values.</li><li><code>datatype::Type</code>: Original column element type.</li></ul><p><strong>Example</strong></p><pre><code class="language-julia hljs">Source column &quot;color&quot; (id=3, 10 rows, rows 4 and 7 missing)
+
+Row:  1       2       3       4        5       6       7
+Val: &quot;red&quot;  &quot;blue&quot; &quot;green&quot; missing  &quot;red&quot;  &quot;blue&quot;  missing ...
 
 → id          = 3
 → vname       = &quot;color&quot;
 → valididxs   = [1, 2, 3, 5, 6, 8, 9, 10]
 → missingidxs = [4, 7]
-→ datatype    = String</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/PasoStudio73/DataTreatments.jl/blob/9fafc1da0c04ccc1780680e5ce17a91c14dec9dc/src/output_datasets.jl#L4-L36">source</a></section></details></article><hr/><h3 id="ContinuousFeat{T}"><a class="docs-heading-anchor" href="#ContinuousFeat{T}"><code>ContinuousFeat{T}</code></a><a id="ContinuousFeat{T}-1"></a><a class="docs-heading-anchor-permalink" href="#ContinuousFeat{T}" title="Permalink"></a></h3><article><details class="docstring" open="true"><summary id="DataTreatments.ContinuousFeat"><a class="docstring-binding" href="#DataTreatments.ContinuousFeat"><code>DataTreatments.ContinuousFeat</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">ContinuousFeat{T} &lt;: AbstractDataFeature</code></pre><p>Metadata for a <strong>continuous (numeric scalar)</strong> feature in a dataset.</p><p><strong>Structure</strong></p><pre><code class="language-julia hljs">ContinuousFeat{T}
-├── id          ::Int           # column index in the source data
-├── vname       ::String        # original column name
-├── valididxs   ::Vector{Int}   # row indices with valid (non-missing, non-NaN) values
-├── missingidxs ::Vector{Int}   # row indices with missing values
-└── nanidxs     ::Vector{Int}   # row indices with NaN values</code></pre><p><strong>Example</strong></p><p>Given a column <code>&quot;temperature&quot;</code> at position <code>2</code> in the source data with 8 rows, where row 3 is missing and row 6 contains NaN:</p><pre><code class="language-julia hljs">Source data column &quot;temperature&quot; (id=2)
-Row:  1      2      3        4      5      6      7      8
-Val: 22.1   19.5  missing  24.0   21.3   NaN   20.8   23.1
+→ datatype    = String</code></pre><p><strong>See Also</strong></p><p><a href="#DataTreatments.DiscreteDataset"><code>DiscreteDataset</code></a>, <a href="#DataTreatments.ContinuousFeat"><code>ContinuousFeat</code></a></p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/PasoStudio73/DataTreatments.jl/blob/d37fb000ca5bee5d48f03811e1a1d9a7728e7e5d/src/output_datasets.jl#L4-L33">source</a></section></details></article><hr/><h3 id="ContinuousFeat{T}"><a class="docs-heading-anchor" href="#ContinuousFeat{T}"><code>ContinuousFeat{T}</code></a><a id="ContinuousFeat{T}-1"></a><a class="docs-heading-anchor-permalink" href="#ContinuousFeat{T}" title="Permalink"></a></h3><article><details class="docstring" open="true"><summary id="DataTreatments.ContinuousFeat"><a class="docstring-binding" href="#DataTreatments.ContinuousFeat"><code>DataTreatments.ContinuousFeat</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">ContinuousFeat{T} &lt;: AbstractDataFeature</code></pre><p>Metadata for a <strong>continuous (numeric scalar)</strong> feature in a dataset.</p><p><strong>Fields</strong></p><ul><li><code>id::Int</code>: Column index in the source data.</li><li><code>vname::String</code>: Original column name.</li><li><code>valididxs::Vector{Int}</code>: Row indices with valid (non-missing, non-NaN) values.</li><li><code>missingidxs::Vector{Int}</code>: Row indices with <code>missing</code> values.</li><li><code>nanidxs::Vector{Int}</code>: Row indices with <code>NaN</code> values.</li></ul><p><strong>Example</strong></p><pre><code class="language-julia hljs">Source column &quot;temperature&quot; (id=2, 8 rows)
+Row:  1      2      3        4      5     6      7      8
+Val: 22.1  19.5  missing  24.0   21.3   NaN   20.8   23.1
 
 → id          = 2
 → vname       = &quot;temperature&quot;
 → valididxs   = [1, 2, 4, 5, 7, 8]
 → missingidxs = [3]
-→ nanidxs     = [6]</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/PasoStudio73/DataTreatments.jl/blob/9fafc1da0c04ccc1780680e5ce17a91c14dec9dc/src/output_datasets.jl#L45-L77">source</a></section></details></article><hr/><h3 id="AggregateFeat{T}"><a class="docs-heading-anchor" href="#AggregateFeat{T}"><code>AggregateFeat{T}</code></a><a id="AggregateFeat{T}-1"></a><a class="docs-heading-anchor-permalink" href="#AggregateFeat{T}" title="Permalink"></a></h3><article><details class="docstring" open="true"><summary id="DataTreatments.AggregateFeat"><a class="docstring-binding" href="#DataTreatments.AggregateFeat"><code>DataTreatments.AggregateFeat</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">AggregateFeat{T} &lt;: AbstractDataFeature</code></pre><p>Metadata for an <strong>aggregated scalar</strong> feature derived from a multidimensional column (e.g., a time series) via a feature function applied over a sliding window.</p><p><strong>Structure</strong></p><pre><code class="language-julia hljs">AggregateFeat{T}
-├── id          ::Int            # source column index in the original data
-├── subid       ::Int            # position of this feature in the flattened output
-├── vname       ::String         # original column name
-├── dims        ::Int            # dimensionality of the source arrays
-├── feat        ::Base.Callable  # aggregation function (e.g., mean, std)
-├── nwin        ::Int            # window index this feature was computed on
-├── valididxs   ::Vector{Int}    # row indices with valid entries
-├── missingidxs ::Vector{Int}    # row indices where the cell is missing
-├── nanidxs     ::Vector{Int}    # row indices where the scalar result is NaN
-├── hasmissing  ::Vector{Int}    # row indices where the source array has internal `missing`
-└── hasnans     ::Vector{Int}    # row indices where the source array has internal `NaN`</code></pre><p><strong>Example</strong></p><p>A column <code>&quot;signal&quot;</code> (id=1) contains time series of length 100. We apply <code>[mean, std]</code> over <code>2</code> sliding windows → 4 output columns:</p><pre><code class="language-julia hljs">Source column &quot;signal&quot; (id=1, dims=100)
-       ┌───────────────────────────────────────────────┐
-Row 1: │ [0.1, 0.3, ..., 0.9]     (length 100)         │
-Row 2: │ [0.2, missing, ..., 0.7] (has internal miss)  │
-Row 3: │ missing                  (whole cell missing) │
-       └───────────────────────────────────────────────┘
-           │
-           ▼  apply [mean, std] × 2 windows
-┌──────────────────────────────────────────────────────┐
-│  subid=1         subid=2         subid=3   subid=4   │
-│  feat=mean,win=1 feat=std,win=1  mean,win2 std,win2  │
-│  id=1            id=1            id=1      id=1      │
-└──────────────────────────────────────────────────────┘</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/PasoStudio73/DataTreatments.jl/blob/9fafc1da0c04ccc1780680e5ce17a91c14dec9dc/src/output_datasets.jl#L86-L129">source</a></section></details></article><hr/><h3 id="ReduceFeat{T}"><a class="docs-heading-anchor" href="#ReduceFeat{T}"><code>ReduceFeat{T}</code></a><a id="ReduceFeat{T}-1"></a><a class="docs-heading-anchor-permalink" href="#ReduceFeat{T}" title="Permalink"></a></h3><article><details class="docstring" open="true"><summary id="DataTreatments.ReduceFeat"><a class="docstring-binding" href="#DataTreatments.ReduceFeat"><code>DataTreatments.ReduceFeat</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">ReduceFeat{T} &lt;: AbstractDataFeature</code></pre><p>Metadata for a <strong>reduced-size</strong> feature derived from a multidimensional column. Unlike <a href="#DataTreatments.AggregateFeat"><code>AggregateFeat</code></a>, the output preserves the array structure but reduces its size (e.g., downsampling a 10 000-point time series to 256 points).</p><p><strong>Structure</strong></p><pre><code class="language-julia hljs">ReduceFeat{T}
-├── id          ::Int            # source column index in the original data
-├── vname       ::String         # original column name
-├── dims        ::Int            # dimensionality of the source arrays
-├── reducefunc  ::Base.Callable  # reduction/downsampling function
-├── valididxs   ::Vector{Int}    # row indices with valid entries
-├── missingidxs ::Vector{Int}    # row indices where the cell is missing
-├── nanidxs     ::Vector{Int}    # row indices where the reduced result has NaN
-├── hasmissing  ::Vector{Int}    # row indices where source array has internal `missing`
-└── hasnans     ::Vector{Int}    # row indices where source array has internal `NaN`</code></pre><p><strong>Example</strong></p><pre><code class="language-julia hljs">Source column &quot;audio&quot; (id=5, dims=10000)
-       ┌────────────────────────────────────────────┐
-Row 1: │ [0.1, 0.2, ..., 0.9]  (length 10 000)      │
-Row 2: │ [0.3, NaN, ..., 0.5]  (has internal NaN)   │
-Row 3: │ missing               (whole cell missing) │
-       └────────────────────────────────────────────┘
-           │
-           ▼  apply reducefunc (e.g., downsample to 256)
-       ┌────────────────────────────────────────────┐
-Row 1: │ [0.12, 0.34, ..., 0.88]  (length 256)      │  ← valid
-Row 2: │ [0.31, 0.49, ..., 0.50]  (length 256)      │  ← hasnans=[2]
-Row 3: │ missing                                    │  ← missingidxs=[3]
-       └────────────────────────────────────────────┘</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/PasoStudio73/DataTreatments.jl/blob/9fafc1da0c04ccc1780680e5ce17a91c14dec9dc/src/output_datasets.jl#L144-L183">source</a></section></details></article><hr/><h2 id="Dataset-Structs"><a class="docs-heading-anchor" href="#Dataset-Structs">Dataset Structs</a><a id="Dataset-Structs-1"></a><a class="docs-heading-anchor-permalink" href="#Dataset-Structs" title="Permalink"></a></h2><p>Each dataset wraps a processed data matrix together with a <code>Vector</code> of the corresponding metadata feature structs.</p><h3 id="DiscreteDataset{T}"><a class="docs-heading-anchor" href="#DiscreteDataset{T}"><code>DiscreteDataset{T}</code></a><a id="DiscreteDataset{T}-1"></a><a class="docs-heading-anchor-permalink" href="#DiscreteDataset{T}" title="Permalink"></a></h3><article><details class="docstring" open="true"><summary id="DataTreatments.DiscreteDataset"><a class="docstring-binding" href="#DataTreatments.DiscreteDataset"><code>DataTreatments.DiscreteDataset</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">DiscreteDataset{T} &lt;: AbstractDataset</code></pre><p>Output dataset for <strong>discrete (categorical)</strong> columns collected by <code>DataTreatment</code>.</p><p><strong>Structure</strong></p><pre><code class="language-julia hljs">DiscreteDataset{T}
-├── data  ::AbstractMatrix          # integer-coded matrix (nrows × nfeatures)
-│                                   # values are Int level codes or missing
-└── info  ::Vector{&lt;:DiscreteFeat}  # one DiscreteFeat entry per column</code></pre><p><strong>Layout</strong></p><pre><code class="language-julia hljs">Source DataFrame (mixed types)
+→ nanidxs     = [6]</code></pre><p><strong>See Also</strong></p><p><a href="#DataTreatments.ContinuousDataset"><code>ContinuousDataset</code></a>, <a href="#DataTreatments.DiscreteFeat"><code>DiscreteFeat</code></a></p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/PasoStudio73/DataTreatments.jl/blob/d37fb000ca5bee5d48f03811e1a1d9a7728e7e5d/src/output_datasets.jl#L42-L71">source</a></section></details></article><hr/><h3 id="AggregateFeat{T}"><a class="docs-heading-anchor" href="#AggregateFeat{T}"><code>AggregateFeat{T}</code></a><a id="AggregateFeat{T}-1"></a><a class="docs-heading-anchor-permalink" href="#AggregateFeat{T}" title="Permalink"></a></h3><article><details class="docstring" open="true"><summary id="DataTreatments.AggregateFeat"><a class="docstring-binding" href="#DataTreatments.AggregateFeat"><code>DataTreatments.AggregateFeat</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">AggregateFeat{T} &lt;: AbstractDataFeature</code></pre><p>Metadata for an <strong>aggregated scalar</strong> feature derived from a multidimensional column (e.g. a time series) via a feature function applied over a sliding window.</p><p>Each source column produces <code>nfeatures × nwindows</code> output columns, each represented by one <code>AggregateFeat</code>.</p><p><strong>Fields</strong></p><ul><li><code>id::Int</code>: Source column index in the original data.</li><li><code>subid::Int</code>: Position of this feature in the flattened output.</li><li><code>vname::String</code>: Original column name.</li><li><code>dims::Int</code>: Length of the source arrays.</li><li><code>feat::Base.Callable</code>: Aggregation function (e.g. <code>mean</code>, <code>std</code>).</li><li><code>nwin::Int</code>: Window index this feature was computed on.</li><li><code>valididxs::Vector{Int}</code>: Row indices with valid entries.</li><li><code>missingidxs::Vector{Int}</code>: Row indices where the cell is <code>missing</code>.</li><li><code>nanidxs::Vector{Int}</code>: Row indices where the scalar result is <code>NaN</code>.</li><li><code>hasmissing::Vector{Int}</code>: Row indices where the source array contains internal <code>missing</code> values.</li><li><code>hasnans::Vector{Int}</code>: Row indices where the source array contains internal <code>NaN</code> values.</li></ul><p><strong>Example</strong></p><pre><code class="language-julia hljs">Source column &quot;signal&quot; (id=1, dims=100)
+  Row 1: [0.1, 0.3, ..., 0.9]      (valid)
+  Row 2: [0.2, missing, ..., 0.7]  (internal missing)
+  Row 3: missing                   (whole cell missing)
+
+Apply features=[mean, std] over nwindows=2
+→ 4 output columns:
+
+  subid=1  feat=mean  nwin=1  id=1
+  subid=2  feat=std   nwin=1  id=1
+  subid=3  feat=mean  nwin=2  id=1
+  subid=4  feat=std   nwin=2  id=1</code></pre><p><strong>See Also</strong></p><p><a href="#DataTreatments.MultidimDataset"><code>MultidimDataset</code></a>, <a href="#DataTreatments.ReduceFeat"><code>ReduceFeat</code></a>, <a href="../treatment/#DataTreatments.aggregate-Tuple{}"><code>aggregate</code></a></p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/PasoStudio73/DataTreatments.jl/blob/d37fb000ca5bee5d48f03811e1a1d9a7728e7e5d/src/output_datasets.jl#L80-L125">source</a></section></details></article><hr/><h3 id="ReduceFeat{T}"><a class="docs-heading-anchor" href="#ReduceFeat{T}"><code>ReduceFeat{T}</code></a><a id="ReduceFeat{T}-1"></a><a class="docs-heading-anchor-permalink" href="#ReduceFeat{T}" title="Permalink"></a></h3><article><details class="docstring" open="true"><summary id="DataTreatments.ReduceFeat"><a class="docstring-binding" href="#DataTreatments.ReduceFeat"><code>DataTreatments.ReduceFeat</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">ReduceFeat{T} &lt;: AbstractDataFeature</code></pre><p>Metadata for a <strong>reduced-size</strong> feature derived from a multidimensional column. Unlike <a href="#DataTreatments.AggregateFeat"><code>AggregateFeat</code></a>, the output preserves the array structure but reduces its size (e.g. downsampling a 10 000-point time series to 256 points).</p><p><strong>Fields</strong></p><ul><li><code>id::Int</code>: Source column index in the original data.</li><li><code>vname::String</code>: Original column name.</li><li><code>dims::Int</code>: Length of the source arrays.</li><li><code>reducefunc::Base.Callable</code>: Reduction/downsampling function.</li><li><code>valididxs::Vector{Int}</code>: Row indices with valid entries.</li><li><code>missingidxs::Vector{Int}</code>: Row indices where the cell is <code>missing</code>.</li><li><code>nanidxs::Vector{Int}</code>: Row indices where the reduced result has <code>NaN</code>.</li><li><code>hasmissing::Vector{Int}</code>: Row indices where the source array has internal <code>missing</code> values.</li><li><code>hasnans::Vector{Int}</code>: Row indices where the source array has internal <code>NaN</code> values.</li></ul><p><strong>Example</strong></p><pre><code class="language-julia hljs">Source column &quot;audio&quot; (id=5, dims=10000)
+  Row 1: [0.1, 0.2, ..., 0.9]   (valid)
+  Row 2: [0.3, NaN, ..., 0.5]   (internal NaN)
+  Row 3: missing                (whole cell missing)
+
+Apply reducefunc = downsample(256)
+  Row 1: [0.12, 0.34, ..., 0.88]  (length 256) ← valid
+  Row 2: [0.31, 0.49, ..., 0.50]  (length 256) ← hasnans=[2]
+  Row 3: missing                               ← missingidxs=[3]</code></pre><p><strong>See Also</strong></p><p><a href="#DataTreatments.MultidimDataset"><code>MultidimDataset</code></a>, <a href="#DataTreatments.AggregateFeat"><code>AggregateFeat</code></a>, <a href="../treatment/#DataTreatments.reducesize-Tuple{}"><code>reducesize</code></a></p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/PasoStudio73/DataTreatments.jl/blob/d37fb000ca5bee5d48f03811e1a1d9a7728e7e5d/src/output_datasets.jl#L140-L179">source</a></section></details></article><hr/><h2 id="Dataset-Structs"><a class="docs-heading-anchor" href="#Dataset-Structs">Dataset Structs</a><a id="Dataset-Structs-1"></a><a class="docs-heading-anchor-permalink" href="#Dataset-Structs" title="Permalink"></a></h2><p>Each dataset wraps a processed data matrix together with a <code>Vector</code> of the corresponding metadata feature structs.</p><h3 id="DiscreteDataset{T}"><a class="docs-heading-anchor" href="#DiscreteDataset{T}"><code>DiscreteDataset{T}</code></a><a id="DiscreteDataset{T}-1"></a><a class="docs-heading-anchor-permalink" href="#DiscreteDataset{T}" title="Permalink"></a></h3><article><details class="docstring" open="true"><summary id="DataTreatments.DiscreteDataset"><a class="docstring-binding" href="#DataTreatments.DiscreteDataset"><code>DataTreatments.DiscreteDataset</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">DiscreteDataset{T} &lt;: AbstractDataset</code></pre><p>Output dataset for <strong>discrete (categorical)</strong> columns collected by <a href="#DataTreatments.load_dataset"><code>load_dataset</code></a>.</p><p>Categorical columns are integer-encoded via <code>_discrete_encode</code> so that downstream ML models receive a plain numeric matrix.</p><p><strong>Fields</strong></p><ul><li><code>data::AbstractMatrix</code>: Integer-coded matrix (<code>nrows × nfeatures</code>). Values are <code>Int</code> level codes or <code>missing</code>.</li><li><code>info::Vector{&lt;:DiscreteFeat}</code>: One <a href="#DataTreatments.DiscreteFeat"><code>DiscreteFeat</code></a> per output column.</li></ul><p><strong>Layout</strong></p><pre><code class="language-julia hljs">Source columns (ids=[1,2,3])
  ┌──────────┬──────────┬──────────┐
- │ color    │ shape    │ size     │  ← discrete columns selected (ids=[1,2,3])
+ │ color    │ shape    │ size     │
  ├──────────┼──────────┼──────────┤
  │ &quot;red&quot;    │ &quot;circle&quot; │ &quot;small&quot;  │
  │ &quot;blue&quot;   │ missing  │ &quot;large&quot;  │
  │ &quot;red&quot;    │ &quot;square&quot; │ &quot;small&quot;  │
  └──────────┴──────────┴──────────┘
-         │
-         ▼  _discrete_encode
+         │  _discrete_encode
  ┌──────────┬──────────┬──────────┐
- │ col_1    │ col_2    │ col_3    │   data::AbstractMatrix
- ├──────────┼──────────┼──────────┤   (integer-coded, Union{Int,Missing})
+ │  col_1   │  col_2   │  col_3   │
+ ├──────────┼──────────┼──────────┤
  │    2     │    1     │    2     │
- │    1     │  miss.   │    1     │
+ │    1     │ missing  │    1     │
  │    2     │    3     │    2     │
- └──────────┴──────────┴──────────┘
+ └──────────┴──────────┴──────────┘</code></pre><p><strong>Constructors</strong></p><ul><li><code>DiscreteDataset(data, info)</code>: Direct constructor from a pre-built matrix and metadata vector.</li><li><code>DiscreteDataset(ids, data, vnames, datastruct, impute)</code>: Internal constructor — selects <code>ids</code> from <code>data</code>, encodes categorically, applies optional <code>impute</code>, and builds <a href="#DataTreatments.DiscreteFeat"><code>DiscreteFeat</code></a> metadata.</li></ul><p><strong>Arguments (internal constructor)</strong></p><ul><li><code>ids::Vector{Int}</code>: Column indices to include.</li><li><code>data::AbstractMatrix</code>: Full raw dataset matrix.</li><li><code>vnames::Vector{String}</code>: All column names.</li><li><code>datastruct::NamedTuple</code>: Per-column metadata from <code>_inspecting</code>.</li><li><code>impute</code>: <code>nothing</code> or a <code>Tuple</code> of <code>Impute.Imputor</code>s.</li></ul><p><strong>See Also</strong></p><p><a href="#DataTreatments.ContinuousDataset"><code>ContinuousDataset</code></a>, <a href="#DataTreatments.MultidimDataset"><code>MultidimDataset</code></a>, <a href="#DataTreatments.DiscreteFeat"><code>DiscreteFeat</code></a></p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/PasoStudio73/DataTreatments.jl/blob/d37fb000ca5bee5d48f03811e1a1d9a7728e7e5d/src/output_datasets.jl#L319-L373">source</a></section></details></article><hr/><h3 id="ContinuousDataset{T}"><a class="docs-heading-anchor" href="#ContinuousDataset{T}"><code>ContinuousDataset{T}</code></a><a id="ContinuousDataset{T}-1"></a><a class="docs-heading-anchor-permalink" href="#ContinuousDataset{T}" title="Permalink"></a></h3><article><details class="docstring" open="true"><summary id="DataTreatments.ContinuousDataset"><a class="docstring-binding" href="#DataTreatments.ContinuousDataset"><code>DataTreatments.ContinuousDataset</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">ContinuousDataset{T} &lt;: AbstractDataset</code></pre><p>Output dataset for <strong>continuous (numeric scalar)</strong> columns produced by <a href="#DataTreatments.load_dataset"><code>load_dataset</code></a>.</p><p>Numeric columns are cast to <code>float_type</code>, then optionally imputed and normalized column-wise.</p><p><strong>Fields</strong></p><ul><li><code>data::AbstractMatrix</code>: Float matrix (<code>nrows × nfeatures</code>). Values are <code>Union{Missing, T}</code> before imputation, or <code>T</code> afterwards.</li><li><code>info::Vector{&lt;:ContinuousFeat}</code>: One <a href="#DataTreatments.ContinuousFeat"><code>ContinuousFeat</code></a> per output column.</li></ul><p><strong>Layout</strong></p><pre><code class="language-julia hljs">Source columns (ids=[4,5,6])
+ ┌────────────┬──────────┬──────────┐
+ │temperature │ pressure │ humidity │
+ ├────────────┼──────────┼──────────┤
+ │  22.1      │  1013.0  │   55.3   │
+ │  missing   │   987.5  │   NaN    │
+ │  19.8      │  1001.2  │   60.1   │
+ └────────────┴──────────┴──────────┘
+         │  cast to Float64
+         │  normalize! via NaNSafe{MinMax{Float64}}
+ ┌────────────┬──────────┬──────────┐
+ │   col_4    │  col_5   │  col_6   │
+ ├────────────┼──────────┼──────────┤
+ │   0.82     │   1.00   │   0.72   │
+ │  missing   │   0.00   │   NaN    │
+ │   0.00     │   0.54   │   1.00   │
+ └────────────┴──────────┴──────────┘</code></pre><div class="admonition is-info" id="Processing-order-2c687727b885988"><header class="admonition-header">Processing order<a class="admonition-anchor" href="#Processing-order-2c687727b885988" title="Permalink"></a></header><div class="admonition-body"><ol><li>Cast each element to <code>float_type</code> (preserving <code>missing</code>).</li><li>Apply <code>impute</code> (if provided).</li><li>Apply <code>norm</code> column-wise via <code>NaNSafe{norm{T}}</code> (if provided).</li></ol><p><code>NaNSafe</code> ignores <code>NaN</code> when estimating normalization parameters.</p></div></div><p><strong>Type Parameter</strong></p><ul><li><code>T</code>: Floating-point type (e.g. <code>Float64</code>, <code>Float32</code>).</li></ul><p><strong>Constructors</strong></p><ul><li><code>ContinuousDataset(data, info)</code>: Direct constructor from a pre-built matrix and metadata vector.</li><li><code>ContinuousDataset(ids, data, vnames, datastruct, impute, norm, float_type)</code>: Internal constructor.</li></ul><p><strong>Arguments (internal constructor)</strong></p><ul><li><code>ids::Vector{Int}</code>: Column indices to include.</li><li><code>data::AbstractMatrix</code>: Full raw dataset matrix.</li><li><code>vnames::Vector{String}</code>: All column names.</li><li><code>datastruct::NamedTuple</code>: Per-column metadata from <code>_inspecting</code>.</li><li><code>impute</code>: <code>nothing</code> or a <code>Tuple</code> of <code>Impute.Imputor</code>s.</li><li><code>norm</code>: <code>nothing</code> or a <code>Type{&lt;:AbstractNormalization}</code> (e.g. <code>MinMax</code>, <code>ZScore</code>).</li><li><code>float_type::Type</code>: Target floating-point type.</li></ul><p><strong>See Also</strong></p><p><a href="#DataTreatments.DiscreteDataset"><code>DiscreteDataset</code></a>, <a href="#DataTreatments.MultidimDataset"><code>MultidimDataset</code></a>, <a href="#DataTreatments.ContinuousFeat"><code>ContinuousFeat</code></a></p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/PasoStudio73/DataTreatments.jl/blob/d37fb000ca5bee5d48f03811e1a1d9a7728e7e5d/src/output_datasets.jl#L416-L482">source</a></section></details></article><hr/><h3 id="MultidimDataset{T,S}"><a class="docs-heading-anchor" href="#MultidimDataset{T,S}"><code>MultidimDataset{T,S}</code></a><a id="MultidimDataset{T,S}-1"></a><a class="docs-heading-anchor-permalink" href="#MultidimDataset{T,S}" title="Permalink"></a></h3><article><details class="docstring" open="true"><summary id="DataTreatments.MultidimDataset"><a class="docstring-binding" href="#DataTreatments.MultidimDataset"><code>DataTreatments.MultidimDataset</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">MultidimDataset{T,S} &lt;: AbstractDataset</code></pre><p>Output dataset for <strong>multidimensional</strong> columns (e.g. time series, spectrograms) produced by <a href="#DataTreatments.load_dataset"><code>load_dataset</code></a>.</p><p>The type parameter <code>S</code> determines the output layout:</p><table><tr><th style="text-align: left"><code>S</code></th><th style="text-align: left"><code>aggrfunc</code></th><th style="text-align: left">Output layout</th></tr><tr><td style="text-align: left"><code>AggregateFeat</code></td><td style="text-align: left"><code>aggregate</code></td><td style="text-align: left">tabular scalar matrix</td></tr><tr><td style="text-align: left"><code>ReduceFeat</code></td><td style="text-align: left"><code>reducesize</code></td><td style="text-align: left">matrix of smaller arrays</td></tr></table><p><strong>Fields</strong></p><ul><li><code>data::AbstractArray</code>: Processed data matrix.</li><li><code>info::Vector{&lt;:Union{AggregateFeat,ReduceFeat}}</code>: One metadata entry per output column.</li><li><code>groups::Union{Nothing,Vector{Vector{Int}}}</code>: Optional column groupings (e.g. <code>[[1,2,3,4],[5,6,7,8]]</code> means columns 1–4 come from source column A and 5–8 from source column B).</li></ul><p><strong>Strategy 1 — <code>aggregate</code> → <code>S = AggregateFeat</code></strong></p><pre><code class="language-julia hljs">Source column &quot;signal&quot; (dims=1000)
+  Row 1: [0.1, 0.2, ..., 0.9]
+  Row 2: [0.3, 0.4, ..., 0.8]
+  Row 3: missing
 
- info = [DiscreteFeat(id=1, vname=&quot;color&quot;,  ...),
-         DiscreteFeat(id=2, vname=&quot;shape&quot;,  ...),
-         DiscreteFeat(id=3, vname=&quot;size&quot;,   ...)]</code></pre><p><strong>Constructors</strong></p><ul><li><code>DiscreteDataset(data, info)</code>: Direct constructor from pre-built matrix and metadata.</li><li><code>DiscreteDataset(ids, data, vnames, datastruct, impute)</code>: Internal constructor — selects columns <code>ids</code> from <code>data</code>, encodes them categorically, optionally applies <code>impute</code>, and builds <a href="#DataTreatments.DiscreteFeat"><code>DiscreteFeat</code></a> metadata from <code>datastruct</code>.</li></ul><p><strong>Arguments for internal constructor</strong></p><ul><li><code>ids::Vector{Int}</code>: Column indices to include.</li><li><code>data::AbstractMatrix</code>: Full raw dataset matrix.</li><li><code>vnames::Vector{String}</code>: Names of all columns.</li><li><code>datastruct::NamedTuple</code>: Pre-computed dataset metadata from <code>_inspecting</code>.</li><li><code>impute</code>: <code>nothing</code> or a tuple of <code>Impute.Imputor</code>s to fill missing values.</li></ul><p>See also: <a href="#DataTreatments.ContinuousDataset"><code>ContinuousDataset</code></a>, <a href="#DataTreatments.MultidimDataset"><code>MultidimDataset</code></a>, <a href="#DataTreatments.DiscreteFeat"><code>DiscreteFeat</code></a></p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/PasoStudio73/DataTreatments.jl/blob/9fafc1da0c04ccc1780680e5ce17a91c14dec9dc/src/output_datasets.jl#L302-L358">source</a></section></details></article><hr/><h3 id="ContinuousDataset{T}"><a class="docs-heading-anchor" href="#ContinuousDataset{T}"><code>ContinuousDataset{T}</code></a><a id="ContinuousDataset{T}-1"></a><a class="docs-heading-anchor-permalink" href="#ContinuousDataset{T}" title="Permalink"></a></h3><article><details class="docstring" open="true"><summary id="DataTreatments.ContinuousDataset"><a class="docstring-binding" href="#DataTreatments.ContinuousDataset"><code>DataTreatments.ContinuousDataset</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">ContinuousDataset{T} &lt;: AbstractDataset</code></pre><p>Output dataset for <strong>continuous (numeric scalar)</strong> columns produced by <code>DataTreatment</code>.</p><p><strong>Structure</strong></p><pre><code class="language-julia hljs">ContinuousDataset{T}
-├── data  ::AbstractMatrix            # float matrix (nrows × nfeatures)
-│                                     # values are Union{Missing, T}
-└── info  ::Vector{&lt;:ContinuousFeat}  # one ContinuousFeat entry per column</code></pre><p><strong>Layout</strong></p><pre><code class="language-julia hljs">Source DataFrame (mixed types)
- ┌────────────┬──────────┬───────────┐
- │temperature │ pressure │ humidity  │  ← continuous columns (ids=[4,5,6])
- ├────────────┼──────────┼───────────┤
- │  22.1      │  1013.0  │   55.3    │
- │  missing   │  987.5   │   NaN     │
- │  19.8      │  1001.2  │   60.1    │
- └────────────┴──────────┴───────────┘
-         │
-         ▼  cast to float_type (e.g. Float64)
- ┌────────────┬──────────┬───────────┐
- │  col_4     │  col_5   │  col_6    │   data::Matrix{Union{Missing,Float64}}
- ├────────────┼──────────┼───────────┤
- │  22.1      │  1013.0  │   55.3    │
- │  missing   │   987.5  │   NaN     │
- │  19.8      │  1001.2  │   60.1    │
- └────────────┴──────────┴───────────┘
-         │
-         ▼  normalize! (if norm != nothing)  e.g. NaNSafe{MinMaxNormalization{Float64}}
- ┌────────────┬──────────┬───────────┐
- │  col_4     │  col_5   │  col_6    │   data::Matrix{Float64}  (column-wise)
- ├────────────┼──────────┼───────────┤
- │   0.82     │   1.00   │   0.72    │
- │  missing   │   0.00   │   NaN     │
- │   0.00     │   0.54   │   1.00    │
- └────────────┴──────────┴───────────┘
-
- info = [ContinuousFeat(id=4, vname=&quot;temperature&quot;, nanidxs=[],  missingidxs=[2], ...),
-         ContinuousFeat(id=5, vname=&quot;pressure&quot;,    nanidxs=[],  missingidxs=[],  ...),
-         ContinuousFeat(id=6, vname=&quot;humidity&quot;,    nanidxs=[2], missingidxs=[],  ...)]</code></pre><div class="admonition is-info" id="Normalization-order-5d6ac90a5f4cf234"><header class="admonition-header">Normalization order<a class="admonition-anchor" href="#Normalization-order-5d6ac90a5f4cf234" title="Permalink"></a></header><div class="admonition-body"><p>Imputation (if any) is applied <strong>before</strong> normalization. NaN values produced by missing imputation are handled transparently via <code>NaNSafe{norm{T}}</code>, which ignores NaNs when computing statistics.</p></div></div><p><strong>Type Parameter</strong></p><ul><li><code>T</code>: The floating-point type used for numeric conversion (e.g., <code>Float64</code>, <code>Float32</code>).</li></ul><p><strong>Constructors</strong></p><ul><li><code>ContinuousDataset(data, info)</code>: Direct constructor from pre-built matrix and metadata.</li><li><code>ContinuousDataset(ids, data, vnames, datastruct, impute, norm, float_type)</code>: Internal constructor — selects columns <code>ids</code> from <code>data</code>, converts each element to <code>float_type</code> (preserving <code>missing</code>), optionally applies <code>impute</code> and/or <code>norm</code>, and builds <a href="#DataTreatments.ContinuousFeat"><code>ContinuousFeat</code></a> metadata from <code>datastruct</code>.</li></ul><p><strong>Arguments for internal constructor</strong></p><ul><li><code>ids::Vector{Int}</code>: Column indices to include.</li><li><code>data::AbstractMatrix</code>: Full raw dataset matrix.</li><li><code>vnames::Vector{String}</code>: Names of all columns.</li><li><code>datastruct::NamedTuple</code>: Pre-computed dataset metadata from <code>_inspecting</code>.</li><li><code>impute</code>: <code>nothing</code> or a tuple of <code>Impute.Imputor</code>s to fill missing values.</li><li><code>norm</code>: <code>nothing</code> or a <code>Type{&lt;:AbstractNormalization}</code> (e.g., <code>MinMax</code>, <code>ZScore</code>) applied column-wise after imputation. NaN values are handled via <code>NaNSafe{norm{T}}</code>.</li><li><code>float_type::Type</code>: Target floating-point type for numeric conversion.</li></ul><p>See also: <a href="#DataTreatments.DiscreteDataset"><code>DiscreteDataset</code></a>, <a href="#DataTreatments.MultidimDataset"><code>MultidimDataset</code></a>, <a href="#DataTreatments.ContinuousFeat"><code>ContinuousFeat</code></a></p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/PasoStudio73/DataTreatments.jl/blob/9fafc1da0c04ccc1780680e5ce17a91c14dec9dc/src/output_datasets.jl#L401-L478">source</a></section></details></article><hr/><h3 id="MultidimDataset{T,S}"><a class="docs-heading-anchor" href="#MultidimDataset{T,S}"><code>MultidimDataset{T,S}</code></a><a id="MultidimDataset{T,S}-1"></a><a class="docs-heading-anchor-permalink" href="#MultidimDataset{T,S}" title="Permalink"></a></h3><article><details class="docstring" open="true"><summary id="DataTreatments.MultidimDataset"><a class="docstring-binding" href="#DataTreatments.MultidimDataset"><code>DataTreatments.MultidimDataset</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">MultidimDataset{T,S} &lt;: AbstractDataset</code></pre><p>Output dataset for <strong>multidimensional</strong> columns (e.g., time series, spectrograms) produced by <code>DataTreatment</code>. The layout depends on the chosen aggregation strategy:</p><hr/><p><strong>Strategy 1 — <code>aggregate</code> → <code>S = AggregateFeat</code></strong></p><p>Each multidimensional element is condensed into multiple <strong>scalar columns</strong> via feature functions applied over sliding windows.</p><pre><code class="language-julia hljs">Source column &quot;signal&quot; (dims=1000)
- ┌────────────────────────────────────┐
- │ Row 1: [0.1, 0.2, ..., 0.9]        │
- │ Row 2: [0.3, 0.4, ..., 0.8]        │
- │ Row 3: missing                     │
- └────────────────────────────────────┘
-         │
-         ▼  features=[mean, std], nwindows=2
+Apply features=[mean, std], nwindows=2
  ┌──────────┬─────────┬──────────┬─────────┐
- │mean,win1 │std,win1 │mean,win2 │std,win2 │  data::Matrix{Float64}
- ├──────────┼─────────┼──────────┼─────────┤  (tabular, nrows × n_feats×nwins)
+ │mean,win1 │std,win1 │mean,win2 │std,win2 │
+ ├──────────┼─────────┼──────────┼─────────┤
  │  0.312   │  0.098  │  0.601   │  0.112  │
  │  0.421   │  0.077  │  0.699   │  0.085  │
  │ missing  │ missing │ missing  │ missing │
- └──────────┴─────────┴──────────┴─────────┘
-         │
-         ▼  normalize! (if norm != nothing)  e.g. NaNSafe{MinMaxNormalization{Float64}}
- ┌──────────┬─────────┬──────────┬─────────┐
- │mean,win1 │std,win1 │mean,win2 │std,win2 │  (column-wise normalization)
- ├──────────┼─────────┼──────────┼─────────┤
- │  0.00    │  0.28   │  0.00    │  0.00   │
- │  1.00    │  0.00   │  1.00    │  1.00   │
- │ missing  │ missing │ missing  │ missing │
- └──────────┴─────────┴──────────┴─────────┘
- info = [AggregateFeat(subid=1, feat=mean, nwin=1, ...),
-         AggregateFeat(subid=2, feat=std,  nwin=1, ...),
-         AggregateFeat(subid=3, feat=mean, nwin=2, ...),
-         AggregateFeat(subid=4, feat=std,  nwin=2, ...)]</code></pre><hr/><p><strong>Strategy 2 — <code>reducesize</code> → <code>S = ReduceFeat</code></strong></p><p>Each multidimensional element is <strong>downsampled</strong> to a smaller array, preserving the array structure.</p><pre><code class="language-julia hljs">Source column &quot;audio&quot; (dims=10000)
- ┌────────────────────────────────────────┐
- │ Row 1: [0.1, 0.2, ..., 0.9]  (10000)   │
- │ Row 2: [0.3, NaN, ..., 0.8]  (10000)   │
- │ Row 3: missing                         │
- └────────────────────────────────────────┘
-         │
-         ▼  reducefunc = downsample(256)
- ┌────────────────────────────────────────┐
- │ Row 1: [0.12, 0.34, ..., 0.88]  (256)  │  data::Matrix{AbstractArray{Float64}}
- │ Row 2: [0.31, 0.49, ..., 0.50]  (256)  │
- │ Row 3: missing                         │
- └────────────────────────────────────────┘
-         │
-         ▼  normalize! (if norm != nothing)  applied element-wise per array
- ┌────────────────────────────────────────┐
- │ Row 1: [0.00, 0.23, ..., 1.00]  (256)  │
- │ Row 2: [0.00, 0.19, ..., 0.96]  (256)  │
- │ Row 3: missing                         │
- └────────────────────────────────────────┘
- info = [ReduceFeat(id=5, vname=&quot;audio&quot;, dims=10000, reducefunc=..., ...)]</code></pre><hr/><p><strong>Structure</strong></p><pre><code class="language-julia hljs">MultidimDataset{T, S}
-├── data    ::AbstractArray                              # processed data matrix
-├── info    ::Vector{&lt;:Union{AggregateFeat,ReduceFeat}}  # per-column metadata
-└── groups  ::Union{Nothing, Vector{Vector{Int}}}        # optional column groupings
-             │
-             └─ e.g. groups = [[1,2,3,4], [5,6,7,8]]
-                means columns 1-4 belong to group 1 (source col A),
-                and columns 5-8 belong to group 2 (source col B)</code></pre><div class="admonition is-info" id="Normalization-order-541fe1b8c15bdd9c"><header class="admonition-header">Normalization order<a class="admonition-anchor" href="#Normalization-order-541fe1b8c15bdd9c" title="Permalink"></a></header><div class="admonition-body"><p>Processing steps are applied in this order:</p><ol><li><code>aggrfunc</code>  — aggregation or downsampling</li><li><code>impute</code>    — fill missing values (if provided)</li><li><code>norm</code>      — column-wise normalization via <code>NaNSafe{norm{T}}</code> (if provided)</li></ol></div></div><p><strong>Type Parameters</strong></p><ul><li><code>T</code>: Element type of the inner arrays (e.g., <code>Float64</code>).</li><li><code>S</code>: Either <code>AggregateFeat</code> (tabular output) or <code>ReduceFeat</code> (array output).</li></ul><p><strong>Constructors</strong></p><ul><li><code>MultidimDataset(data, info::Vector{&lt;:AggregateFeat}, groups)</code>: Direct constructor for aggregated data.</li><li><code>MultidimDataset(data, info::Vector{&lt;:ReduceFeat}, groups)</code>: Direct constructor for reduced data.</li><li><code>MultidimDataset(ids, data, vnames, datastruct, aggrfunc, impute, norm, float_type, groups)</code>: Internal constructor — selects columns <code>ids</code>, applies <code>aggrfunc</code>, optionally applies <code>impute</code> and/or <code>norm</code>, and builds the corresponding metadata from <code>datastruct</code>.</li></ul><p><strong>Arguments for internal constructor</strong></p><ul><li><code>ids::Vector{Int}</code>: Column indices to include.</li><li><code>data::Matrix</code>: Full raw dataset matrix.</li><li><code>vnames::Vector{String}</code>: Names of all columns.</li><li><code>datastruct::NamedTuple</code>: Pre-computed metadata from <code>_inspecting</code>.</li><li><code>aggrfunc::Base.Callable</code>: Strategy struct (e.g., <code>aggregate(...)</code> or <code>reducesize(...)</code>).</li><li><code>impute</code>: <code>nothing</code> or a tuple of <code>Impute.Imputor</code>s.</li><li><code>norm</code>: <code>nothing</code> or a <code>Type{&lt;:AbstractNormalization}</code> (e.g., <code>MinMax</code>, <code>ZScore</code>) applied column-wise after imputation via <code>NaNSafe{norm{T}}</code>.</li><li><code>float_type::Type{T}</code>: Target floating-point type.</li><li><code>groups</code>: <code>nothing</code> to disable grouping, or a <code>Tuple{Vararg{Symbol}}</code> to enable it.</li></ul><p>See also: <a href="#DataTreatments.DiscreteDataset"><code>DiscreteDataset</code></a>, <a href="#DataTreatments.ContinuousDataset"><code>ContinuousDataset</code></a>, <a href="#DataTreatments.AggregateFeat"><code>AggregateFeat</code></a>, <a href="#DataTreatments.ReduceFeat"><code>ReduceFeat</code></a>, <a href="../treatment/#DataTreatments.aggregate-Tuple{}"><code>aggregate</code></a>, <a href="../treatment/#DataTreatments.reducesize-Tuple{}"><code>reducesize</code></a></p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/PasoStudio73/DataTreatments.jl/blob/9fafc1da0c04ccc1780680e5ce17a91c14dec9dc/src/output_datasets.jl#L533-L655">source</a></section></details></article><hr/><h2 id="Top-level-Container:-DataTreatment{T}"><a class="docs-heading-anchor" href="#Top-level-Container:-DataTreatment{T}">Top-level Container: <code>DataTreatment{T}</code></a><a id="Top-level-Container:-DataTreatment{T}-1"></a><a class="docs-heading-anchor-permalink" href="#Top-level-Container:-DataTreatment{T}" title="Permalink"></a></h2><article><details class="docstring" open="true"><summary id="DataTreatments.DataTreatment"><a class="docstring-binding" href="#DataTreatments.DataTreatment"><code>DataTreatments.DataTreatment</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">DataTreatment{T}</code></pre><p>Top-level container produced by <a href="@ref"><code>load_dataset</code></a>. Holds all output datasets derived from a source table, a target vector, and the applied treatment groups.</p><p><strong>Structure</strong></p><pre><code class="language-julia hljs">DataTreatment{T}  (T = float_type, e.g. Float64)
-├── data    ::Vector{AbstractDataset}           # ordered list of output datasets
-│    ├── DiscreteDataset{...}                   # from discrete (categorical) columns
-│    ├── ContinuousDataset{T}                   # from continuous (scalar) columns
-│    └── MultidimDataset{T, ...}                # from multidimensional columns
-│         ├── AggregateFeat variant             # → tabular scalar output
-│         └── ReduceFeat variant                # → array output
-├── target  ::AbstractVector                    # encoded target vector (labels)
-├── treats  ::Vector{TreatmentGroup}            # user directives
-└── balance ::Union{Nothing,AbstractBalance,    # balancing strategy (or nothing)
+ └──────────┴─────────┴──────────┴─────────┘</code></pre><p><strong>Strategy 2 — <code>reducesize</code> → <code>S = ReduceFeat</code></strong></p><pre><code class="language-julia hljs">Source column &quot;audio&quot; (dims=10000)
+  Row 1: [0.1, 0.2, ..., 0.9]  (valid)
+  Row 2: [0.3, NaN, ..., 0.8]  (internal NaN)
+  Row 3: missing
+
+Apply reducefunc = downsample(256)
+  Row 1: [0.12, ..., 0.88]  (length 256)
+  Row 2: [0.31, ..., 0.50]  (length 256)
+  Row 3: missing</code></pre><div class="admonition is-info" id="Processing-order-90075d3bd482767"><header class="admonition-header">Processing order<a class="admonition-anchor" href="#Processing-order-90075d3bd482767" title="Permalink"></a></header><div class="admonition-body"><ol><li>Apply <code>aggrfunc</code> (aggregation or downsampling).</li><li>Apply <code>impute</code> (if provided).</li><li>Apply <code>norm</code> via <code>NaNSafe{norm{T}}</code> (if provided). For <code>AggregateFeat</code>: normalization is applied per group. For <code>ReduceFeat</code>: normalization is applied element-wise.</li></ol></div></div><p><strong>Type Parameters</strong></p><ul><li><code>T</code>: Element type of the inner arrays (e.g. <code>Float64</code>).</li><li><code>S</code>: <code>AggregateFeat</code> or <code>ReduceFeat</code>.</li></ul><p><strong>Constructors</strong></p><ul><li><code>MultidimDataset(data, info::Vector{&lt;:AggregateFeat}, groups)</code>: Direct constructor for aggregated data.</li><li><code>MultidimDataset(data, info::Vector{&lt;:ReduceFeat}, groups)</code>: Direct constructor for reduced data.</li><li><code>MultidimDataset(ids, data, vnames, datastruct, aggrfunc, impute, norm, float_type, groups)</code>: Internal constructor.</li></ul><p><strong>Arguments (internal constructor)</strong></p><ul><li><code>ids::Vector{Int}</code>: Column indices to include.</li><li><code>data::AbstractMatrix</code>: Full raw dataset matrix.</li><li><code>vnames::Vector{String}</code>: All column names.</li><li><code>datastruct::NamedTuple</code>: Per-column metadata from <code>_inspecting</code>.</li><li><code>aggrfunc::Base.Callable</code>: <code>aggregate(...)</code> or <code>reducesize(...)</code>.</li><li><code>impute</code>: <code>nothing</code> or a <code>Tuple</code> of <code>Impute.Imputor</code>s.</li><li><code>norm</code>: <code>nothing</code> or a <code>Type{&lt;:AbstractNormalization}</code>.</li><li><code>float_type::Type{T}</code>: Target floating-point type.</li><li><code>groups</code>: <code>nothing</code> or a <code>Tuple{Vararg{Symbol}}</code> for grouping.</li></ul><p><strong>See Also</strong></p><p><a href="#DataTreatments.DiscreteDataset"><code>DiscreteDataset</code></a>, <a href="#DataTreatments.ContinuousDataset"><code>ContinuousDataset</code></a>, <a href="#DataTreatments.AggregateFeat"><code>AggregateFeat</code></a>, <a href="#DataTreatments.ReduceFeat"><code>ReduceFeat</code></a>, <a href="../treatment/#DataTreatments.aggregate-Tuple{}"><code>aggregate</code></a>, <a href="../treatment/#DataTreatments.reducesize-Tuple{}"><code>reducesize</code></a></p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/PasoStudio73/DataTreatments.jl/blob/d37fb000ca5bee5d48f03811e1a1d9a7728e7e5d/src/output_datasets.jl#L537-L624">source</a></section></details></article><hr/><h2 id="Top-level-Container:-DataTreatment{T}"><a class="docs-heading-anchor" href="#Top-level-Container:-DataTreatment{T}">Top-level Container: <code>DataTreatment{T}</code></a><a id="Top-level-Container:-DataTreatment{T}-1"></a><a class="docs-heading-anchor-permalink" href="#Top-level-Container:-DataTreatment{T}" title="Permalink"></a></h2><article><details class="docstring" open="true"><summary id="DataTreatments.DataTreatment"><a class="docstring-binding" href="#DataTreatments.DataTreatment"><code>DataTreatments.DataTreatment</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">DataTreatment{T}</code></pre><p>Top-level container produced by <a href="#DataTreatments.load_dataset"><code>load_dataset</code></a>. Holds all output datasets derived from a source table, a target vector, and the applied treatment groups.</p><p><strong>Structure</strong></p><pre><code class="language-julia hljs">DataTreatment{T}  (T = float_type, e.g. Float64)
+├── data    ::Vector{AbstractDataset}
+│    ├── DiscreteDataset{...}       # from discrete (categorical) cols
+│    ├── ContinuousDataset{T}       # from continuous (scalar) cols
+│    └── MultidimDataset{T, ...}    # from multidimensional cols
+│         ├── AggregateFeat         # → tabular scalar output
+│         └── ReduceFeat            # → array output
+├── target  ::AbstractVector        # encoded target vector
+├── treats  ::Vector{TreatmentGroup}# user directives
+└── balance ::Union{Nothing,        # balancing strategy or nothing
+                    AbstractBalance,
                     Tuple{Vararg{&lt;:AbstractBalance}}}</code></pre><p><strong>Full pipeline overview</strong></p><pre><code class="language-julia hljs">Raw DataFrame / Matrix
         │
-        ▼  load_dataset(data, vnames, target, treatments...; float_type, balance)
+        ▼  load_dataset(data, vnames, target, treatments...;
+        │               float_type, balance)
         │
         ├─ _inspecting(data)  →  datastruct::NamedTuple
-        │   (inspect all columns: types, missing, NaN, dims, ...)
+        │   (inspect columns: types, missing, NaN, dims, ...)
         │
         ├─ encode target  →  CategoricalVector
         │
         ├─ for each TreatmentGroup:
-        │   ├── classify columns  →  discrete_ids, continuous_ids, multidim_ids
+        │   ├── classify columns
+        │   │    → discrete_ids, continuous_ids, multidim_ids
         │   ├── DiscreteDataset(discrete_ids, ...)
         │   ├── ContinuousDataset(continuous_ids, ...)
         │   └── MultidimDataset(multidim_ids, ..., aggrfunc)
         │
         ├─ if balance is provided:
-        │   │  (single AbstractBalance is wrapped into a 1-tuple)
+        │   │  (single AbstractBalance wrapped into a 1-tuple)
         │   └── for each dataset d in ds:
         │        reduce over balance chain:
         │          (d.data, target) = bal₁ ∘ bal₂ ∘ … ∘ balₙ
         │
-        └── DataTreatment{T}(ds, target, treats, balance)</code></pre><p><strong>Accessor summary</strong></p><table><tr><th style="text-align: right">Method</th><th style="text-align: right">Returns</th></tr><tr><td style="text-align: right"><code>get_discrete(dt)</code></td><td style="text-align: right"><code>(Matrix, vnames)</code> for categorical columns</td></tr><tr><td style="text-align: right"><code>get_continuous(dt)</code></td><td style="text-align: right"><code>(Matrix{T}, vnames)</code> for scalar columns</td></tr><tr><td style="text-align: right"><code>get_aggregated(dt)</code></td><td style="text-align: right"><code>(Matrix{T}, vnames)</code> for aggregated series</td></tr><tr><td style="text-align: right"><code>get_reduced(dt)</code></td><td style="text-align: right"><code>(Matrix{Array{T}}, vnames)</code> for series</td></tr><tr><td style="text-align: right"><code>get_tabular(dt)</code></td><td style="text-align: right">merged tabular matrix + all column names</td></tr><tr><td style="text-align: right"><code>get_multidim(dt)</code></td><td style="text-align: right">reduced multidim matrix + column names</td></tr><tr><td style="text-align: right"><code>get_target(dt)</code></td><td style="text-align: right">the encoded target vector</td></tr></table><p><strong>Type Parameter</strong></p><ul><li><code>T</code>: The floating-point type used throughout (e.g., <code>Float64</code>, <code>Float32</code>).</li></ul><p><strong>Fields</strong></p><ul><li><code>data</code>: Ordered list of output datasets (discrete, continuous, multidimensional).</li><li><code>target</code>: Encoded target vector (labels).</li><li><code>treats</code>: User-specified treatment groups that drove column classification.</li><li><code>balance</code>: Optional balancing strategy applied to the dataset, or <code>nothing</code> if no balancing is requested. Can be a single <code>AbstractBalance</code> or a <code>Tuple{Vararg{&lt;:AbstractBalance}}</code> to chain multiple strategies sequentially (e.g., <code>(SMOTE(k=5), TomekUndersampler())</code>). When a tuple is provided, each balancer is applied in order, passing the <code>(data, target)</code> output of one step as input to the next.</li></ul><p>See also: <a href="@ref"><code>load_dataset</code></a>, <a href="#DataTreatments.DiscreteDataset"><code>DiscreteDataset</code></a>, <a href="#DataTreatments.ContinuousDataset"><code>ContinuousDataset</code></a>, <a href="#DataTreatments.MultidimDataset"><code>MultidimDataset</code></a>, <a href="@ref"><code>TreatmentGroup</code></a>, <a href="@ref"><code>AbstractBalance</code></a></p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/PasoStudio73/DataTreatments.jl/blob/9fafc1da0c04ccc1780680e5ce17a91c14dec9dc/src/load_dataset.jl#L4-L82">source</a></section></details></article></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../">« Home</a><a class="docs-footer-nextpage" href="../treatment_group/">Treatment Groups »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Friday 12 June 2026 19:39">Friday 12 June 2026</span>. Using Julia version 1.12.6.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+        └── DataTreatment{T}(ds, target, treats, balance)</code></pre><p><strong>Accessor summary</strong></p><table><tr><th style="text-align: left">Method</th><th style="text-align: left">Returns</th></tr><tr><td style="text-align: left"><code>get_discrete(dt)</code></td><td style="text-align: left"><code>(Matrix, vnames)</code> for categorical cols</td></tr><tr><td style="text-align: left"><code>get_continuous(dt)</code></td><td style="text-align: left"><code>(Matrix{T}, vnames)</code> for scalar cols</td></tr><tr><td style="text-align: left"><code>get_aggregated(dt)</code></td><td style="text-align: left"><code>(Matrix{T}, vnames)</code> for aggregated series</td></tr><tr><td style="text-align: left"><code>get_reduced(dt)</code></td><td style="text-align: left"><code>(Matrix{Array{T}}, vnames)</code> for series</td></tr><tr><td style="text-align: left"><code>get_tabular(dt)</code></td><td style="text-align: left">merged tabular matrix + all column names</td></tr><tr><td style="text-align: left"><code>get_multidim(dt)</code></td><td style="text-align: left">reduced multidim matrix + column names</td></tr><tr><td style="text-align: left"><code>get_target(dt)</code></td><td style="text-align: left">the encoded target vector</td></tr><tr><td style="text-align: left"><code>get_treats(dt)</code></td><td style="text-align: left">the applied <code>TreatmentGroup</code> list</td></tr><tr><td style="text-align: left"><code>get_balance(dt)</code></td><td style="text-align: left">the balancing strategy or <code>nothing</code></td></tr></table><p><strong>Reprocessing</strong></p><p>A fitted <code>DataTreatment</code> can be re-treated by passing it back to <code>load_dataset</code>, which reconstructs the raw matrix from all stored datasets and applies a new set of treatment groups:</p><pre><code class="language-julia hljs">dt2 = load_dataset(dt, new_treatment)</code></pre><p><strong>Type Parameter</strong></p><ul><li><code>T</code>: Floating-point type used throughout (e.g. <code>Float64</code>, <code>Float32</code>).</li></ul><p><strong>Fields</strong></p><ul><li><code>data</code>: Ordered list of output datasets (discrete, continuous, multidimensional).</li><li><code>target</code>: Encoded target vector (labels).</li><li><code>treats</code>: User-specified treatment groups that drove column classification.</li><li><code>balance</code>: Optional balancing strategy, or <code>nothing</code>. Can be a single <code>AbstractBalance</code> or a <code>Tuple{Vararg{&lt;:AbstractBalance}}</code> to chain multiple strategies sequentially (e.g. <code>(SMOTE(k=5), TomekUndersampler())</code>). When a tuple is provided, each balancer is applied in order, passing the <code>(data, target)</code> output of one step as input to the next.</li></ul><p><strong>See Also</strong></p><p><a href="#DataTreatments.load_dataset"><code>load_dataset</code></a>, <a href="#TreatmentGroup"><code>TreatmentGroup</code></a>, <a href="#DataTreatments.DiscreteDataset"><code>DiscreteDataset</code></a>, <a href="#DataTreatments.ContinuousDataset"><code>ContinuousDataset</code></a>, <a href="#DataTreatments.MultidimDataset"><code>MultidimDataset</code></a>, <a href="@ref"><code>AbstractBalance</code></a></p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/PasoStudio73/DataTreatments.jl/blob/d37fb000ca5bee5d48f03811e1a1d9a7728e7e5d/src/load_dataset.jl#L4-L101">source</a></section></details></article><hr/><h2 id="Accessor-Reference"><a class="docs-heading-anchor" href="#Accessor-Reference">Accessor Reference</a><a id="Accessor-Reference-1"></a><a class="docs-heading-anchor-permalink" href="#Accessor-Reference" title="Permalink"></a></h2><table><tr><th style="text-align: left">Method</th><th style="text-align: left">Returns</th></tr><tr><td style="text-align: left"><code>get_discrete(dt)</code></td><td style="text-align: left"><code>(Matrix, vnames)</code> for categorical cols</td></tr><tr><td style="text-align: left"><code>get_continuous(dt)</code></td><td style="text-align: left"><code>(Matrix{T}, vnames)</code> for scalar cols</td></tr><tr><td style="text-align: left"><code>get_aggregated(dt)</code></td><td style="text-align: left"><code>(Matrix{T}, vnames)</code> for aggregated series</td></tr><tr><td style="text-align: left"><code>get_reduced(dt)</code></td><td style="text-align: left"><code>(Matrix{Array{T}}, vnames)</code> for series</td></tr><tr><td style="text-align: left"><code>get_tabular(dt)</code></td><td style="text-align: left">merged tabular matrix + all column names</td></tr><tr><td style="text-align: left"><code>get_multidim(dt)</code></td><td style="text-align: left">reduced multidim matrix + column names</td></tr><tr><td style="text-align: left"><code>get_target(dt)</code></td><td style="text-align: left">the encoded target vector</td></tr><tr><td style="text-align: left"><code>get_treats(dt)</code></td><td style="text-align: left">the applied <code>TreatmentGroup</code> list</td></tr><tr><td style="text-align: left"><code>get_balance(dt)</code></td><td style="text-align: left">the balancing strategy or <code>nothing</code></td></tr></table></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../">« Home</a><a class="docs-footer-nextpage" href="../datatreatment/">DataTreatment »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Saturday 13 June 2026 09:37">Saturday 13 June 2026</span>. Using Julia version 1.12.6.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
