@@ -12,7 +12,7 @@ makedocs(;
         size_threshold=4000000,
         prettyurls=get(ENV, "CI", "false") == "true",
         canonical="https://PasoStudio73.github.io/DataTreatments.jl",
-        edit_link="dev", # possibly this line is dangerous after publishing
+        edit_link="main", # possibly this line is dangerous after publishing
         assets=String[],
     ),
     pages=[
@@ -32,7 +32,7 @@ makedocs(;
 
 deploydocs(;
     repo = "github.com/PasoStudio73/DataTreatments.jl",
-    devbranch = "dev",
+    devbranch = "main",
     target = "build",
     branch = "gh-pages",
     versions = ["main" => "main", "stable" => "v^", "v#.#", "dev" => "dev"],
