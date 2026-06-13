@@ -124,8 +124,6 @@ X_num, num_names = get_continuous(dt)
 ### 5. Impute missing values in scalar columns
 
 ```julia
-using Impute: LOCF, NOCB, SVD, Interpolate
-
 dt = load_dataset(
     df, target,
     TreatmentGroup(
@@ -146,7 +144,7 @@ dt = load_dataset(
     df, target,
     TreatmentGroup(
         dims     = 1,
-        aggrfunc = aggregate(
+        aggrfunc = DataTreatments.aggregate(
             features = (mean, maximum),
             win      = (splitwindow(nwindows=2),),
         ),
@@ -190,7 +188,7 @@ dt = load_dataset(
     ),
     TreatmentGroup(
         dims     = 1,
-        aggrfunc = aggregate(
+        aggrfunc = DataTreatments.aggregate(
             features = (mean, std),
             win      = (splitwindow(nwindows=3),),
         ),
@@ -281,7 +279,7 @@ into a scalar column. Use this when you want to feed time series
 or images to a standard ML model.
 
 ```julia
-aggrfunc = aggregate(
+aggrfunc = DataTreatments.aggregate(
     features = (mean, std, maximum, minimum),
     win      = (splitwindow(nwindows=3),),
 )
