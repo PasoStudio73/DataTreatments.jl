@@ -74,18 +74,18 @@ function create_image(seed::Int; n=6)
 end
 
 df = DataFrame(
-    str_col  = [missing, "blue", "green", "red", "blue"],
-    sym_col  = [:circle, :square, :triangle, :square, missing],
-    cat_col  = categorical(["small", "medium", missing, "small", "large"]),
-    int_col  = Int[10, 20, 30, 40, 50],
-    V1       = [NaN, missing, 3.0, 4.0, 5.6],
-    V2       = [2.5, missing, 4.5, 5.5, NaN],
-    ts1      = [missing, collect(2.0:7.0), missing,
-                collect(4.0:9.0), collect(5.0:10.0)],
-    ts2      = [collect(2.0:0.5:5.5), collect(1.0:0.5:4.5),
-                collect(3.0:0.5:6.5), collect(4.0:0.5:7.5), missing],
-    img1     = [create_image(i)      for i in 1:5],
-    img2     = [create_image(i + 10) for i in 1:5],
+    str_col = [missing, "blue", "green", "red", "blue"],
+    sym_col = [:circle, :square, :triangle, :square, missing],
+    cat_col = categorical(["small", "medium", missing, "small", "large"]),
+    int_col = Int[10, 20, 30, 40, 50],
+    V1 = [NaN, missing, 3.0, 4.0, 5.6],
+    V2 = [2.5, missing, 4.5, 5.5, NaN],
+    ts1 = [missing, collect(2.0:7.0), missing,
+        collect(4.0:9.0), collect(5.0:10.0)],
+    ts2  = [collect(2.0:0.5:5.5), collect(1.0:0.5:4.5),
+        collect(3.0:0.5:6.5), collect(4.0:0.5:7.5), missing],
+    img1 = [create_image(i) for i in 1:5],
+    img2 = [create_image(i + 10) for i in 1:5],
 )
 
 target = ["classA", "classB", "classC", "classA", "classB"]
@@ -127,9 +127,9 @@ X_num, num_names = get_continuous(dt)
 dt = load_dataset(
     df, target,
     TreatmentGroup(
-        dims     = 0,
-        datatype = :continuous,
-        impute   = (Interpolate(), LOCF(), NOCB()),
+        dims=0,
+        datatype=:continuous,
+        impute=(Interpolate(), LOCF(), NOCB()),
     ),
 )
 ```
@@ -143,12 +143,12 @@ flat feature matrix compatible with any standard ML algorithm:
 dt = load_dataset(
     df, target,
     TreatmentGroup(
-        dims     = 1,
-        aggrfunc = DataTreatments.aggregate(
-            features = (mean, maximum),
-            win      = (splitwindow(nwindows=2),),
+        dims=1,
+        aggrfunc=DataTreatments.aggregate(
+            features=(mean, maximum),
+            win=(splitwindow(nwindows=2),),
         ),
-        norm     = MinMax,
+        norm=MinMax,
     ),
 )
 
@@ -164,10 +164,10 @@ array structure:
 dt = load_dataset(
     df, target,
     TreatmentGroup(
-        dims     = 2,
-        aggrfunc = reducesize(
-            reducefunc = mean,
-            win        = (splitwindow(nwindows=2),),
+        dims=2,
+        aggrfunc=reducesize(
+            reducefunc=mean,
+            win=(splitwindow(nwindows=2),),
         ),
     ),
 )
@@ -181,31 +181,31 @@ X, names = get_multidim(dt)  # Matrix{Matrix{Float64}}
 dt = load_dataset(
     df, target,
     TreatmentGroup(
-        dims     = 0,
-        datatype = :continuous,
-        impute   = (LOCF(), NOCB()),
-        norm     = ZScore,
+        dims=0,
+        datatype=:continuous,
+        impute=(LOCF(), NOCB()),
+        norm=ZScore,
     ),
     TreatmentGroup(
-        dims     = 1,
-        aggrfunc = DataTreatments.aggregate(
-            features = (mean, std),
-            win      = (splitwindow(nwindows=3),),
+        dims=1,
+        aggrfunc=DataTreatments.aggregate(
+            features=(mean, std),
+            win=(splitwindow(nwindows=3),),
         ),
-        norm     = MinMax,
+        norm=MinMax,
     ),
     TreatmentGroup(
-        dims     = 2,
-        aggrfunc = reducesize(
-            reducefunc = mean,
-            win        = (splitwindow(nwindows=2),),
+        dims=2,
+        aggrfunc=reducesize(
+            reducefunc=mean,
+            win=(splitwindow(nwindows=2),),
         ),
     ),
 )
 
 X_tab, tab_names = get_tabular(dt)   # scalars + aggregated ts
 X_img, img_names = get_multidim(dt)  # downsampled images
-y                = get_target(dt)
+y = get_target(dt)
 ```
 
 ### 9. Filter columns by name
@@ -219,13 +219,28 @@ dt = load_dataset(
 
 ### 10. Class balancing
 
-```julia
-using Imbalance: SMOTE, TomekUndersampler
+> [!WARNING]
+> **Impute before balancing!**
+>
+> If you intend to use the `balance` parameter, you **must** ensure
+> that no `missing` or `NaN` values are present in your data, because
+> [Imbalance.jl](https://github.com/JuliaAI/Imbalance.jl) **cannot
+> handle missing values** and will error at runtime.
+>
+> It is therefore strongly recommended to always pair `balance` with
+> an `impute` directive in your `TreatmentGroup`.
+> **DataTreatments.jl guarantees safe execution order: imputation is
+> always applied first, and only then is the dataset rebalanced.**
 
+```julia
 dt = load_dataset(
     df, target,
-    TreatmentGroup(dims=0, datatype=:continuous),
-    balance = (SMOTE(k=3), TomekUndersampler()),
+    TreatmentGroup(
+        dims=0,
+        datatype=:continuous,
+        impute=(Interpolate(), LOCF(), NOCB()),
+    ),
+    balance=(SMOTE(k=3), TomekUndersampler()),
 )
 ```
 
@@ -265,7 +280,7 @@ intervals = @evalwindow X splitwindow(nwindows=4)
 
 # different windowing per dimension
 intervals = @evalwindow X splitwindow(nwindows=4) \
-                           movingwindow(winsize=40, winstep=20)
+    movingwindow(winsize=40, winstep=20)
 ```
 
 ---
@@ -280,8 +295,8 @@ or images to a standard ML model.
 
 ```julia
 aggrfunc = DataTreatments.aggregate(
-    features = (mean, std, maximum, minimum),
-    win      = (splitwindow(nwindows=3),),
+    features=(mean, std, maximum, minimum),
+    win=(splitwindow(nwindows=3),),
 )
 ```
 
@@ -293,8 +308,8 @@ array-valued inputs.
 
 ```julia
 aggrfunc = reducesize(
-    reducefunc = median,
-    win        = (adaptivewindow(nwindows=5, overlap=0.2),),
+    reducefunc=median,
+    win=(adaptivewindow(nwindows=5, overlap=0.2),),
 )
 ```
 
