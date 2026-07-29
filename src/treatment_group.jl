@@ -211,6 +211,7 @@ struct TreatmentGroup
         datatype::Symbol=:all
     ) where {F<:Base.Callable}
         impute isa Impute.Imputor && (impute = (impute,))
+
         all_dims = datastruct.dims
         all_types = datastruct.datatype
         groupby isa Symbol && (groupby = (groupby,))

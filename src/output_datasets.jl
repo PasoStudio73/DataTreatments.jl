@@ -397,7 +397,7 @@ mutable struct DiscreteDataset{T} <: AbstractDataset
             Matrix{eltype(codes)}(undef, 0, 0) :
             stack(codes)
 
-        isnothing(impute) || (data = _impute(data, impute))
+        # isnothing(impute) || (data = _impute(data, impute))
 
         return new{eltype(codes)}(
             data,
@@ -513,7 +513,7 @@ mutable struct ContinuousDataset{T} <: AbstractDataset
             )
         end
 
-        isnothing(impute) || (data = _impute(data, impute))
+        # isnothing(impute) || (data = _impute(data, impute))
 
         if !isnothing(norm)
             data = Impute.replace(data; values=NaN)
@@ -660,7 +660,7 @@ mutable struct MultidimDataset{T,S} <: AbstractDataset
         hasnan = datastruct.hasnans[ids]
 
         md, nwindows = aggrfunc(data, valid, float_type)
-
+@show typeof(md)
         if !isnothing(impute) && !isempty(md)
             md = _impute(md, impute)
         end

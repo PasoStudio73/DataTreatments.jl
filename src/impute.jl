@@ -48,7 +48,7 @@ called to tighten the element type.
 - [Impute.jl docs](https://invenia.github.io/Impute.jl/stable/)
 """
 function _impute(data::AbstractArray, impute::Tuple{Vararg{<:Impute.Imputor}})
-    Impute.declaremissings(data; values=(NaN, "NULL"))
+    Impute.declaremissings(data; values=(NaN, NaN32, "NULL"))
 
     for im in impute
         Impute.impute!(data, im; dims=2)
@@ -62,12 +62,23 @@ function _impute(
     data::AbstractMatrix{T},
     impute::Tuple{Vararg{<:Impute.Imputor}}
 ) where {T<:Union{Missing,Float,AbstractArray{<:Float}}}
-    Impute.declaremissings(data; values=(NaN, "NULL"))
+    Impute.declaremissings!(data; values=(NaN, NaN32, "NULL"))
+
+    for i in eachindex(data)
+        if !ismissing(data[i])
+            _data = Impute.declaremissings(data[i]; values=(NaN, NaN32, "NULL"))
+            for im in impute
+                Impute.impute!(_data, im)
+            end
+            data[i] = disallowmissing(_data)
+        end
+    end
 
     for im in impute
         Impute.impute!(data, im)
     end
-    any(ismissing.(data)) || (data = disallowmissing(data))
+
+    any(ismissing, data) || (data = disallowmissing(data))
 
     return data
 end
@@ -75,7 +86,7 @@ end
 function _impute(
     data::T,
     impute::Tuple{Vararg{<:Impute.Imputor}}
-) where {T<:Union{Missing,Float,AbstractArray{<:Float}}}   
+) where {T<:Union{Missing,Float,AbstractArray{<:Float}}}
     if !ismissing(data) && typeof(data) <: AbstractArray
         Impute.declaremissings(data; values=(NaN, "NULL"))
 
