@@ -61,7 +61,21 @@ end
 function _impute(
     data::AbstractMatrix{T},
     impute::Tuple{Vararg{<:Impute.Imputor}}
-) where {T<:Union{Missing,Float,AbstractArray{<:Float}}}
+) where {T<:Union{Missing,Float}}
+    Impute.declaremissings(data; values=(NaN, "NULL"))
+
+    for im in impute
+        Impute.impute!(data, im)
+    end
+    any(ismissing.(data)) || (data = disallowmissing(data))
+
+    return data
+end
+
+function _impute(
+    data::AbstractMatrix{T},
+    impute::Tuple{Vararg{<:Impute.Imputor}}
+) where {T<:Union{Missing,AbstractArray{<:Float}}}
     Impute.declaremissings!(data; values=(NaN, NaN32, "NULL"))
 
     for i in eachindex(data)
