@@ -660,7 +660,7 @@ mutable struct MultidimDataset{T,S} <: AbstractDataset
         hasnan = datastruct.hasnans[ids]
 
         md, nwindows = aggrfunc(data, valid, float_type)
-@show typeof(md)
+
         if !isnothing(impute) && !isempty(md)
             md = _impute(md, impute)
         end
