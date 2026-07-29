@@ -205,10 +205,13 @@ struct TreatmentGroup
             win=(wholewindow(),), features=(maximum, minimum, mean)),
         grouped::Bool=false,
         groupby::Union{Nothing,Symbol,Tuple{Vararg{Symbol}}}=nothing,
-        impute::Union{Nothing,Tuple{Vararg{<:Impute.Imputor}}}=nothing,
+        impute::Union{
+            Nothing,Impute.Imputor,Tuple{Vararg{<:Impute.Imputor}}}=nothing,
         norm::Union{Nothing,Type{<:AbstractNormalization}}=nothing,
         datatype::Symbol=:all
     ) where {F<:Base.Callable}
+        impute isa Impute.Imputor && (impute = (impute,))
+
         all_dims = datastruct.dims
         all_types = datastruct.datatype
         groupby isa Symbol && (groupby = (groupby,))
