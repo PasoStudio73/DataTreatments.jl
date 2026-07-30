@@ -21,9 +21,9 @@ NormalizationExt = "Normalization"
 
 [compat]
 Catch22 = "0.7"
-CategoricalArrays = "0.10, 1"
+CategoricalArrays = "1"
 DataFrames = "1"
-Imbalance = "0.1, 0.2"
+Imbalance = "0.2"
 Impute = "0.6"
 LinearAlgebra = "1"
 Normalization = "0.9"

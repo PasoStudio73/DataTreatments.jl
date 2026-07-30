@@ -97,7 +97,7 @@ dt2 = load_dataset(dt, new_treatment)
 # See Also
 [`load_dataset`](@ref), [`TreatmentGroup`](@ref),
 [`DiscreteDataset`](@ref), [`ContinuousDataset`](@ref),
-[`MultidimDataset`](@ref), [`AbstractBalance`](@ref)
+[`MultidimDataset`](@ref)
 """
 mutable struct DataTreatment{T}
     data::Vector{AbstractDataset}
@@ -117,11 +117,12 @@ get_balance(dt::DataTreatment) = dt.balance
 #                                load dataset                                  #
 # ---------------------------------------------------------------------------- #
 """
-    load_dataset(data, [vnames], [target], treatments...;
-                 float_type=Float64, balance=nothing,
-                 treatment_ds=true, leftover_ds=false)
-    load_dataset(df::DataFrame, [target], treatments...; kwargs...)
-    load_dataset(dt::DataTreatment, treatments...; kwargs...)
+    load_dataset(data, [vnames], [target], [treatments];
+        float_type=Float64, balance=nothing,
+        treatment_ds=true, leftover_ds=false)
+    load_dataset(dt::DataTreatment, treatments; kwargs...)
+    load_dataset(df::DataFrame, target, args...; kwargs...)
+    load_dataset(df::DataFrame, args...; kwargs...)
 
 Build a [`DataTreatment`](@ref) from a raw data source by inspecting
 columns, applying treatment groups, and optionally rebalancing classes.
@@ -133,8 +134,8 @@ columns, applying treatment groups, and optionally rebalancing classes.
 ```julia
 load_dataset(
     data      :: AbstractMatrix,
-    vnames    :: Vector{String}  = ["V1", "V2", ...],
     target    :: Union{Nothing, AbstractVector} = nothing,
+    vnames    :: Vector{String}  = ["V1", "V2", ...],
     treatments:: Vararg{Base.Callable} = DefaultTreatmentGroup;
     float_type :: Type   = Float64,
     balance    :: Union{Nothing, AbstractBalance,
@@ -149,11 +150,11 @@ Core method. All other dispatches delegate here.
 ### Arguments
 - `data`: Input matrix. Columns may be scalar, categorical, or
   array-valued (time series).
-- `vnames`: Column names. Defaults to `["V1", "V2", ...]`.
 - `target`: Optional label vector. Categorical labels are
   automatically encoded via `_discrete_encode`. Float targets are
   passed through unchanged. Pass `nothing` (default) for
   unsupervised use.
+- `vnames`: Column names. Defaults to `["V1", "V2", ...]`.
 - `treatments`: One or more [`TreatmentGroup`](@ref) callables that
   classify and process columns. Defaults to
   `DefaultTreatmentGroup`.
@@ -183,8 +184,8 @@ load_dataset(df::DataFrame, args...; kwargs...)
 ```
 
 Convenience wrappers that extract `Matrix(df)` and `names(df)` and
-forward to Dispatch 1. The targetless overload passes an empty
-`CategoricalVector[]` as `target`.
+forward to Dispatch 1. The targetless overload passes `nothing` as
+`target`.
 
 ### Arguments
 - `df`: Source `DataFrame`. Column names are taken from `names(df)`.
@@ -208,7 +209,7 @@ Internally:
 data   = hcat(d.data   for d in dt.data)
 vnames = vcat(vnames(d) for d in dt.data)
 target = get_target(dt)
-→ load_dataset(data, vnames, target, treatments...; kwargs...)
+→ load_dataset(data, target, vnames, treatments...; kwargs...)
 ```
 
 ### Arguments
@@ -222,23 +223,23 @@ target = get_target(dt)
 
 ```
 data / df / dt
-      │
-      ▼  _inspecting(data)
-      │   → per-column metadata (type, missing, NaN, dims)
-      │
-      ▼  encode target  →  CategoricalVector
-      │
-      ▼  for each TreatmentGroup:
-      │   ├─ classify → discrete_ids, continuous_ids, multidim_ids
-      │   ├─ DiscreteDataset(...)
-      │   ├─ ContinuousDataset(...)
-      │   └─ MultidimDataset(..., aggrfunc)
-      │
-      ▼  if balance provided:
-      │   └─ Threads.@threads for each dataset:
-      │       (data, target) = bal₁ ∘ … ∘ balₙ(data, target)
-      │
-      └─ DataTreatment{float_type}(ds, target, treats, balance)
+    │
+    ▼  _inspecting(data)
+    │   → per-column metadata (type, missing, NaN, dims)
+    │
+    ▼  encode target  →  CategoricalVector
+    │
+    ▼  for each TreatmentGroup:
+    │   ├─ classify → discrete_ids, continuous_ids, multidim_ids
+    │   ├─ DiscreteDataset(...)
+    │   ├─ ContinuousDataset(...)
+    │   └─ MultidimDataset(..., aggrfunc)
+    │
+    ▼  if balance provided:
+    │   └─ Threads.@threads for each dataset:
+    │       (data, target) = bal₁ ∘ … ∘ balₙ(data, target)
+    │
+    └─ DataTreatment{float_type}(ds, target, treats, balance)
 ```
 
 ## Returns
@@ -259,8 +260,7 @@ dt2 = load_dataset(dt, TreatmentGroup(dims=1, impute=(LOCF(),)))
 ```
 
 ## See Also
-[`DataTreatment`](@ref), [`TreatmentGroup`](@ref),
-[`AbstractBalance`](@ref)
+[`DataTreatment`](@ref), [`TreatmentGroup`](@ref)
 """
 function load_dataset(
     data::AbstractMatrix{T},
@@ -328,12 +328,6 @@ function load_dataset(
     return DataTreatment{float_type}(ds, target, treats, balance)
 end
 
-load_dataset(df::DataFrame, target::AbstractVector, args...; kwargs...) =
-    load_dataset(Matrix(df), names(df), target, args...; kwargs...)
-
-load_dataset(df::DataFrame, args...; kwargs...) =
-    load_dataset(Matrix(df), names(df), CategoricalVector[], args...; kwargs...)
-
 function load_dataset(
     dt::DataTreatment{T},
     treatments::Vararg{Base.Callable}=DefaultTreatmentGroup;
@@ -345,3 +339,9 @@ function load_dataset(
 
     load_dataset(data, vnames, target, treatments...; kwargs...)
 end
+
+load_dataset(df::DataFrame, target::AbstractVector, args...; kwargs...) =
+    load_dataset(Matrix(df), names(df), target, args...; kwargs...)
+
+load_dataset(df::DataFrame, args...; kwargs...) =
+    load_dataset(Matrix(df), names(df), CategoricalVector[], args...; kwargs...)

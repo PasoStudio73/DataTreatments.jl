@@ -5,7 +5,7 @@ CurrentModule = DataTreatments
 # [Normalization](@id normalization)
 
 DataTreatments.jl wraps and extends
-[Normalization.jl](https://github.com/JuliaAI/Normalization.jl)
+[Normalization.jl](https://github.com/brendanjohnharris/Normalization.jl)
 to support both scalar and **multidimensional** data (e.g. time series
 stored as vector-valued matrix elements). All normalizers can be passed
 to [`load_dataset`](@ref) via a [`TreatmentGroup`](@ref).

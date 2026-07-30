@@ -25,7 +25,7 @@ TreatmentGroup(ds_struct::DataStructure; kwargs...)
 ```
 
 The primary constructor. Selects columns from a pre-computed
-[`DataStructure`](@ref) using the keyword filters described below.
+`DataStructure` using the keyword filters described below.
 
 ### DataFrame constructor
 
@@ -33,7 +33,7 @@ The primary constructor. Selects columns from a pre-computed
 TreatmentGroup(df::DataFrame; kwargs...)
 ```
 
-Convenience constructor that builds a [`DataStructure`](@ref) from `df`
+Convenience constructor that builds a `DataStructure` from `df`
 internally.
 
 ### Matrix constructor
@@ -42,7 +42,7 @@ internally.
 TreatmentGroup(ds::Matrix, vnames::Vector{String}; kwargs...)
 ```
 
-Convenience constructor that builds a [`DataStructure`](@ref) from a raw
+Convenience constructor that builds a `DataStructure` from a raw
 matrix and a vector of column names.
 
 ### Curried constructor
@@ -52,7 +52,7 @@ TreatmentGroup(; kwargs...)  # returns a Function
 ```
 
 Returns a closure `x -> TreatmentGroup(x; kwargs...)` that accepts a
-[`DataStructure`](@ref). Useful for passing to [`DataTreatment`](@ref)
+`DataStructure`. Useful for passing to [`DataTreatment`](@ref)
 without having the `DataStructure` available yet.
 
 ### Keyword Arguments
@@ -148,6 +148,5 @@ Anonymous callables are displayed as `"anonymous callable"`.
 ## See Also
 
 - [`DataTreatment`](@ref) — the pipeline object that consumes `TreatmentGroup`s.
-- [`DataStructure`](@ref) — pre-computed dataset metadata used for column selection.
 - [`aggregate`](@ref) — aggregation function for multidimensional columns.
 - [`reducesize`](@ref) — reduction function for multidimensional columns.

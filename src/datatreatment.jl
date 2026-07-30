@@ -233,9 +233,10 @@ end
 #                         filter missing by percentage                         #
 # ---------------------------------------------------------------------------- #
 """
-    filter_missing(dt::DataTreatment{T}, perc::Real;
-                   include_nans::Bool=true,
-                   dims::Int=2) -> DataTreatment{T}
+    filter_missing(
+        dt::DataTreatment{T}, perc::Real;
+        include_nans::Bool=true,
+        dims::Int=2) -> DataTreatment{T}
 
 Remove rows or columns from all datasets in `dt` that exceed the
 missing-value threshold `perc`.
@@ -262,8 +263,7 @@ missing-value threshold `perc`.
 A new `DataTreatment{T}` with the same structure as `dt` but with
 offending rows or columns removed. Metadata feature structs
 ([`DiscreteFeat`](@ref), [`ContinuousFeat`](@ref), etc.) are
-re-indexed to reflect the new row/column numbering via
-[`_reindex_feat`](@ref).
+re-indexed to reflect the new row/column numbering.
 
 # Throws
 - `AssertionError`: if `perc` is outside `[0.0, 1.0]`.
@@ -282,7 +282,7 @@ dt2 = filter_missing(dt, 0.1; dims=1, include_nans=false)
 ```
 
 # See Also
-[`DataTreatment`](@ref), [`_reindex_feat`](@ref)
+[`DataTreatment`](@ref)
 """
 function filter_missing(
     dt::DataTreatment{T},

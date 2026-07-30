@@ -16,8 +16,8 @@ existing samples.
   element type after resampling.
 
 # See Also
-- [Imbalance.jl `random_oversample`](https://juliaai.github.io/Imbalance.jl/\
-stable/oversamplers/random_oversample/)
+- [Imbalance.jl `random_oversample`](https://juliaai.github.io/Imbalance.jl\
+/dev/algorithms/oversampling_algorithms/#Random-Oversampler)
 """
 struct RandomOversampler{T} <: AbstractBalance
     balance::Base.Callable
@@ -56,8 +56,8 @@ type is `Int` or `Union{Missing,Int}`.
   element type after resampling.
 
 # See Also
-- [Imbalance.jl `random_walk_oversample`](https://juliaai.github.io/\
-Imbalance.jl/stable/oversamplers/random_walk_oversample/)
+- [Imbalance.jl `random_walk_oversample`](https://juliaai.github.io\
+/Imbalance.jl/dev/algorithms/oversampling_algorithms/#Random-Walk-Oversampler)
 """
 struct RandomWalkOversampler{T} <: AbstractBalance
     balance::Base.Callable
@@ -103,8 +103,8 @@ minority class samples using a Gaussian kernel.
   element type after resampling.
 
 # See Also
-- [Imbalance.jl `rose`](https://juliaai.github.io/Imbalance.jl/\
-stable/oversamplers/rose/)
+- [Imbalance.jl `rose`](https://juliaai.github.io/Imbalance.jl/dev/algorithms\
+/oversampling_algorithms/#ROSE)
 """
 struct ROSE{T} <: AbstractBalance
     balance::Base.Callable
@@ -147,8 +147,8 @@ class samples and their k-nearest neighbours.
   element type after resampling.
 
 # See Also
-- [Imbalance.jl `smote`](https://juliaai.github.io/Imbalance.jl/\
-stable/oversamplers/smote/)
+- [Imbalance.jl `smote`](https://juliaai.github.io/Imbalance.jl/dev/algorithms\
+/oversampling_algorithms/#SMOTE)
 """
 struct SMOTE{T} <: AbstractBalance
     balance::Base.Callable
@@ -195,8 +195,8 @@ decision boundary (the "borderline" region).
 - `verbosity::Int=0`: Verbosity level (0 = silent).
 
 # See Also
-- [Imbalance.jl `borderline_smote1`](https://juliaai.github.io/\
-Imbalance.jl/stable/oversamplers/borderline_smote/)
+- [Imbalance.jl `borderline_smote1`](https://juliaai.github.io/Imbalance.jl\
+/dev/algorithms/oversampling_algorithms/#Borderline-SMOTE1)
 """
 struct BorderlineSMOTE1{T} <: AbstractBalance
     balance::Base.Callable
@@ -246,8 +246,8 @@ consider [`SMOTE`](@ref) or [`SMOTENC`](@ref) for mixed data.
   element type after resampling.
 
 # See Also
-- [Imbalance.jl `smoten`](https://juliaai.github.io/Imbalance.jl/\
-stable/oversamplers/smoten/)
+- [Imbalance.jl `smoten`](https://juliaai.github.io/Imbalance.jl/dev\
+/algorithms/oversampling_algorithms/#SMOTE-N)
 """
 struct SMOTEN{T} <: AbstractBalance
     balance::Base.Callable
@@ -297,8 +297,8 @@ handles datasets with mixed feature types. Automatically dispatches to
   element type after resampling.
 
 # See Also
-- [Imbalance.jl `smotenc`](https://juliaai.github.io/Imbalance.jl/\
-stable/oversamplers/smotenc/)
+- [Imbalance.jl `smotenc`](https://juliaai.github.io/Imbalance.jl/dev\
+/algorithms/oversampling_algorithms/#SMOTE-NC)
 """
 struct SMOTENC{T} <: AbstractBalance
     balance::Base.Callable
@@ -349,8 +349,8 @@ removing existing samples.
   element type after resampling.
 
 # See Also
-- [Imbalance.jl `random_undersample`](https://juliaai.github.io/\
-Imbalance.jl/stable/undersamplers/random_undersample/)
+- [Imbalance.jl `random_undersample`](https://juliaai.github.io/Imbalance.jl\
+/dev/algorithms/undersampling_algorithms/#Random-Undersampler)
 """
 struct RandomUndersampler{T} <: AbstractBalance
     balance::Base.Callable
@@ -390,8 +390,8 @@ class by clustering samples and retaining representative points.
 - `rng::Int=42`: Random seed for reproducibility.
 
 # See Also
-- [Imbalance.jl `cluster_undersample`](https://juliaai.github.io/\
-Imbalance.jl/stable/undersamplers/cluster_undersample/)
+- [Imbalance.jl `cluster_undersample`](https://juliaai.github.io/Imbalance.jl\
+/dev/algorithms/undersampling_algorithms/#Cluster-Undersampler)
 """
 struct ClusterUndersampler{T} <: AbstractBalance
     balance::Base.Callable
@@ -438,8 +438,8 @@ nearest neighbours.
   element type after resampling.
 
 # See Also
-- [Imbalance.jl `enn_undersample`](https://juliaai.github.io/\
-Imbalance.jl/stable/undersamplers/enn_undersample/)
+- [Imbalance.jl `enn_undersample`](https://juliaai.github.io/Imbalance.jl/dev/\
+algorithms/undersampling_algorithms/#Edited-Nearest-Neighbors-Undersampler)
 """
 struct ENNUndersampler{T} <: AbstractBalance
     balance::Base.Callable
@@ -488,8 +488,8 @@ that are each other's nearest neighbour).
   element type after resampling.
 
 # See Also
-- [Imbalance.jl `tomek_undersample`](https://juliaai.github.io/\
-Imbalance.jl/stable/undersamplers/tomek_undersample/)
+- [Imbalance.jl `tomek_undersample`](https://juliaai.github.io/Imbalance.jl\
+/dev/algorithms/undersampling_algorithms/#Tomek-Links-Undersampler)
 """
 struct TomekUndersampler{T} <: AbstractBalance
     balance::Base.Callable

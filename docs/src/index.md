@@ -39,7 +39,7 @@ is preparing the data. In particular:
   (discrete tabular, continuous tabular, 1-D vectors, n-D matrices),
   and each partition is accessed safely through dedicated getters.
 - **Normalization** via
-  [Normalization.jl](https://github.com/PasoStudio73/Normalization.jl).
+  [Normalization.jl](https://github.com/brendanjohnharris/Normalization.jl).
 - **Multimedia-to-tabular conversion** — multimedia datasets can be
   aggregated into flat feature matrices (via windowed feature
   extraction), making them compatible with traditional ML algorithms.

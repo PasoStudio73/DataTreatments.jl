@@ -26,7 +26,7 @@ Each `TreatmentGroup` encodes two orthogonal concerns:
    columns, missing values, normalization, and output grouping.
 
 Multiple `TreatmentGroup`s can be passed to `load_dataset`; each
-produces its own set of [`AbstractDataset`](@ref) entries inside
+produces its own set of `AbstractDataset` entries inside
 the resulting [`DataTreatment`](@ref).
 
 ---
@@ -144,10 +144,10 @@ TreatmentGroup
         │    └─▶ ContinuousDataset{T}
         │
         └─ multidim columns
-             ├─ aggrfunc = aggregate(...)
-             │    └─▶ MultidimDataset{T, AggregateFeat}
-             └─ aggrfunc = reducesize(...)
-                  └─▶ MultidimDataset{T, ReduceFeat}
+            ├─ aggrfunc = aggregate(...)
+            │    └─▶ MultidimDataset{T, AggregateFeat}
+            └─ aggrfunc = reducesize(...)
+                └─▶ MultidimDataset{T, ReduceFeat}
 ```
 
 ---

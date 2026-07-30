@@ -38,17 +38,17 @@ function build_test_df()
             missing,
         ],
         ts3      = [
-            [1.0, 1.2, 1.2, 2.6, NaN,     4.0, 4.2],
+            [1.0, 1.2, 1.2, 2.6, NaN, 4.0, 4.2],
             missing, missing, missing,
-            [3.0, NaN, 4.4, missing, 5.8,  7.0, 7.2],
+            [3.0, NaN, 4.4, missing, 5.8, 7.0, 7.2],
         ],
         V3       = [3.2, 4.2, 5.2, missing, 2.4],
         ts4      = [
-            [6.0, 5.2, missing, 4.4, 1.2,     3.6, 2.8],
+            [6.0, 5.2, missing, 4.4, 1.2, 3.6, 2.8],
             missing,
-            [5.0, 4.2, NaN,     3.4, missing,  2.6, 1.8],
-            [8.0, 7.2, missing, 6.4, NaN,      5.6, 4.8],
-            [9.0, NaN, 8.2,     missing, 7.4,  6.6, 5.8],
+            [5.0, 4.2, NaN, 3.4, missing, 2.6, 1.8],
+            [8.0, 7.2, missing, 6.4, NaN, 5.6, 4.8],
+            [9.0, NaN, 8.2, missing, 7.4, 6.6, 5.8],
         ],
         img1     = [create_image(i)      for i in 1:5],
         cat_col  = categorical(
@@ -149,10 +149,10 @@ end
     dt = load_dataset(
         DF, T_CLASSIF,
         TreatmentGroup(
-            dims     = 1,
-            aggrfunc = reducesize(
-                reducefunc = mean,
-                win        = (splitwindow(nwindows=3),),
+            dims=1,
+            aggrfunc=reducesize(
+                reducefunc=mean,
+                win=(splitwindow(nwindows=3),),
             ),
         ),
     )
@@ -168,10 +168,10 @@ end
     dt = load_dataset(
         DF, T_CLASSIF,
         TreatmentGroup(
-            dims     = 2,
-            aggrfunc = reducesize(
-                reducefunc = mean,
-                win        = (splitwindow(nwindows=2),),
+            dims=2,
+            aggrfunc=reducesize(
+                reducefunc=mean,
+                win=(splitwindow(nwindows=2),),
             ),
         ),
     )
@@ -199,14 +199,14 @@ end
     dt = load_dataset(
         DF, T_CLASSIF,
         TreatmentGroup(
-            dims     = 0,
-            impute   = (LOCF(), NOCB()),
-            datatype = :discrete,
+            dims=0,
+            impute=(LOCF(), NOCB()),
+            datatype=:discrete,
         ),
         TreatmentGroup(
-            dims     = 0,
-            impute   = (SVD(),),
-            datatype = :continuous,
+            dims=0,
+            impute=(SVD(),),
+            datatype=:continuous,
         ),
     )
     @test dt isa DataTreatment
@@ -220,9 +220,9 @@ end
     dt = load_dataset(
         DF, T_CLASSIF,
         TreatmentGroup(
-            dims     = 0,
-            impute   = (Interpolate(), LOCF(), NOCB()),
-            datatype = :continuous,
+            dims=0,
+            impute=(Interpolate(), LOCF(), NOCB()),
+            datatype=:continuous,
         ),
     )
     @test dt isa DataTreatment
@@ -250,12 +250,12 @@ end
     dt = load_dataset(
         DF, T_CLASSIF,
         TreatmentGroup(
-            dims     = 1,
-            aggrfunc = reducesize(
-                reducefunc = mean,
-                win        = (splitwindow(nwindows=3),),
+            dims=1,
+            aggrfunc=reducesize(
+                reducefunc=mean,
+                win=(splitwindow(nwindows=3),),
             ),
-            impute   = (DT.Substitute(statistic=mean),),
+            impute=(DT.Substitute(statistic=mean),),
         ),
     )
     @test dt isa DataTreatment
@@ -270,12 +270,12 @@ end
     dt = load_dataset(
         DF, T_CLASSIF,
         TreatmentGroup(
-            dims     = 2,
-            aggrfunc = reducesize(
-                reducefunc = mean,
-                win        = (splitwindow(nwindows=2),),
+            dims=2,
+            aggrfunc=reducesize(
+                reducefunc=mean,
+                win=(splitwindow(nwindows=2),),
             ),
-            impute   = (LOCF(), NOCB()),
+            impute=(LOCF(), NOCB()),
         ),
     )
     @test dt isa DataTreatment
@@ -290,9 +290,9 @@ end
     dt = load_dataset(
         DF, T_CLASSIF,
         TreatmentGroup(
-            dims     = 0,
-            datatype = :continuous,
-            norm     = DT.MinMax,
+            dims=0,
+            datatype=:continuous,
+            norm=DT.MinMax,
         ),
     )
     @test dt isa DataTreatment
@@ -308,12 +308,12 @@ end
     dt = load_dataset(
         DF, T_CLASSIF,
         TreatmentGroup(
-            dims     = 1,
-            aggrfunc = reducesize(
-                reducefunc = mean,
-                win        = (splitwindow(nwindows=2),),
+            dims=1,
+            aggrfunc=reducesize(
+                reducefunc=mean,
+                win=(splitwindow(nwindows=2),),
             ),
-            norm     = DT.MinMax,
+            norm=DT.MinMax,
         ),
     )
     @test dt isa DataTreatment
@@ -328,12 +328,12 @@ end
     dt = load_dataset(
         DF, T_CLASSIF,
         TreatmentGroup(
-            dims     = 2,
-            aggrfunc = reducesize(
-                reducefunc = mean,
-                win        = (splitwindow(nwindows=2),),
+            dims=2,
+            aggrfunc=reducesize(
+                reducefunc=mean,
+                win=(splitwindow(nwindows=2),),
             ),
-            norm     = DT.MinMax,
+            norm=DT.MinMax,
         ),
     )
     @test dt isa DataTreatment
@@ -348,12 +348,12 @@ end
     dt = load_dataset(
         DF, T_CLASSIF,
         TreatmentGroup(
-            dims     = 1,
-            aggrfunc = DT.aggregate(
-                features = (mean, maximum),
-                win      = (splitwindow(nwindows=2),),
+            dims=1,
+            aggrfunc=DT.aggregate(
+                features=(mean, maximum),
+                win=(splitwindow(nwindows=2),),
             ),
-            norm     = DT.MinMax,
+            norm=DT.MinMax,
         ),
     )
     @test dt isa DataTreatment
@@ -370,12 +370,12 @@ end
     dt = load_dataset(
         DF, T_CLASSIF,
         TreatmentGroup(
-            dims     = 2,
-            aggrfunc = DT.aggregate(
-                features = (mean, maximum),
-                win      = (splitwindow(nwindows=2),),
+            dims=2,
+            aggrfunc=DT.aggregate(
+                features=(mean, maximum),
+                win=(splitwindow(nwindows=2),),
             ),
-            norm     = DT.MinMax,
+            norm=DT.MinMax,
         ),
     )
     @test dt isa DataTreatment

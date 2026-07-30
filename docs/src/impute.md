@@ -16,11 +16,11 @@ used directly:
 
 | Imputor | Description |
 |:--------|:------------|
-| [`Interpolate`](https://invenia.github.io/Impute.jl/stable/api/#Impute.Interpolate) | Linear interpolation between valid values |
-| [`LOCF`](https://invenia.github.io/Impute.jl/stable/api/#Impute.LOCF) | Last Observation Carried Forward |
-| [`NOCB`](https://invenia.github.io/Impute.jl/stable/api/#Impute.NOCB) | Next Observation Carried Backward |
-| [`Substitute`](https://invenia.github.io/Impute.jl/stable/api/#Impute.Substitute) | Replace with a summary statistic (e.g. `mean`) |
-| [`SVD`](https://invenia.github.io/Impute.jl/stable/api/#Impute.SVD) | SVD-based matrix completion |
+| [`Interpolate`](https://invenia.github.io/Impute.jl/latest/api/imputation/#Interpolation) | Linear interpolation between valid values |
+| [`LOCF`](https://invenia.github.io/Impute.jl/latest/api/imputation/#Last-Observation-Carried-Forward-(LOCF)) | Last Observation Carried Forward |
+| [`NOCB`](https://invenia.github.io/Impute.jl/latest/api/imputation/#Next-Observation-Carried-Backward-(NOCB)) | Next Observation Carried Backward |
+| [`Substitute`](https://invenia.github.io/Impute.jl/latest/api/imputation/#Substitute) | Replace with a summary statistic (e.g. `mean`) |
+| [`SVD`](https://invenia.github.io/Impute.jl/latest/api/imputation/#SVD) | SVD-based matrix completion |
 
 Imputors can be chained in a tuple and are applied in order:
 

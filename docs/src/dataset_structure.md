@@ -37,12 +37,6 @@ DataTreatment{T}          # top-level container (load_dataset output)
 
 ---
 
-## Entry point: `load_dataset`
-
-```@docs
-load_dataset
-```
-
 ### Supported input sources
 
 | Dispatch | Input | Notes |

@@ -14,7 +14,7 @@ multidimensional columns (time series, spectrograms, images, etc.) during
 | **Dimensionality reduction** | [`reducesize`](@ref) | Matrix of reduced-size arrays — same structure, fewer points |
 
 Both strategies rely on [windowing functions](@ref windowing) to partition each
-element into sub-ranges, and on [`safe_feat`](@ref) to robustly apply feature
+element into sub-ranges, and to robustly apply feature
 or reduction functions in the presence of `missing` and `NaN` values.
 
 ---

@@ -22,6 +22,7 @@ makedocs(;
     pages=[
         "Home" => "index.md",
         "Dataset Structure" => "dataset_structure.md",
+        "Load Dataset" => "load_dataset.md",
         "DataTreatment" => "datatreatment.md",
         "Treatment Groups" => "treatment_group.md",
         "Treatments" => "treatment.md",
