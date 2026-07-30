@@ -22,7 +22,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: julia-actions/setup-julia@v3
         with:
-          version: '1'
+          version: '1.11'
       - name: Install dependencies
         run: |
           julia --project=docs/ -e '
@@ -33,5 +33,4 @@ jobs:
       - name: Build and deploy
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PYTHON: ""
         run: julia --project=docs/ docs/make.jl
