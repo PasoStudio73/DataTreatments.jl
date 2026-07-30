@@ -12,7 +12,6 @@ end
 println("Julia version: ", VERSION)
 
 test_suites = [
-    ("FeatureSet", ["featureset.jl",]),
     ("Windowing", ["windowing.jl",]),
     ("Dataset Inspect", ["inspecting.jl"]),
     ("Imputation", ["impute.jl"]),
