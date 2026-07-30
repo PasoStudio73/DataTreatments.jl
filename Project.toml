@@ -4,7 +4,6 @@ version = "0.5.2"
 authors = ["Michele Ghiotti", "Federico Manzella", "Riccardo Pasini"]
 
 [deps]
-Catch22 = "acdeb78f-3d39-4310-8fdf-6d75c17c6d5a"
 CategoricalArrays = "324d7699-5711-5eae-9e2f-1d82baa6b597"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 Imbalance = "c709b415-507b-45b7-9a3d-1767c89fde68"
@@ -20,7 +19,6 @@ StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 NormalizationExt = "Normalization"
 
 [compat]
-Catch22 = "0.7"
 CategoricalArrays = "1"
 DataFrames = "1"
 Imbalance = "0.2"

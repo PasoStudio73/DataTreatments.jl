@@ -5,7 +5,6 @@ using Reexport
 using CategoricalArrays
 using DataFrames
 using Random
-using Catch22
 
 using StatsBase: mad
 using Statistics: mean, median, std, cov
@@ -42,16 +41,6 @@ const Float = Union{Float32,Float64}
 # ---------------------------------------------------------------------------- #
 #                                 includes                                     #
 # ---------------------------------------------------------------------------- #
-# feature extraction via Catch22
-# export user friendly Catch22 nicknames
-export mode_5, mode_10, embedding_dist, acf_timescale, acf_first_min, ami2,
-    trev, outlier_timing_pos, outlier_timing_neg, whiten_timescale,
-    forecast_error, ami_timescale, high_fluctuation, stretch_decreasing,
-    stretch_high, entropy_pairs, rs_range, dfa, low_freq_power,
-    centroid_freq, transition_variance, periodicity,
-    base_set, catch9, catch22_set, complete_set
-include("featureset.jl")
-
 export movingwindow, wholewindow, splitwindow, adaptivewindow, @evalwindow
 include("windowing.jl")
 
