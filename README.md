@@ -10,8 +10,8 @@
 
 **DataTreatments.jl** is a data preparation tool for machine learning
 experiments. Its goal is to support the widest possible range of
-dataset types — from plain tabular data to mixed datasets containing
-images, audio, and multivariate time series — with minimal boilerplate.
+dataset types, from plain tabular data to mixed datasets containing
+images, audio, and multivariate time series, with minimal boilerplate.
 
 One of the most time-consuming and error-prone steps in any ML project
 is preparing the data. In particular:
@@ -28,22 +28,22 @@ is preparing the data. In particular:
 **DataTreatments.jl takes care of all of this:**
 
 - **Missing and NaN handling** via
-  [Impute.jl](https://github.com/invenia/Impute.jl) — not only at
+  [Impute.jl](https://github.com/invenia/Impute.jl), not only at
   the tabular level, but also *inside* multimedia elements (vectors,
   matrices).
 - **Class imbalance correction** via
-  [Imbalance.jl](https://github.com/JuliaAI/Imbalance.jl) —
+  [Imbalance.jl](https://github.com/JuliaAI/Imbalance.jl),
   supports multimedia datasets where elements may have different
   sizes.
-- **Windowing and dimensionality reduction** — when multimedia
+- **Windowing and dimensionality reduction**, when multimedia
   elements are too large, DataTreatments applies windowing to reduce
   their size. Data can be n-dimensional.
-- **Type-aware partitioning** — the dataset is split by data type
+- **Type-aware partitioning**, the dataset is split by data type
   (discrete tabular, continuous tabular, 1-D vectors, n-D matrices),
   and each partition is accessed safely through dedicated getters.
 - **Normalization** via
   [Normalization.jl](https://github.com/PasoStudio73/Normalization.jl).
-- **Multimedia-to-tabular conversion** — multimedia datasets can be
+- **Multimedia-to-tabular conversion**, multimedia datasets can be
   aggregated into flat feature matrices (via windowed feature
   extraction), making them compatible with traditional ML algorithms.
 
@@ -287,7 +287,7 @@ intervals = @evalwindow X splitwindow(nwindows=4) \
 
 ### Processing Modes
 
-#### `aggregate` — feature extraction → tabular output
+#### `aggregate`, feature extraction → tabular output
 
 Applies feature functions to each window and flattens the result
 into a scalar column. Use this when you want to feed time series
@@ -300,7 +300,7 @@ aggrfunc = DataTreatments.aggregate(
 )
 ```
 
-#### `reducesize` — dimensionality reduction → array output
+#### `reducesize`, dimensionality reduction → array output
 
 Shrinks each element while preserving its array structure. Use
 this for modal analysis or when downstream models expect
